@@ -10,7 +10,9 @@ the new design.
 | Action layer skeleton, never list in the database | Done |
 | Design system and screens: Today, Jobs, Job, Leagues, League, Crew, Settings | Done |
 | Google sign-in, roles, invites | Code done; Google provider waits on Josh |
-| Notion import: jobs and photo days | Done |
-| Notion import: leagues, contacts, staff, templates | In progress |
+| Notion import: jobs and photo days | Done: 235 jobs, 235 photo days |
+| Notion import: leagues | Done: 290 of 363 accounts (active, customers, former customers and spring leagues); 226 of 235 jobs linked to a league |
+| Notion import: crew and templates | Done: 41 active crew, 41 playbook steps |
+| Notion import: league contacts | Next |
 | Captura client ported server-side | Done (read-only); credentials wait on Josh |
 | Workspace grant | Waits on Josh (Nov 21) |
