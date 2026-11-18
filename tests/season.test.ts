@@ -8,7 +8,8 @@ describe("seasonForDate", () => {
     expect(seasonForDate("2027-06-01")).toBe("Summer 2027");
     expect(seasonForDate("2027-09-15")).toBe("Fall 2027");
     expect(seasonForDate("2027-01-10")).toBe("Winter 2027");
-    expect(seasonForDate("2026-12-05")).toBe("Winter 2026");
+    expect(seasonForDate("2026-12-05")).toBe("Winter 2027");
+    expect(seasonForDate("2026-02-28")).toBe("Winter 2026");
     expect(seasonForDate(null)).toBeNull();
   });
   it("sorts seasons in calendar order", () => {

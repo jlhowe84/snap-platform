@@ -72,4 +72,5 @@ from that text.
 
 Season is never stored. It is derived from a job's earliest photo day by
 `public.season_label()` and mirrored in `lib/season.ts`: December, January and
-February are Winter of that calendar year.
+February are one Winter, labeled by the January year (December 2026 is Winter
+2027).

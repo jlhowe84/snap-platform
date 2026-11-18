@@ -1,6 +1,6 @@
 // Mirrors public.season_label() in the database. Season is never stored: it is
 // derived from a job's earliest photo day. December, January and February are
-// Winter of that calendar year.
+// one Winter, labeled by the January year: Dec 2026 is "Winter 2027".
 export type SeasonName = "Winter" | "Spring" | "Summer" | "Fall";
 
 export function seasonName(month: number): SeasonName {
@@ -15,7 +15,9 @@ export function seasonForDate(isoDate: string | null | undefined): string | null
   if (!isoDate) return null;
   const m = /^(\d{4})-(\d{2})-\d{2}/.exec(isoDate);
   if (!m) return null;
-  return `${seasonName(Number(m[2]))} ${Number(m[1])}`;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  return `${seasonName(month)} ${month === 12 ? year + 1 : year}`;
 }
 
 const ORDER: Record<SeasonName, number> = { Winter: 0, Spring: 1, Summer: 2, Fall: 3 };
