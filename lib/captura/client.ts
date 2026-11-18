@@ -111,6 +111,8 @@ export function createCapturaClient(rawCreds: CapturaCredentials, fetchImpl: Fet
     return (await res.json()) as T;
   }
 
+  // Paging ranges are 1-based and inclusive (start=1&end=100). A start of 0
+  // makes Captura answer 500.
   return {
     listGalleries: (range?: { start?: number; end?: number }) => get("gallery", range),
     getGallery: (galleryId: string | number) => get(`gallery/${galleryId}`),

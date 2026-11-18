@@ -49,7 +49,7 @@ export async function testCapturaConnection(): Promise<CapturaTestState> {
     if (!creds) {
       result = { ok: false, message: "No Captura credentials are stored yet." };
     } else {
-      const page = await createCapturaClient(creds).listGalleries({ start: 0, end: 1 });
+      const page = await createCapturaClient(creds).listGalleries({ start: 1, end: 1 });
       const count = Array.isArray(page) ? page.length : Array.isArray((page as { data?: unknown[] })?.data) ? (page as { data: unknown[] }).data.length : null;
       await admin.from("integration_status").upsert({
         company_id: viewer.companyId,
