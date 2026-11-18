@@ -5,6 +5,8 @@ import { Card, Empty, PageHeader, Pill, StatusDot } from "@/components/ui";
 import { ROLE_LABEL } from "@/lib/labels";
 import { InviteForm } from "./invite-form";
 import { CapturaTest } from "./captura-test";
+import { CompanySettingsForm } from "./company-settings";
+import { EDITABLE_KEYS } from "@/lib/settings/editable";
 import Link from "next/link";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -115,9 +117,17 @@ export default async function SettingsPage() {
           </p>
         </Card>
 
-        <Card title="Company settings" className="xl:col-span-2">
+        <Card title="Planning numbers" className="xl:col-span-2">
+          <CompanySettingsForm
+            values={Object.fromEntries(
+              (settings ?? []).filter((s) => EDITABLE_KEYS.has(s.key)).map((s) => [s.key, typeof s.value === "number" ? s.value : null]),
+            )}
+          />
+        </Card>
+
+        <Card title="Other settings (read only)" className="xl:col-span-2">
           <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
-            {(settings ?? []).map((s) => (
+            {(settings ?? []).filter((s) => !EDITABLE_KEYS.has(s.key)).map((s) => (
               <div key={s.key} className="contents">
                 <dt className="font-mono text-muted">{s.key}</dt>
                 <dd className="font-mono">{JSON.stringify(s.value)}</dd>

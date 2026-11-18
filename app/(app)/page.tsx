@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { requireStaff } from "@/lib/auth";
+import { requireStaff, hasAnyRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill, Stat, StatusDot } from "@/components/ui";
 import { daysBetween, formatDate, formatTime, todayIn } from "@/lib/dates";
 import { seasonSortKey } from "@/lib/season";
 import { STATUS_LABEL, STATUS_TONE } from "@/lib/labels";
+import { setTaskStatus } from "./tasks/actions";
 
 export default async function TodayPage() {
   const viewer = await requireStaff();
@@ -20,6 +21,24 @@ export default async function TodayPage() {
       .order("start_time", { nullsFirst: false })
       .limit(12),
     supabase.from("job_overview").select("id, status, season, first_date"),
+  ]);
+
+  // My day: what is mine to do, what nobody has picked up, and what waits
+  // for a decision. RLS already limits each read to what this role may see.
+  const desk = hasAnyRole(viewer, ["owner", "admin", "office", "support"]);
+  const [{ data: myTasks }, { count: unassigned }, { count: waiting }] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select("id, title, due_on, job_id, jobs(name)")
+      .eq("assignee_id", viewer.id)
+      .in("status", ["todo", "in_progress", "waiting"])
+      .order("due_on", { nullsFirst: false })
+      .order("created_at")
+      .limit(12),
+    supabase.from("tasks").select("id", { count: "exact", head: true }).is("assignee_id", null).in("status", ["todo", "in_progress", "waiting"]),
+    desk
+      ? supabase.from("agent_actions").select("id", { count: "exact", head: true }).eq("status", "proposed")
+      : Promise.resolve({ count: 0 }),
   ]);
 
   const all = jobs ?? [];
@@ -42,6 +61,58 @@ export default async function TodayPage() {
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
+        <Card
+          title={`My tasks (${myTasks?.length ?? 0})`}
+          className="xl:col-span-2"
+          action={<Link href="/tasks" className="text-sm text-accent hover:underline">All tasks</Link>}
+        >
+          {myTasks?.length ? (
+            <ul className="divide-y divide-line">
+              {myTasks.map((t) => {
+                const late = !!t.due_on && t.due_on < today;
+                const job = t.jobs as { name: string } | null;
+                return (
+                  <li key={t.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-medium">{t.title}</p>
+                      {t.job_id && job && (
+                        <Link href={`/jobs/${t.job_id}`} className="text-muted hover:text-accent">{job.name}</Link>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {t.due_on && <Pill tone={late ? "risk" : "muted"}>{late ? "Was due" : "Due"} {formatDate(t.due_on)}</Pill>}
+                      <form action={setTaskStatus.bind(null, t.id, "done")}>
+                        <button className="rounded-lg border border-line px-2.5 py-1 hover:border-accent hover:text-accent">Done</button>
+                      </form>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <Empty>Nothing assigned to you right now.</Empty>
+          )}
+        </Card>
+
+        <Card title="Needs someone">
+          <ul className="space-y-2 text-sm">
+            {desk && (
+              <li>
+                <Link href="/queue" className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-surface-2">
+                  <span>Drafts waiting for a decision</span>
+                  <Pill tone={waiting ? "warn" : "muted"}>{waiting ?? 0}</Pill>
+                </Link>
+              </li>
+            )}
+            <li>
+              <Link href="/tasks?view=unassigned" className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-surface-2">
+                <span>Tasks nobody has picked up</span>
+                <Pill tone={unassigned ? "warn" : "muted"}>{unassigned ?? 0}</Pill>
+              </Link>
+            </li>
+          </ul>
+        </Card>
+
         <Card title="Next photo days" className="xl:col-span-2">
           {upcoming && upcoming.length > 0 ? (
             <ul className="divide-y divide-line">
