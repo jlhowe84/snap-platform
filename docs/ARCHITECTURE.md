@@ -184,5 +184,15 @@ sees; the office uses the same pages ("View as staff").
   `chase.deadline_days` before it (10), matching the agreement. The portal
   reads both through `planning_due()`.
 
-Not built yet: reading a roster into teams (the roster worker), drag to swap,
-a print layout, and automatic TC numbers.
+- **Roster reader** (`lib/rosters/read.ts`, `lib/rosters/process.ts`). A CSV
+  or .xlsx upload is read into teams (name, division, coach, head count)
+  right after it lands, and the office can run it again. It writes team rows
+  and a `roster_versions` row with what a person should check (`questions`);
+  it stores no child's name. It fills what is empty and refreshes counts on
+  roster teams, and never overwrites what a person typed. PDFs, photos and
+  .xls files get a version row saying a person needs to read them. A clean
+  read stays `processing`: `ready` is kept for a version that has its
+  standardized Captura file, which comes with the agent worker.
+
+Not built yet: reading PDFs and photos, the standardized Captura file, drag
+to swap, a print layout, and automatic TC numbers.

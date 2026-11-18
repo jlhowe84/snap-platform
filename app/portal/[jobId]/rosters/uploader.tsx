@@ -45,7 +45,7 @@ export function RosterUploader({ jobId }: { jobId: string }) {
           continue;
         }
         const done = await finishRosterUpload(jobId, start.path, file.name);
-        mark(i, done.ok ? { state: "done" } : { state: "failed", message: done.message });
+        mark(i, done.ok ? { state: "done", message: done.message } : { state: "failed", message: done.message });
       } catch {
         mark(i, { state: "failed", message: "The upload was interrupted. Try again." });
       }
@@ -94,7 +94,7 @@ export function RosterUploader({ jobId }: { jobId: string }) {
             <li key={i} className="flex justify-between gap-3">
               <span className="truncate">{r.name}</span>
               <span className={r.state === "failed" ? "text-risk" : r.state === "done" ? "text-ok" : "text-muted"}>
-                {r.state === "sending" ? "Uploading…" : r.state === "done" ? "Received" : r.message}
+                {r.state === "sending" ? "Uploading…" : r.state === "done" ? (r.message ?? "Received") : r.message}
               </span>
             </li>
           ))}

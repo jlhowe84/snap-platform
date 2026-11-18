@@ -61,11 +61,14 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     supabase.from("photo_day_readiness").select("*").eq("job_id", id).order("date"),
     supabase.from("clock_log").select("id, kind, outcome, run_on").eq("job_id", id).like("kind", "chase.%").order("created_at"),
   ]);
-  const [{ data: planningForm }, { data: rosterFiles }, { count: teamCount }] = await Promise.all([
+  const [{ data: planningForm }, { data: rosterFiles }, { count: teamCount }, { data: rosterVersions }] = await Promise.all([
     supabase.from("planning_forms").select("answers, submitted_at").eq("job_id", id).maybeSingle(),
     supabase.from("roster_files").select("id, file_name, mime_type, size_bytes, source, uploaded_at").eq("job_id", id).order("uploaded_at", { ascending: false }),
     supabase.from("teams").select("id", { count: "exact", head: true }).eq("job_id", id),
+    supabase.from("roster_versions").select("file_ids, status, team_count, questions, version").eq("job_id", id).order("version", { ascending: false }),
   ]);
+  const rosterRead = new Map<string, NonNullable<typeof rosterVersions>[number]>();
+  for (const v of rosterVersions ?? []) for (const fid of v.file_ids) if (!rosterRead.has(fid)) rosterRead.set(fid, v);
   const planningRows = answerRows(readAnswers(planningForm?.answers));
   const emailContacts = (contacts ?? [])
     .map((c) => c.contacts as { id: string; full_name: string; email: string | null } | null)
@@ -181,14 +184,28 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             </h3>
             {rosterFiles?.length ? (
               <ul className="divide-y divide-line text-sm">
-                {rosterFiles.map((f) => (
-                  <li key={f.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
-                    <a href={`/portal/${id}/rosters/${f.id}`} className="font-medium text-accent hover:underline">{f.file_name}</a>
-                    <span className="text-muted">
-                      {ROSTER_TYPES[f.mime_type] ?? "File"} · {formatBytes(f.size_bytes)} · {formatDate(f.uploaded_at.slice(0, 10))} · {f.source}
-                    </span>
-                  </li>
-                ))}
+                {rosterFiles.map((f) => {
+                  const read = rosterRead.get(f.id);
+                  const questions = Array.isArray(read?.questions) ? (read.questions as unknown[]).filter((q): q is string => typeof q === "string") : [];
+                  return (
+                    <li key={f.id} className="py-2">
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <a href={`/portal/${id}/rosters/${f.id}`} className="font-medium text-accent hover:underline">{f.file_name}</a>
+                        <span className="text-muted">
+                          {ROSTER_TYPES[f.mime_type] ?? "File"} · {formatBytes(f.size_bytes)} · {formatDate(f.uploaded_at.slice(0, 10))} · {f.source}
+                          {read ? ` · ${read.team_count ?? 0} teams read` : " · not read"}
+                        </span>
+                      </div>
+                      {questions.length > 0 && (
+                        <ul className="mt-1 list-disc pl-5 text-xs text-warn">
+                          {questions.map((q, i) => (
+                            <li key={i}>{q}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="text-sm text-muted">None received.</p>

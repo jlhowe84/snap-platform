@@ -93,7 +93,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
 
       <Card title={`Teams (${teams?.length ?? 0})`} className="mb-6">
         <p className="mb-3 text-sm text-muted">
-          List every team or group that will be photographed. Teams from your roster appear here once we have read it.
+          List every team or group that will be photographed. Teams from a spreadsheet roster are added here when you upload it; check them and add any that are missing.
         </p>
         {teams?.length ? (
           <ul className="divide-y divide-line">

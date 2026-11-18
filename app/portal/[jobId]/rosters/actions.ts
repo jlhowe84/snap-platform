@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { portalJob } from "@/lib/portal/job";
+import { processRosterFile } from "@/lib/rosters/process";
 import { removeRosterObject, rosterObject, rosterPrefix, rosterUploadLink } from "@/lib/rosters/files";
 import { ROSTER_MAX_BYTES, rosterMime } from "@/lib/rosters/types";
 
@@ -39,7 +40,7 @@ export async function finishRosterUpload(jobId: string, path: string, name: stri
   const object = await rosterObject(path);
   if (!object) return { ok: false, message: "The file did not arrive. Try again." };
 
-  const { error } = await ctx.supabase.from("roster_files").insert({
+  const { data: row, error } = await ctx.supabase.from("roster_files").insert({
     company_id: ctx.job.company_id,
     job_id: jobId,
     storage_path: path,
@@ -48,12 +49,39 @@ export async function finishRosterUpload(jobId: string, path: string, name: stri
     size_bytes: object.size,
     source: ctx.viewer.staff ? "office" : "portal",
     uploaded_by: ctx.viewer.id,
-  });
-  if (error) {
+  }).select("id").single();
+  if (error || !row) {
     await removeRosterObject(path);
     return { ok: false, message: "The file could not be saved. Try again." };
   }
+  // Read it into teams right away. The upload stands even if the read fails;
+  // the office can run it again from this page.
+  let message = "Received.";
+  try {
+    const read = await processRosterFile(row.id);
+    if (read.teams) message = `Received. ${read.teams} ${read.teams === 1 ? "team" : "teams"} found.`;
+  } catch {
+    // Left for the office.
+  }
   revalidatePath(`/portal/${jobId}`);
   revalidatePath(`/portal/${jobId}/rosters`);
-  return { ok: true, message: "Received." };
+  revalidatePath(`/portal/${jobId}/schedule`);
+  return { ok: true, message };
+}
+
+/** Office: read a file into teams again (after a fix, or for an older upload). */
+export async function readRosterAgain(jobId: string, fileId: string) {
+  const ctx = await portalJob(jobId);
+  if (!ctx?.office) return;
+  // The read below runs as the signed-in person, so RLS confirms the file is theirs to see.
+  const { data: file } = await ctx.supabase.from("roster_files").select("id").eq("id", fileId).eq("job_id", jobId).maybeSingle();
+  if (!file) return;
+  try {
+    await processRosterFile(file.id);
+  } catch {
+    // The page shows the last recorded read.
+  }
+  revalidatePath(`/portal/${jobId}/rosters`);
+  revalidatePath(`/portal/${jobId}/schedule`);
+  revalidatePath(`/jobs/${jobId}`);
 }
