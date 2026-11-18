@@ -427,6 +427,61 @@ select t.count_is($$select count(*) from public.season_offers where season = 'Sp
 select t.count_is($$select count(*) from public.touchpoints where actor_kind = 'contact' and channel = 'portal'$$, 1, 'signing is logged as a touchpoint');
 select t.count_is($$select count(*) from public.agent_events where kind = 'agreement.signed' and job_id = '40000000-0000-0000-0000-0000000000a2'$$, 1, 'signing wakes the agent');
 
+-- ---------------------------------------------------------------------------
+-- Wave A: season board and holds
+-- ---------------------------------------------------------------------------
+reset role;
+insert into public.organizations (id, company_id, name) values
+  ('20000000-0000-0000-0000-0000000000a2', 'a0000000-0000-0000-0000-00000000000a', 'League A2');
+insert into public.jobs (id, company_id, org_id, name, expected_subjects, expected_teams) values
+  ('40000000-0000-0000-0000-0000000000a3', 'a0000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-0000000000a2', 'Job A3', 300, 24);
+insert into public.photo_days (company_id, job_id, date, start_time, location_name) values
+  ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a3', '2027-05-01', '09:00', 'Field A3');
+
+select t.login('support');
+select t.fails($$select public.build_season_board('Spring 2028')$$, 'support cannot build the season board');
+select t.login('coord');
+select t.fails($$select public.build_season_board('Spring 2028')$$, 'a coordinator cannot build the season board');
+
+select t.login('office');
+select t.fails($$select public.build_season_board('Spring 28')$$, 'the season must read like Spring 2028');
+select t.count_is($$select public.build_season_board('Spring 2028')$$, 2, 'the board gets an offer for each league that ran last spring');
+select t.count_is($$select public.build_season_board('Spring 2028')$$, 0, 'building again adds nothing new');
+select t.count_is($$select count(*) from public.season_offers where season = 'Spring 2028' and org_id = '20000000-0000-0000-0000-0000000000a2' and priority_rank = 1 and tier = 'top'$$, 1, 'the bigger league ranks first and is top tier');
+select t.count_is($$select count(*) from public.season_offers where season = 'Spring 2028' and org_id = '20000000-0000-0000-0000-0000000000a1' and priority_rank = 2 and tier = 'other'$$, 1, 'the smaller league ranks second');
+
+select t.works($$select public.hold_date((select id from public.season_offers where season = 'Spring 2028' and org_id = '20000000-0000-0000-0000-0000000000a2'), '2028-04-15', 2::smallint)$$, 'office holds last year''s weekend for the top league');
+select t.count_is($$select count(*) from public.jobs j join public.photo_days pd on pd.job_id = j.id
+  where j.name = 'League A2 Spring 2028' and j.status = 'held' and j.expected_subjects = 300
+    and pd.date = '2028-04-15' and pd.location_name = 'Field A3' and pd.start_time = '09:00'$$, 1, 'the held job and photo day copy last season''s details');
+select t.count_is($$select count(*) from public.date_holds h join public.jobs j on j.id = h.job_id
+  where j.name = 'League A2 Spring 2028' and h.status = 'held' and h.expires_on = current_date + 21$$, 1, 'a top-tier hold lasts 21 days');
+select t.count_is($$select count(*) from public.season_offers where season = 'Spring 2028' and stage = 'held' and offered_at is not null$$, 1, 'the offer moves to held');
+select t.fails($$select public.hold_date((select id from public.season_offers where season = 'Spring 2028' and org_id = '20000000-0000-0000-0000-0000000000a2'), '2028-04-22')$$, 'a league cannot hold two dates in one season');
+select t.fails($$select public.hold_date((select id from public.season_offers where season = 'Spring 2028' and org_id = '20000000-0000-0000-0000-0000000000a1'), '2028-09-02')$$, 'a hold must fall in the offer''s season');
+select t.fails($$select public.hold_date((select id from public.season_offers where season = 'Spring 2028' and org_id = '20000000-0000-0000-0000-0000000000a1'), '2028-04-15', 9::smallint)$$, 'a date with no stations left is refused');
+select t.fails($$select public.hold_date((select id from public.season_offers where season = 'Spring 2028' and org_id = '20000000-0000-0000-0000-0000000000a1'), '2028-04-15', 9::smallint, true)$$, 'the office cannot overbook a date');
+select t.works($$select public.hold_date((select id from public.season_offers where season = 'Spring 2028' and org_id = '20000000-0000-0000-0000-0000000000a1'), '2028-04-15', 2::smallint)$$, 'a second league shares the date while stations remain');
+select t.count_is($$select stations_used from public.date_capacity where date = '2028-04-15'$$, 4, 'capacity shows both holds');
+select t.count_is($$select count(*) from public.date_holds h join public.jobs j on j.id = h.job_id
+  where j.name = 'League A1 Spring 2028' and h.expires_on = current_date + 14$$, 1, 'an other-tier hold lasts 14 days');
+select t.count_is($$select count(*) from public.job_contacts jc join public.jobs j on j.id = jc.job_id where j.name = 'League A1 Spring 2028'$$, 1, 'the league''s contact carries over to the held job');
+select t.fails($$select public.extend_hold((select h.id from public.date_holds h join public.jobs j on j.id = h.job_id where j.name = 'League A1 Spring 2028'))$$, 'the office cannot extend a hold');
+
+select t.login('admin');
+select t.count_is($$select (public.extend_hold((select h.id from public.date_holds h join public.jobs j on j.id = h.job_id where j.name = 'League A1 Spring 2028'), 7) - current_date)$$, 21, 'an admin extends a hold by a week');
+
+select t.login('support');
+select t.fails($$select public.release_hold((select h.id from public.date_holds h join public.jobs j on j.id = h.job_id where j.name = 'League A1 Spring 2028'))$$, 'support cannot release a hold');
+
+select t.login('office');
+select t.fails($$select public.release_hold((select h.id from public.date_holds h join public.jobs j on j.id = h.job_id where j.name = 'League A1 Spring 2028'), 'x', 'confirmed')$$, 'a release cannot mark the offer confirmed');
+select t.works($$select public.release_hold((select h.id from public.date_holds h join public.jobs j on j.id = h.job_id where j.name = 'League A1 Spring 2028'), 'Two touches, no reply', 'no_reply')$$, 'office releases a hold after no reply');
+select t.count_is($$select count(*) from public.jobs where name = 'League A1 Spring 2028' and status = 'released'$$, 1, 'the released job is marked released');
+select t.count_is($$select count(*) from public.season_offers where season = 'Spring 2028' and org_id = '20000000-0000-0000-0000-0000000000a1' and stage = 'no_reply'$$, 1, 'the offer records no reply');
+select t.count_is($$select stations_used from public.date_capacity where date = '2028-04-15'$$, 2, 'the released stations are free again');
+select t.count_is($$select count(*) from public.touchpoints where summary like 'Hold released: Two touches%'$$, 1, 'the release is on the league timeline');
+
 select t.login('owner');   -- the never-list checks below run as the owner
 
 -- ---------------------------------------------------------------------------

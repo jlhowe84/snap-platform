@@ -3,8 +3,12 @@ import { notFound } from "next/navigation";
 import { requireStaff, OFFICE_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill, StatusDot } from "@/components/ui";
-import { formatRange } from "@/lib/dates";
-import { STATUS_LABEL, STATUS_TONE } from "@/lib/labels";
+import { formatDate, formatRange } from "@/lib/dates";
+import { OFFER_STAGE_LABEL, STATUS_LABEL, STATUS_TONE } from "@/lib/labels";
+
+const CHANNEL_LABEL: Record<string, string> = {
+  email: "email", call: "call", text: "text", portal: "portal", meeting: "meeting", note: "note",
+};
 
 export default async function LeaguePage({ params }: PageProps<"/leagues/[id]">) {
   await requireStaff([...OFFICE_ROLES, "support"]);
@@ -14,7 +18,7 @@ export default async function LeaguePage({ params }: PageProps<"/leagues/[id]">)
   const { data: org } = await supabase.from("organizations").select("*").eq("id", id).maybeSingle();
   if (!org) notFound();
 
-  const [{ data: jobs }, { data: people }] = await Promise.all([
+  const [{ data: jobs }, { data: people }, { data: offers }, { data: timeline }] = await Promise.all([
     supabase
       .from("job_overview")
       .select("id, name, season, first_date, last_date, status")
@@ -26,6 +30,18 @@ export default async function LeaguePage({ params }: PageProps<"/leagues/[id]">)
       .eq("org_id", id)
       .is("ended_on", null)
       .order("is_primary", { ascending: false }),
+    supabase
+      .from("season_offers")
+      .select("id, season, stage, tier, priority_rank")
+      .eq("org_id", id)
+      .order("created_at", { ascending: false })
+      .limit(6),
+    supabase
+      .from("touchpoints")
+      .select("id, channel, direction, summary, actor_kind, occurred_at, profiles(full_name), contacts(full_name)")
+      .eq("org_id", id)
+      .order("occurred_at", { ascending: false })
+      .limit(25),
   ]);
 
   return (
@@ -34,7 +50,8 @@ export default async function LeaguePage({ params }: PageProps<"/leagues/[id]">)
         {!org.active && <Pill tone="warn">Inactive</Pill>}
       </PageHeader>
       <div className="grid gap-6 xl:grid-cols-3">
-        <Card title={`Jobs (${jobs?.length ?? 0})`} className="xl:col-span-2">
+        <div className="space-y-6 xl:col-span-2">
+        <Card title={`Jobs (${jobs?.length ?? 0})`}>
           {jobs?.length ? (
             <ul className="divide-y divide-line">
               {jobs.map((j) => (
@@ -56,6 +73,34 @@ export default async function LeaguePage({ params }: PageProps<"/leagues/[id]">)
             <Empty>No jobs linked to this league yet.</Empty>
           )}
         </Card>
+        <Card title="Timeline">
+          {timeline?.length ? (
+            <ol className="space-y-3 text-sm">
+              {timeline.map((t) => {
+                const who =
+                  t.actor_kind === "system"
+                    ? "Platform"
+                    : t.actor_kind === "agent"
+                      ? "SNAP agent"
+                      : t.actor_kind === "contact"
+                        ? ((t.contacts as { full_name: string } | null)?.full_name ?? "League contact")
+                        : ((t.profiles as { full_name: string | null } | null)?.full_name ?? "Staff");
+                return (
+                  <li key={t.id} className="flex gap-3">
+                    <span className="w-24 shrink-0 text-xs text-muted">{formatDate(t.occurred_at.slice(0, 10))}</span>
+                    <span>
+                      {t.summary}
+                      <span className="text-xs text-muted"> · {who}, {CHANNEL_LABEL[t.channel] ?? t.channel}</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          ) : (
+            <Empty>Nothing logged yet. Holds, signatures, calls and emails show here.</Empty>
+          )}
+        </Card>
+        </div>
         <div className="space-y-6">
           <Card title="About">
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
@@ -80,6 +125,25 @@ export default async function LeaguePage({ params }: PageProps<"/leagues/[id]">)
                 </>
               )}
             </dl>
+          </Card>
+          <Card title="Season offers">
+            {offers?.length ? (
+              <ul className="space-y-2 text-sm">
+                {offers.map((o) => (
+                  <li key={o.id} className="flex items-center justify-between gap-2">
+                    <Link href={`/season?season=${encodeURIComponent(o.season)}`} className="hover:text-accent">
+                      {o.season}
+                    </Link>
+                    <span className="flex items-center gap-2">
+                      {o.tier === "top" && <Pill tone="accent">Top tier</Pill>}
+                      <Pill>{OFFER_STAGE_LABEL[o.stage]}</Pill>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Empty>Not on a season board yet.</Empty>
+            )}
           </Card>
           <Card title="People">
             {people?.length ? (

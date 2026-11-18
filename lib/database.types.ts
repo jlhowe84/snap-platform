@@ -2725,6 +2725,20 @@ export type Database = {
         Args: { p_company: string; p_key: string }
         Returns: boolean
       }
+      build_season_board: { Args: { p_season: string }; Returns: number }
+      extend_hold: {
+        Args: { p_days?: number; p_hold_id: string }
+        Returns: string
+      }
+      hold_date: {
+        Args: {
+          p_date: string
+          p_offer_id: string
+          p_override?: boolean
+          p_stations?: number
+        }
+        Returns: string
+      }
       integration_secret: {
         Args: { p_company: string; p_integration: string }
         Returns: string
@@ -2743,6 +2757,14 @@ export type Database = {
           link_id: string
           profile_id: string
         }[]
+      }
+      release_hold: {
+        Args: {
+          p_hold_id: string
+          p_offer_stage?: Database["public"]["Enums"]["offer_stage"]
+          p_reason?: string
+        }
+        Returns: undefined
       }
       schedule_problems: {
         Args: { p_schedule_id: string }

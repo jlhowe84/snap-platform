@@ -10,6 +10,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const nav = [
     { href: "/", label: "Today", show: true },
     { href: "/jobs", label: "Jobs", show: true },
+    { href: "/season", label: "Season", show: office || viewer.roles.includes("support") },
     { href: "/leagues", label: "Leagues", show: office || viewer.roles.includes("support") },
     { href: "/crew", label: "Crew", show: office },
     { href: "/settings", label: "Settings", show: admin },
