@@ -212,7 +212,8 @@ a print layout, and automatic TC numbers.
 - Every question is one row in `agent_runs`. `ask_snap_begin()` opens it and
   enforces the cap before anything is sent: `agent.daily_budget_usd` (editable
   in Settings, 0 turns Ask SNAP off) and `agent.monthly_budget_usd` when set.
-  `ask_snap_finish()` records tokens and cost. A question also stops when it
+  `ask_snap_finish()` records tokens and cost. Owner and admin see the last
+  30 questions on `/ask` (RLS on `agent_runs`). A question also stops when it
   uses up what is left of the day, or after six model calls.
 - A new company has no `agent.daily_budget_usd` row, so Ask SNAP is off until
   an admin saves a cap in Settings.

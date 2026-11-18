@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { ask } from "./actions";
 
@@ -30,6 +31,7 @@ export function AskBox({ examples, disabled }: { examples: string[]; disabled: b
   const [text, setText] = useState("");
   const [pending, start] = useTransition();
   const end = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     end.current?.scrollIntoView({ block: "nearest" });
@@ -55,6 +57,7 @@ export function AskBox({ examples, disabled }: { examples: string[]; disabled: b
             : turn,
         ),
       );
+      router.refresh(); // the day's total and the recent questions list
     });
   }
 
