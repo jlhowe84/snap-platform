@@ -179,14 +179,14 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
           </p>
 
           {office && (
-            <form action={saveSetup.bind(null, jobId, day.id, schedule.id)} className="mb-4 flex flex-wrap items-end gap-2 rounded-lg bg-surface-2 p-3 text-sm">
+            <form action={saveSetup.bind(null, jobId, day.id, schedule.id)} className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg bg-surface-2 p-3 text-sm">
               <span className="text-xs uppercase tracking-wider text-muted">Office</span>
-              <label>
-                Stations{" "}
+              <label className="flex items-center gap-2">
+                Stations
                 <input name="stations" type="number" min={1} max={20} defaultValue={stations} className={cx(input, "w-16")} />
               </label>
-              <label>
-                Block{" "}
+              <label className="flex items-center gap-2">
+                Block
                 <select name="default_block_minutes" defaultValue={schedule.default_block_minutes} className={input}>
                   {MINUTES.map((m) => <option key={m} value={m}>{m} min</option>)}
                 </select>
