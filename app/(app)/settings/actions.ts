@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStaff, ADMIN_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { chaseOrderProblem, EDITABLE_KEYS } from "@/lib/settings/editable";
 
 const InviteSchema = z.object({
   email: z.email().transform((e) => e.trim().toLowerCase()),
@@ -127,4 +128,30 @@ export async function testGmailConnection(): Promise<GmailTestState> {
   }
   revalidatePath("/settings");
   return result;
+}
+
+export type SettingsState = { ok: boolean; message: string } | null;
+
+// Owner and admin change the numbers the platform plans by. Only the keys in
+// lib/settings/editable.ts are accepted, each inside its own range; the row is
+// written as the signed-in person, so RLS has the last word.
+export async function saveCompanySettings(_prev: SettingsState, form: FormData): Promise<SettingsState> {
+  const viewer = await requireStaff(ADMIN_ROLES);
+  if (!viewer.companyId) return { ok: false, message: "No company on this account." };
+  const values: Record<string, number> = {};
+  for (const [key, spec] of EDITABLE_KEYS) {
+    const n = z.coerce.number().int().min(spec.min).max(spec.max).safeParse(form.get(key));
+    if (!n.success) return { ok: false, message: `${spec.label} must be a whole number from ${spec.min} to ${spec.max}.` };
+    values[key] = n.data;
+  }
+  const problem = chaseOrderProblem(values);
+  if (problem) return { ok: false, message: problem };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("settings")
+    .upsert(Object.entries(values).map(([key, value]) => ({ company_id: viewer.companyId!, key, value })), { onConflict: "company_id,key" });
+  if (error) return { ok: false, message: "The settings could not be saved." };
+  revalidatePath("/settings");
+  return { ok: true, message: "Saved." };
 }
