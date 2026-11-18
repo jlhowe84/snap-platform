@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { portalJob } from "@/lib/portal/job";
-import { placeRemaining, type Slot } from "@/lib/schedule/layout";
+import { makeRoom, placeRemaining, type Slot } from "@/lib/schedule/layout";
 import type { Notice } from "@/lib/schedule/notices";
 
 // Every write here runs as the signed-in person, so the database decides:
@@ -95,6 +95,23 @@ export async function addSlot(jobId: string, dayId: string, scheduleId: string, 
   const ctx = await open(jobId, dayId);
   const s = SlotInput.safeParse(fields(form));
   if (!s.success || (kind === "team" && !s.data.team_id)) back(jobId, dayId, "Pick a team, a station, a start time and a length.");
+  // A break pushes what follows it on that station later, so nobody has to
+  // retime every team by hand. Moves run last slot first, so two slots never
+  // sit on the same time on the way.
+  if (kind === "break") {
+    const { data: existing } = await ctx.supabase
+      .from("schedule_slots")
+      .select("id, station, starts_at, minutes, kind, team_id, label")
+      .eq("schedule_id", scheduleId)
+      .eq("job_id", jobId)
+      .eq("station", s.data.station);
+    const moves = makeRoom((existing ?? []) as Slot[], s.data.station, s.data.starts_at, s.data.minutes);
+    if (!moves) back(jobId, dayId, "That break would push the last team past the end of the day.");
+    for (const m of [...moves].reverse()) {
+      const { error: moved } = await ctx.supabase.from("schedule_slots").update({ starts_at: m.starts_at }).eq("id", m.id).eq("job_id", jobId);
+      if (moved) back(jobId, dayId, "The teams after the break could not be moved. Check the times and try again.");
+    }
+  }
   const { error } = await ctx.supabase.from("schedule_slots").insert({
     company_id: ctx.job.company_id,
     job_id: jobId,

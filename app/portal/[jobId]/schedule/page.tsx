@@ -273,6 +273,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                   {MINUTES.map((m) => <option key={m} value={m}>{m} min</option>)}
                 </select>
                 <button className={quiet}>Add break</button>
+                <span className="text-xs text-muted">Teams after the break on that station move later to make room.</span>
               </form>
             </div>
           )}

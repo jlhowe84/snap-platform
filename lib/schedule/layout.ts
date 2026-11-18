@@ -62,6 +62,30 @@ export function placeRemaining(
   return added;
 }
 
+/**
+ * Makes room on one station for a new slot (a break) at `start`. Every slot
+ * on that station that starts at or after it and would now overlap moves
+ * later, just far enough, and pushes the ones behind it the same way. A gap
+ * in the schedule absorbs the push, so later slots only move if they must.
+ * Returns the moves, or null when one would run past the end of the day.
+ */
+export function makeRoom(slots: Slot[], station: number, start: string, minutes: number): { id: string; starts_at: string }[] | null {
+  const from = toMinutes(start);
+  let cursor = from + minutes;
+  const moves: { id: string; starts_at: string }[] = [];
+  const after = slots
+    .filter((s) => s.station === station && toMinutes(s.starts_at) >= from)
+    .sort((a, b) => toMinutes(a.starts_at) - toMinutes(b.starts_at));
+  for (const s of after) {
+    const at = toMinutes(s.starts_at);
+    if (at >= cursor) break;
+    if (cursor + s.minutes > 24 * 60 || !s.id) return null;
+    moves.push({ id: s.id, starts_at: toClock(cursor) });
+    cursor += s.minutes;
+  }
+  return moves;
+}
+
 const cell = (v: string | number | null | undefined) => {
   const s = v === null || v === undefined ? "" : String(v);
   // A leading =, +, - or @ would run as a formula in a spreadsheet.

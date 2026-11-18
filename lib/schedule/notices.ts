@@ -8,6 +8,7 @@ export const NOTICES = [
   "Pick a team, a station, a start time and a length.",
   "Stations are 1 to 20 and blocks are 5 to 60 minutes.",
   "Submitted. Thank you.",
+  "That break would push the last team past the end of the day.",
   "That schedule was not found.",
   "That slot could not be added.",
   "That slot could not be changed.",
@@ -20,6 +21,7 @@ export const NOTICES = [
   "The setup could not be saved.",
   "The team could not be added.",
   "The team could not be saved.",
+  "The teams after the break could not be moved. Check the times and try again.",
   "The teams could not be placed.",
 ] as const;
 
