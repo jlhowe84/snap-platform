@@ -198,3 +198,22 @@ sees; the office uses the same pages ("View as staff").
 
 Not built yet: reading a roster into teams (the roster worker), drag to swap,
 a print layout, and automatic TC numbers.
+
+## Ask SNAP
+
+`/ask` lets office and support staff ask a question about the business.
+
+- `lib/ask/run.ts` calls the Claude API (key in `ANTHROPIC_API_KEY`, Vercel
+  only). The model is the `agent.model` setting and must have a price in
+  `lib/ask/pricing.ts`, or the question is refused.
+- The model can only call the lookups in `lib/ask/tools.ts`. Each one is a
+  read through the asker's own Supabase client, so RLS decides what it sees.
+  There are no write tools. Text in records is treated as data.
+- Every question is one row in `agent_runs`. `ask_snap_begin()` opens it and
+  enforces the cap before anything is sent: `agent.daily_budget_usd` (editable
+  in Settings, 0 turns Ask SNAP off) and `agent.monthly_budget_usd` when set.
+  `ask_snap_finish()` records tokens and cost. Owner and admin see the last
+  30 questions on `/ask` (RLS on `agent_runs`). A question also stops when it
+  uses up what is left of the day, or after six model calls.
+- A new company has no `agent.daily_budget_usd` row, so Ask SNAP is off until
+  an admin saves a cap in Settings.
