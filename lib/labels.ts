@@ -60,3 +60,12 @@ export const DELIVERY_LABEL: Record<Enums["delivery_method"], string> = {
   league_delivery: "League delivery",
   mailer: "Mailer",
 };
+
+export const OFFER_STAGE_LABEL: Record<Enums["offer_stage"], string> = {
+  not_offered: "To offer",
+  offered: "Offered",
+  held: "Held",
+  confirmed: "Confirmed",
+  declined: "Declined",
+  no_reply: "No reply",
+};
