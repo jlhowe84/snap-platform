@@ -9,6 +9,19 @@ import { DELIVERY_LABEL, STAGES, STAGE_LABEL, STATUS_LABEL, STATUS_TONE } from "
 import { PortalLinkForm } from "./portal-link-form";
 import { revokePortalLink } from "./portal-actions";
 
+const READY: Record<string, string> = {
+  not_sent: "not sent", sent: "sent", submitted: "submitted",
+  not_received: "not received", received: "received", standardized: "standardized", uploaded: "in Captura",
+  not_started: "not started", link_sent: "link sent", started: "started", complete: "complete",
+};
+const CHASE: Record<string, string> = {
+  "chase.request": "Request", "chase.reminder": "Reminder", "chase.due_soon": "Due in one week",
+  "chase.at_risk": "Date at risk", "chase.call": "Call task",
+};
+const CHASE_OUTCOME: Record<string, string> = {
+  queued: "drafted", skipped: "skipped", not_needed: "not needed", task: "created", released: "released",
+};
+
 export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const viewer = await requireStaff();
   const office = hasAnyRole(viewer, OFFICE_ROLES);
@@ -36,6 +49,10 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       .select("id, created_at, expires_at, last_used_at, revoked_at, contacts(full_name)")
       .eq("job_id", id)
       .order("created_at", { ascending: false }),
+  ]);
+  const [{ data: readiness }, { data: clock }] = await Promise.all([
+    supabase.from("photo_day_readiness").select("*").eq("job_id", id).order("date"),
+    supabase.from("clock_log").select("id, kind, outcome, run_on").eq("job_id", id).like("kind", "chase.%").order("created_at"),
   ]);
   const emailContacts = (contacts ?? [])
     .map((c) => c.contacts as { id: string; full_name: string; email: string | null } | null)
@@ -94,6 +111,31 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             )}
           </Card>
 
+          <Card title="Planning readiness">
+            {readiness?.length ? (
+              <ul className="space-y-3 text-sm">
+                {readiness.map((r) => (
+                  <li key={r.photo_day_id} className="flex flex-wrap items-center gap-2">
+                    <span className="w-28 text-muted">{formatDate(r.date)}</span>
+                    <Pill tone={r.agreement_signed ? "ok" : "warn"}>Agreement {r.agreement_signed ? "signed" : "not signed"}</Pill>
+                    <Pill tone={r.planning_form === "submitted" ? "ok" : "warn"}>Form {READY[r.planning_form ?? ""] ?? r.planning_form}</Pill>
+                    <Pill tone={r.roster === "not_received" ? "warn" : "ok"}>Roster {READY[r.roster ?? ""] ?? r.roster}</Pill>
+                    <Pill tone={r.schedule === "submitted" || r.schedule === "complete" ? "ok" : "warn"}>
+                      Schedule {READY[r.schedule ?? ""] ?? r.schedule}
+                    </Pill>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Empty>No photo day yet.</Empty>
+            )}
+            {clock && clock.length > 0 && (
+              <p className="mt-3 text-xs text-muted">
+                Chase so far:{" "}
+                {clock.map((c) => `${CHASE[c.kind] ?? c.kind} ${CHASE_OUTCOME[c.outcome] ?? c.outcome} ${formatDate(c.run_on)}`).join(" · ")}
+              </p>
+            )}
+          </Card>
           <Card title="Tasks">
             {tasks?.length ? (
               <ul className="divide-y divide-line">

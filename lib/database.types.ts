@@ -516,6 +516,74 @@ export type Database = {
           },
         ]
       }
+      clock_log: {
+        Row: {
+          action_id: string | null
+          company_id: string
+          created_at: string
+          id: string
+          job_id: string | null
+          key: string
+          kind: string
+          missing: string[] | null
+          outcome: string
+          run_on: string
+        }
+        Insert: {
+          action_id?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          key: string
+          kind: string
+          missing?: string[] | null
+          outcome: string
+          run_on: string
+        }
+        Update: {
+          action_id?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          key?: string
+          kind?: string
+          missing?: string[] | null
+          outcome?: string
+          run_on?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clock_log_action_id_fkey"
+            columns: ["action_id"]
+            isOneToOne: false
+            referencedRelation: "agent_actions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clock_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clock_log_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clock_log_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string
@@ -2726,6 +2794,16 @@ export type Database = {
         Returns: boolean
       }
       build_season_board: { Args: { p_season: string }; Returns: number }
+      clock_due: { Args: { p_company: string; p_today: string }; Returns: Json }
+      decide_action: {
+        Args: {
+          p_action_id: string
+          p_approve: boolean
+          p_draft?: Json
+          p_note?: string
+        }
+        Returns: Database["public"]["Enums"]["action_status"]
+      }
       extend_hold: {
         Args: { p_days?: number; p_hold_id: string }
         Returns: string

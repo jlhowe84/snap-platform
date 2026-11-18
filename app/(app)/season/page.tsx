@@ -5,7 +5,7 @@ import { Card, Empty, PageHeader, Pill } from "@/components/ui";
 import { formatDate, todayIn } from "@/lib/dates";
 import { equivalentDate, isSeasonLabel, outreachSeason, seasonRange, shiftSeason } from "@/lib/season";
 import { extendHold, setOfferStage } from "./actions";
-import { BuildBoardButton, HoldForm, ReleaseForm } from "./forms";
+import { BuildBoardButton, DraftOffersButton, HoldForm, ReleaseForm } from "./forms";
 
 type Basis = { subjects?: number | null; teams?: number | null; last_date?: string | null; from_season?: string };
 
@@ -67,7 +67,14 @@ export default async function SeasonBoardPage({ searchParams }: PageProps<"/seas
           Returning leagues from {shiftSeason(season, -4)}, biggest first, so they get first pick of dates. The top
           share of the list holds a date for longer. Holds release on their own when they lapse.
         </p>
-        {office && <BuildBoardButton season={season} />}
+        {office && (
+          <div className="flex flex-wrap items-start gap-3">
+            {list.some((o) => o.stage === "not_offered") && (
+              <DraftOffersButton season={season} label="Draft offers for everyone to offer" />
+            )}
+            <BuildBoardButton season={season} />
+          </div>
+        )}
       </div>
 
       <Card title={`Dates taken (${perDate} stations a date)`} className="mb-6">
@@ -159,6 +166,9 @@ export default async function SeasonBoardPage({ searchParams }: PageProps<"/seas
                         />
                       )}
 
+                      {office && o.stage === "not_offered" && (
+                        <DraftOffersButton season={season} offerId={o.id} label="Draft the offer email" />
+                      )}
                       {office && (
                         <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted">
                           {o.stage === "not_offered" && (
