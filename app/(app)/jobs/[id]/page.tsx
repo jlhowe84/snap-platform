@@ -10,6 +10,7 @@ import { DELIVERY_LABEL, STAGES, STAGE_LABEL, STATUS_LABEL, STATUS_TONE } from "
 import { answerRows, readAnswers } from "@/lib/planning/form";
 import { formatBytes, ROSTER_TYPES } from "@/lib/rosters/types";
 import { PortalLinkForm } from "./portal-link-form";
+import { StandardRosterUpload } from "./standard-roster";
 import { revokePortalLink } from "./portal-actions";
 
 const READY: Record<string, string> = {
@@ -61,10 +62,19 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     supabase.from("photo_day_readiness").select("*").eq("job_id", id).order("date"),
     supabase.from("clock_log").select("id, kind, outcome, run_on").eq("job_id", id).like("kind", "chase.%").order("created_at"),
   ]);
-  const [{ data: planningForm }, { data: rosterFiles }, { count: teamCount }] = await Promise.all([
+  const [{ data: planningForm }, { data: rosterFiles }, { count: teamCount }, { data: finishedRoster }] = await Promise.all([
     supabase.from("planning_forms").select("answers, submitted_at").eq("job_id", id).maybeSingle(),
     supabase.from("roster_files").select("id, file_name, mime_type, size_bytes, source, uploaded_at").eq("job_id", id).order("uploaded_at", { ascending: false }),
     supabase.from("teams").select("id", { count: "exact", head: true }).eq("job_id", id),
+    supabase
+      .from("roster_versions")
+      .select("version, status, subject_count, team_count, created_at")
+      .eq("job_id", id)
+      .in("status", ["ready", "uploaded"])
+      .not("csv_path", "is", null)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
   const planningRows = answerRows(readAnswers(planningForm?.answers));
   const emailContacts = (contacts ?? [])
@@ -193,6 +203,21 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             ) : (
               <p className="text-sm text-muted">None received.</p>
             )}
+            <h3 className="mb-1 mt-5 text-xs font-semibold uppercase tracking-wider text-muted">Finished roster</h3>
+            {finishedRoster ? (
+              <p className="mb-2 text-sm">
+                <a href={`/jobs/${id}/roster`} className="font-medium text-accent hover:underline">Download the SNAP roster CSV</a>
+                <span className="text-muted">
+                  {" "}· version {finishedRoster.version} · {finishedRoster.team_count ?? 0} teams · {finishedRoster.subject_count ?? 0} players ·{" "}
+                  {formatDate(finishedRoster.created_at.slice(0, 10))}
+                </span>
+              </p>
+            ) : (
+              <p className="mb-2 text-sm text-muted">
+                Not uploaded yet. Process the league&apos;s files into the SNAP roster format, then upload the CSV here. Its teams fill the schedule.
+              </p>
+            )}
+            {office && <StandardRosterUpload jobId={id} hasOne={!!finishedRoster} />}
           </Card>
           <Card title="Tasks">
             {tasks?.length ? (

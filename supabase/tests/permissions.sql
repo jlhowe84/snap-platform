@@ -598,6 +598,25 @@ select t.count_is($$select count(*) from public.planning_due('40000000-0000-0000
 select t.login('crew');
 select t.fails($$select public.save_planning_form('40000000-0000-0000-0000-0000000000a1', '{}', true)$$, 'crew cannot fill in a planning form');
 
+-- ---------------------------------------------------------------------------
+-- The finished roster file: office only, this job's file only
+-- ---------------------------------------------------------------------------
+select t.login('coord');
+select t.fails($$select public.import_standard_roster('40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a/40000000-0000-0000-0000-0000000000a1/standard/x.csv', '[{"group":"U8 - Tigers - Smith","name":"Tigers","division":"U8","coach":"Coach Smith","sponsor":null,"players":11},{"group":"U8 - Lions - Jones","name":"Lions","division":"U8","coach":"Coach Jones","sponsor":"Pizza Place","players":9}]', 20)$$, 'coordinator cannot import a finished roster');
+select t.login('crew');
+select t.fails($$select public.import_standard_roster('40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a/40000000-0000-0000-0000-0000000000a1/standard/x.csv', '[{"group":"U8 - Tigers - Smith","name":"Tigers","division":"U8","coach":"Coach Smith","sponsor":null,"players":11},{"group":"U8 - Lions - Jones","name":"Lions","division":"U8","coach":"Coach Jones","sponsor":"Pizza Place","players":9}]', 20)$$, 'crew cannot import a finished roster');
+select t.login('office');
+select t.fails($$select public.import_standard_roster('40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a/40000000-0000-0000-0000-0000000000a3/standard/x.csv', '[{"group":"U8 - Tigers - Smith","name":"Tigers","division":"U8","coach":"Coach Smith","sponsor":null,"players":11},{"group":"U8 - Lions - Jones","name":"Lions","division":"U8","coach":"Coach Jones","sponsor":"Pizza Place","players":9}]', 20)$$, 'a roster import cannot point at another job''s file');
+select t.fails($$select public.import_standard_roster('40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a/40000000-0000-0000-0000-0000000000a1/standard/x.csv', '{}', 20)$$, 'a roster import needs a list of teams');
+select t.works($$select public.import_standard_roster('40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a/40000000-0000-0000-0000-0000000000a1/standard/x.csv', '[{"group":"U8 - Tigers - Smith","name":"Tigers","division":"U8","coach":"Coach Smith","sponsor":null,"players":11},{"group":"U8 - Lions - Jones","name":"Lions","division":"U8","coach":"Coach Jones","sponsor":"Pizza Place","players":9}]', 20)$$, 'office imports a finished roster');
+select t.count_is($$select count(*) from public.teams where job_id = '40000000-0000-0000-0000-0000000000a1' and source = 'roster' and roster_group is not null$$, 2, 'the roster''s teams are on the job');
+select t.count_is($$select count(*) from public.photo_day_readiness where job_id = '40000000-0000-0000-0000-0000000000a1' and roster = 'standardized'$$, 1, 'the roster reads as standardized');
+select t.works($$select public.import_standard_roster('40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a/40000000-0000-0000-0000-0000000000a1/standard/y.csv', '[{"group":"U8 - Tigers - Smith","name":"Tigers","division":"U8","coach":"Coach Smith","sponsor":null,"players":12}]', 20)$$, 'office imports a newer roster');
+select t.count_is($$select count(*) from public.teams where job_id = '40000000-0000-0000-0000-0000000000a1' and roster_group = 'U8 - Lions - Jones'$$, 0, 'a team the new roster dropped is removed');
+select t.count_is($$select count(*) from public.teams where job_id = '40000000-0000-0000-0000-0000000000a1' and roster_group = 'U8 - Tigers - Smith' and player_count = 12$$, 1, 'a team in both rosters is updated, not doubled');
+select t.count_is($$select count(*) from public.roster_versions where job_id = '40000000-0000-0000-0000-0000000000a1' and status = 'ready'$$, 1, 'only the newest roster is the ready one');
+select t.count_is($$select count(*) from public.roster_versions where job_id = '40000000-0000-0000-0000-0000000000a1' and status = 'superseded' and csv_path like '%/standard/x.csv'$$, 1, 'the earlier roster is superseded');
+
 select t.login('owner');   -- the never-list checks below run as the owner
 
 -- ---------------------------------------------------------------------------
