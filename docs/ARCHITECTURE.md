@@ -31,6 +31,16 @@ Hardening on top of Supabase defaults: anon has no table, sequence or function
 grants; TRUNCATE, TRIGGER and REFERENCES are revoked from authenticated (they
 bypass RLS).
 
+Two rules for every policy, learned in Wave A:
+
+- Postgres ORs the `WITH CHECK` clauses of all update policies on a table. When
+  a table has an office policy and a coordinator policy, the office policy's
+  check must repeat its role test (`can_edit_ops()`), or a coordinator's update
+  passes the office check and slips past their own limits.
+- RLS cannot see which columns changed. Where coordinators may update a row,
+  `private.limit_coordinator_update(cols...)` (a BEFORE UPDATE trigger) names
+  the columns they may change.
+
 ## Action layer
 
 Every change the app or the agent makes is a registered action type
@@ -74,3 +84,25 @@ Season is never stored. It is derived from a job's earliest photo day by
 `public.season_label()` and mirrored in `lib/season.ts`: December, January and
 February are one Winter, labeled by the January year (December 2026 is Winter
 2027).
+
+## Booking and planning (Wave A)
+
+A held date is a job in status `held` with its photo day and a `date_holds`
+row, so the portal is one link per job from the first offer. Signing the
+agreement confirms the hold (job to `planning`); a lapsed hold moves the job to
+`released`, which frees its stations in `date_capacity`.
+
+| Area | Tables and views |
+| --- | --- |
+| Season board | `season_offers` (one per league per season), `leads`, `touchpoints` |
+| Holds and capacity | `date_holds`, `photo_days.stations`, view `date_capacity` |
+| Agreement | `agreement_versions` (signed versions cannot change), `agreement_signatures` (permanent; written only by the signing function) |
+| Planning | `planning_forms`, `teams`, `roster_files`, `roster_versions`, `schedules`, `schedule_slots` |
+| Portal | `portal_links` (token hash only, office-only), `job_messages` |
+| Readiness | view `photo_day_readiness`, computed from the records, never typed |
+| Agent intake | `agent_events`, written by triggers on portal actions; staff read |
+
+Coordinators may write only: planning form answers, roster uploads (25 MB
+each), their own teams, schedule slots, and schedule status up to `started`.
+`public.submit_schedule()` submits only when `public.schedule_problems()` finds
+no missing team, overlap or out-of-range station.

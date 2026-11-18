@@ -4,6 +4,7 @@ import type { Tone } from "@/components/ui";
 type Enums = Database["public"]["Enums"];
 
 export const STATUS_LABEL: Record<Enums["job_status"], string> = {
+  held: "Held",
   planning: "Planning",
   in_production: "In production",
   at_lab: "At lab",
@@ -11,9 +12,11 @@ export const STATUS_LABEL: Record<Enums["job_status"], string> = {
   complete: "Complete",
   archived: "Archived",
   cancelled: "Cancelled",
+  released: "Released",
 };
 
 export const STATUS_TONE: Record<Enums["job_status"], Tone> = {
+  held: "warn",
   planning: "info",
   in_production: "accent",
   at_lab: "warn",
@@ -21,6 +24,7 @@ export const STATUS_TONE: Record<Enums["job_status"], Tone> = {
   complete: "ok",
   archived: "muted",
   cancelled: "risk",
+  released: "muted",
 };
 
 export const STAGES: Enums["production_stage"][] = [
