@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { buildBoard, holdDate, releaseHold, type BoardState } from "./actions";
+import { buildBoard, draftOffers, holdDate, releaseHold, type BoardState } from "./actions";
 
 const field = "rounded-lg border border-line bg-bg px-2 py-1.5 text-sm focus:border-accent focus:outline-none";
 const primary =
@@ -82,5 +82,24 @@ export function ReleaseForm({ holdId }: { holdId: string }) {
         <Note state={state} />
       </form>
     </details>
+  );
+}
+
+export function DraftOffersButton({ season, offerId, label }: { season: string; offerId?: string; label: string }) {
+  const [state, action, pending] = useActionState<BoardState, FormData>(() => draftOffers(season, offerId ?? null), null);
+  return (
+    <form action={action} className={offerId ? "mt-2" : "flex flex-col items-end gap-1"}>
+      <button
+        disabled={pending}
+        className={
+          offerId
+            ? "text-xs text-accent hover:underline disabled:opacity-60"
+            : "rounded-lg border border-line px-3 py-1.5 text-sm hover:bg-surface-2 disabled:opacity-60"
+        }
+      >
+        {pending ? "Drafting…" : label}
+      </button>
+      <Note state={state} />
+    </form>
   );
 }

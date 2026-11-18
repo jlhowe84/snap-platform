@@ -229,6 +229,7 @@ declare
     array['portal_links',          '1','1','1','0','0','0','0','0'],
     array['job_messages',          '2','2','2','2','0','1','0','0'],
     array['agent_events',          '2','2','2','2','0','0','0','0'],
+    array['clock_log',             '0','0','0','0','0','0','0','0'],
     array['date_capacity',         '2','2','2','2','0','1','0','1'],
     array['photo_day_readiness',   '2','2','2','2','0','1','0','1']
   ];
@@ -481,6 +482,81 @@ select t.count_is($$select count(*) from public.jobs where name = 'League A1 Spr
 select t.count_is($$select count(*) from public.season_offers where season = 'Spring 2028' and org_id = '20000000-0000-0000-0000-0000000000a1' and stage = 'no_reply'$$, 1, 'the offer records no reply');
 select t.count_is($$select stations_used from public.date_capacity where date = '2028-04-15'$$, 2, 'the released stations are free again');
 select t.count_is($$select count(*) from public.touchpoints where summary like 'Hold released: Two touches%'$$, 1, 'the release is on the league timeline');
+
+-- ---------------------------------------------------------------------------
+-- Wave A: the daily clock and the approval queue
+-- ---------------------------------------------------------------------------
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+select private.seed_clock_defaults('a0000000-0000-0000-0000-00000000000a');
+
+select t.login('owner');
+select t.fails($$select public.clock_due('a0000000-0000-0000-0000-00000000000a', current_date)$$, 'even the owner cannot run the daily clock');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+
+-- Holds: nothing due on day one, a reminder five days before, release after.
+select t.count_is($$select jsonb_array_length(public.clock_due('a0000000-0000-0000-0000-00000000000a', current_date))$$, 0, 'nothing is due the day a hold is placed');
+select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', current_date + 16)) e where e ->> 'kind' = 'holds.remind'$$, 1, 'a hold reminder is due five days before release');
+insert into public.clock_log (company_id, key, kind, outcome, run_on)
+select 'a0000000-0000-0000-0000-00000000000a', e ->> 'key', 'holds.remind', 'queued', current_date + 16
+from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', current_date + 16)) e where e ->> 'kind' = 'holds.remind';
+select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', current_date + 17)) e where e ->> 'kind' = 'holds.remind'$$, 0, 'a reminder goes out once per hold window');
+select t.count_is($$select count(*) from public.date_holds h join public.jobs j on j.id = h.job_id where j.name = 'League A2 Spring 2028' and h.status = 'held'$$, 1, 'the hold stands through its last day');
+select t.works($$select public.clock_due('a0000000-0000-0000-0000-00000000000a', current_date + 22)$$, 'the clock runs the day after a hold lapses');
+select t.count_is($$select count(*) from public.date_holds h join public.jobs j on j.id = h.job_id where j.name = 'League A2 Spring 2028' and h.status = 'held'$$, 0, 'a lapsed hold is released');
+select t.count_is($$select count(*) from public.jobs where name = 'League A2 Spring 2028' and status = 'released'$$, 1, 'the lapsed job is released');
+select t.count_is($$select count(*) from public.season_offers where season = 'Spring 2028' and stage = 'no_reply'$$, 2, 'the lapsed offer records no reply');
+select t.count_is($$select count(*) from public.touchpoints where summary like 'Hold released: Hold lapsed%' and actor_kind = 'system'$$, 1, 'the timeline shows the platform released it');
+
+-- The chase, on each job's own clock. Job A2 shoots 2027-04-24.
+select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', '2027-02-26')) e where e ->> 'kind' like 'chase.%'$$, 0, 'no chase before eight weeks out');
+select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', '2027-02-27')) e
+  where e ->> 'kind' = 'chase.request' and e ->> 'job_id' = '40000000-0000-0000-0000-0000000000a2'
+    and e ->> 'due_on' = '2027-04-03' and e -> 'missing' ? 'roster' and not e -> 'missing' ? 'agreement'$$, 1, 'eight weeks out the request is due, listing only what is missing');
+insert into public.clock_log (company_id, key, kind, job_id, outcome, run_on)
+values ('a0000000-0000-0000-0000-00000000000a', 'chase:40000000-0000-0000-0000-0000000000a2:request', 'chase.request', '40000000-0000-0000-0000-0000000000a2', 'queued', '2027-02-27');
+select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', '2027-02-28')) e where e ->> 'job_id' = '40000000-0000-0000-0000-0000000000a2'$$, 0, 'a chase step is drafted once');
+select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', '2027-03-27')) e
+  where e ->> 'kind' = 'chase.due_soon' and e ->> 'job_id' = '40000000-0000-0000-0000-0000000000a2'$$, 1, 'four weeks out the due-in-one-week note is due');
+select t.count_is($$select count(*) from public.tasks where job_id = '40000000-0000-0000-0000-0000000000a2' and title like 'Call %' and due_on = '2027-03-28'$$, 1, 'four weeks out a call task is created');
+select t.count_is($$select count(*) from public.clock_log where key = 'chase:40000000-0000-0000-0000-0000000000a2:reminder' and outcome = 'skipped'$$, 1, 'a step whose day passed is skipped, not sent late');
+select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', '2027-03-28')) e where e ->> 'kind' = 'chase.due_soon' and e ->> 'job_id' = '40000000-0000-0000-0000-0000000000a2'$$, 1, 'an undrafted step stays due until it is logged');
+select t.count_is($$select count(*) from public.tasks where job_id = '40000000-0000-0000-0000-0000000000a2' and title like 'Call %'$$, 1, 'the call task is created once');
+
+select t.count_is($$select count(*) from public.clock_log where key = 'chase:40000000-0000-0000-0000-0000000000a1:request' and outcome = 'not_needed'$$, 1, 'a job with nothing missing gets no chase');
+
+-- The queue: staff decide, the streak counts clean approvals.
+insert into public.agent_actions (id, company_id, action_type_key, actor_kind, status, draft) values
+  ('70000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', 'chase.request', 'system', 'proposed', '{"subject": "S", "body": "B"}'),
+  ('70000000-0000-0000-0000-0000000000a2', 'a0000000-0000-0000-0000-00000000000a', 'chase.request', 'system', 'proposed', '{"subject": "S", "body": "B"}'),
+  ('70000000-0000-0000-0000-0000000000a3', 'a0000000-0000-0000-0000-00000000000a', 'chase.at_risk', 'system', 'proposed', '{"subject": "S", "body": "B"}'),
+  ('70000000-0000-0000-0000-0000000000a4', 'a0000000-0000-0000-0000-00000000000a', 'chase.reminder', 'system', 'proposed', '{"subject": "S", "body": "B"}');
+insert into public.clock_log (company_id, key, kind, outcome, run_on) values ('a0000000-0000-0000-0000-00000000000a', 'test:visible', 'chase.request', 'queued', current_date);
+
+select t.login('coord');
+select t.fails($$select public.decide_action('70000000-0000-0000-0000-0000000000a1', true)$$, 'a coordinator cannot decide a queued action');
+select t.count_is($$select count(*) from public.clock_log$$, 0, 'a coordinator cannot read the clock log');
+select t.login('crew');
+select t.fails($$select public.decide_action('70000000-0000-0000-0000-0000000000a1', true)$$, 'crew cannot decide a queued action');
+select t.login('owner_b');
+select t.fails($$select public.decide_action('70000000-0000-0000-0000-0000000000a1', true)$$, 'another company cannot decide this company''s action');
+
+select t.login('support');
+select t.count_is($$select count(*) from public.clock_log where key = 'test:visible'$$, 1, 'staff read the clock log');
+select t.fails($$insert into public.clock_log (company_id, key, kind, outcome, run_on) values ('a0000000-0000-0000-0000-00000000000a', 'x', 'x', 'queued', current_date)$$, 'staff cannot write the clock log');
+select t.count_is($$select (public.decide_action('70000000-0000-0000-0000-0000000000a1', true) = 'approved')::int$$, 1, 'support approves a chase draft');
+select t.count_is($$select clean_streak from public.action_types where key = 'chase.request'$$, 1, 'a clean approval grows the streak');
+select t.fails($$select public.decide_action('70000000-0000-0000-0000-0000000000a1', false)$$, 'an action is decided once');
+select t.count_is($$select (public.decide_action('70000000-0000-0000-0000-0000000000a2', true, '{"subject": "S", "body": "Edited"}') = 'edited')::int$$, 1, 'an approval with changes is recorded as edited');
+select t.count_is($$select clean_streak from public.action_types where key = 'chase.request'$$, 0, 'an edit resets the streak');
+select t.count_is($$select count(*) from public.agent_actions where id = '70000000-0000-0000-0000-0000000000a2' and draft ->> 'body' = 'Edited' and decided_by = '10000000-0000-0000-0000-000000000004'$$, 1, 'the edited draft and who decided are kept');
+select t.fails($$select public.decide_action('70000000-0000-0000-0000-0000000000a3', true)$$, 'support cannot decide a date-at-risk note');
+select t.login('office');
+select t.fails($$select public.decide_action('70000000-0000-0000-0000-0000000000a3', true)$$, 'the office cannot decide a date-at-risk note');
+select t.count_is($$select (public.decide_action('70000000-0000-0000-0000-0000000000a4', false, null, 'Called them instead') = 'rejected')::int$$, 1, 'the office rejects a draft with a note');
+select t.login('admin');
+select t.count_is($$select (public.decide_action('70000000-0000-0000-0000-0000000000a3', true) = 'approved')::int$$, 1, 'an admin decides a date-at-risk note');
 
 select t.login('owner');   -- the never-list checks below run as the owner
 

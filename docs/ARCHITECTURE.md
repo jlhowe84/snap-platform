@@ -132,3 +132,25 @@ filed in the private `agreements` bucket; downloads go through
 `/portal/<job>/agreement/pdf`, which checks RLS before handing out a
 five-minute signed URL. Admins edit the agreement in Settings > Agreement;
 a signed version never changes, so edits always become a new version.
+
+## The daily clock and the approval queue (Wave A)
+
+- `public.clock_due(company, today)` is the only place that decides what is
+  due. It runs from the server (service role) and refuses a signed-in caller.
+  It releases lapsed holds, returns the hold reminders due, and returns each
+  confirmed job's chase step counted back from its first photo day (8, 5, 4
+  and 3 weeks; all settings). A step whose day passed is logged as skipped,
+  never sent late. A job with nothing missing gets no chase.
+- `lib/clock/run.ts` turns each item into a drafted row in `agent_actions`
+  (status `proposed`) and logs it in `clock_log`, whose unique key makes each
+  step happen once per job, or once per hold window. It sends nothing.
+- `/api/cron/daily` (Vercel Cron, `vercel.json`) calls it once a day. The
+  route refuses every call unless `CRON_SECRET` is set in Vercel, and skips
+  any company whose `clock.enabled` setting is not true. An owner or admin can
+  run their company by hand from the queue.
+- `public.decide_action` records approve, edit or reject and keeps each action
+  type's clean streak. A date-at-risk note is decided by an owner or admin.
+- Drafts are templates (`lib/clock/drafts.ts`). The portal link is a
+  placeholder filled at send time, so no live token is stored in a draft.
+- Approving does not send. The mail runner comes later and passes
+  `lib/mail/guard.ts`.

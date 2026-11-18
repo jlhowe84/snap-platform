@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireStaff, OFFICE_ROLES, ADMIN_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { isSeasonLabel } from "@/lib/season";
+import { buildDraft, firstName } from "@/lib/clock/drafts";
 
 export type BoardState = { ok: boolean; message: string } | null;
 
@@ -94,4 +95,64 @@ export async function releaseHold(_prev: BoardState, form: FormData): Promise<Bo
   });
   if (error) return { ok: false, message: error.message };
   return done("Released. The stations are free.");
+}
+
+// Drafts the season offer for one league, or for every league still waiting
+// to be offered. Drafts go to the approval queue; nothing is sent from here.
+export async function draftOffers(season: string, offerId: string | null): Promise<BoardState> {
+  const viewer = await requireStaff(OFFICE_ROLES);
+  if (!isSeasonLabel(season) || !viewer.companyId) return { ok: false, message: "Unknown season." };
+  const supabase = await createClient();
+
+  let q = supabase
+    .from("season_offers")
+    .select("id, org_id, priority_basis, organizations(name)")
+    .eq("season", season)
+    .eq("stage", "not_offered")
+    .order("priority_rank", { ascending: true, nullsFirst: false })
+    .limit(200);
+  if (offerId) q = q.eq("id", z.uuid().parse(offerId));
+  const [{ data: offers }, { data: waiting }] = await Promise.all([
+    q,
+    supabase.from("agent_actions").select("record_refs").eq("status", "proposed").eq("action_type_key", "offers.send"),
+  ]);
+  const already = new Set((waiting ?? []).map((a) => (a.record_refs as { offer_id?: string } | null)?.offer_id));
+  const todo = (offers ?? []).filter((o) => !already.has(o.id));
+  if (!todo.length) return { ok: true, message: "Those offers are already drafted. See the queue." };
+
+  const { data: people } = await supabase
+    .from("organization_contacts")
+    .select("org_id, is_primary, contacts(full_name, email)")
+    .in("org_id", todo.map((o) => o.org_id))
+    .is("ended_on", null)
+    .order("is_primary", { ascending: false });
+
+  const rows = todo.map((o) => {
+    const contact = (people ?? [])
+      .filter((p) => p.org_id === o.org_id)
+      .map((p) => p.contacts as { full_name: string; email: string | null } | null)
+      .find((c) => c?.email);
+    const basis = (o.priority_basis ?? {}) as { last_date?: string | null };
+    return {
+      company_id: viewer.companyId!,
+      action_type_key: "offers.send",
+      actor_kind: "person",
+      actor_id: viewer.id,
+      status: "proposed" as const,
+      draft: buildDraft("offers.send", {
+        companyName: viewer.companyName ?? "The photo team",
+        leagueName: (o.organizations as { name: string } | null)?.name ?? "your league",
+        contactFirstName: firstName(contact?.full_name),
+        to: contact?.email ? [contact.email] : [],
+        season,
+        lastPhotoDay: basis.last_date ?? null,
+      }),
+      record_refs: { offer_id: o.id, org_id: o.org_id },
+    };
+  });
+  const { error } = await supabase.from("agent_actions").insert(rows);
+  if (error) return { ok: false, message: error.message };
+  revalidatePath("/season");
+  revalidatePath("/queue");
+  return { ok: true, message: `Drafted ${rows.length} offer${rows.length === 1 ? "" : "s"}. Review them in the queue.` };
 }
