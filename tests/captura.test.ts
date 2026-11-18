@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
 
-const { createCapturaClient, isAllowedCapturaPath } = await import("@/lib/captura/client");
+const { createCapturaClient, isAllowedCapturaPath, normalizeCapturaCredentials } = await import("@/lib/captura/client");
 
 describe("captura client", () => {
   it("only allows read paths", () => {
@@ -28,5 +28,20 @@ describe("captura client", () => {
     expect(calls.filter((c) => c.url.endsWith("/oauth/token"))).toHaveLength(1);
     expect(calls.filter((c) => !c.url.endsWith("/oauth/token")).every((c) => c.method === "GET")).toBe(true);
     expect(calls.some((c) => /service-order|unsubscribe/.test(c.url))).toBe(false);
+  });
+});
+
+describe("normalizeCapturaCredentials", () => {
+  const uuid = "123e4567-e89b-12d3-a456-426614174000";
+  const hex = "ab".repeat(64);
+  it("swaps a client id and secret stored in each other's slots", () => {
+    expect(normalizeCapturaCredentials({ account_id: "X", client_id: hex, client_secret: uuid })).toEqual({
+      account_id: "X",
+      client_id: uuid,
+      client_secret: hex,
+    });
+  });
+  it("leaves correctly ordered credentials alone", () => {
+    expect(normalizeCapturaCredentials({ account_id: "X", client_id: uuid, client_secret: hex }).client_id).toBe(uuid);
   });
 });

@@ -52,7 +52,24 @@ export async function loadCapturaCredentials(companyId: string): Promise<Captura
 
 type FetchLike = typeof fetch;
 
-export function createCapturaClient(creds: CapturaCredentials, fetchImpl: FetchLike = fetch) {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Captura's client id is a 36-character UUID and its secret a long hex
+ * string. The two are easy to store in each other's slots (Captura's own
+ * labels for them are unclear), so put them back in order by shape.
+ */
+export function normalizeCapturaCredentials(creds: CapturaCredentials): CapturaCredentials {
+  const id = creds.client_id.trim();
+  const secret = creds.client_secret.trim();
+  if (!UUID_RE.test(id) && UUID_RE.test(secret)) {
+    return { account_id: creds.account_id.trim(), client_id: secret, client_secret: id };
+  }
+  return { account_id: creds.account_id.trim(), client_id: id, client_secret: secret };
+}
+
+export function createCapturaClient(rawCreds: CapturaCredentials, fetchImpl: FetchLike = fetch) {
+  const creds = normalizeCapturaCredentials(rawCreds);
   let token: { value: string; expiresAt: number } | null = null;
 
   async function getToken() {
@@ -69,7 +86,14 @@ export function createCapturaClient(creds: CapturaCredentials, fetchImpl: FetchL
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body,
     });
-    if (!res.ok) throw new Error(`Captura token request failed (${res.status})`);
+    if (!res.ok) {
+      // RFC 6749 error code only (for example invalid_client); never the body.
+      const code = await res
+        .json()
+        .then((b: { error?: unknown }) => (typeof b?.error === "string" ? b.error.replace(/[^a-z_]/g, "") : ""))
+        .catch(() => "");
+      throw new Error(`Captura token request failed (${res.status}${code ? `, ${code}` : ""})`);
+    }
     const parsed = TokenSchema.parse(await res.json());
     token = { value: parsed.access_token, expiresAt: Date.now() + (parsed.expires_in ?? 3600) * 1000 };
     return token.value;
