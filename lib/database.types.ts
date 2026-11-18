@@ -2843,6 +2843,14 @@ export type Database = {
         Args: { p_company: string; p_integration: string }
         Returns: string
       }
+      open_schedule: { Args: { p_photo_day_id: string }; Returns: string }
+      planning_due: {
+        Args: { p_job_id: string }
+        Returns: {
+          deadline_days: number
+          weeks_due: number
+        }[]
+      }
       portal_admit: {
         Args: { p_link_id: string; p_profile_id: string }
         Returns: string
@@ -2866,6 +2874,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      save_planning_form: {
+        Args: { p_answers: Json; p_job_id: string; p_submit: boolean }
+        Returns: string
+      }
       schedule_problems: {
         Args: { p_schedule_id: string }
         Returns: {
@@ -2874,6 +2886,10 @@ export type Database = {
         }[]
       }
       season_label: { Args: { p_date: string }; Returns: string }
+      set_schedule_status: {
+        Args: { p_schedule_id: string; p_status: string }
+        Returns: string
+      }
       sign_agreement: {
         Args: {
           p_initials: Json

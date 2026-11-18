@@ -27,7 +27,7 @@ export default async function PortalLayout({ children }: LayoutProps<"/portal">)
       </header>
       {viewer.staff && (
         <p className="bg-surface-2 px-4 py-2 text-center text-xs text-muted">
-          You are seeing the portal as staff. Only the league&apos;s coordinator can sign or submit.
+          You are seeing the portal as staff. Only the league&apos;s coordinator can sign. Changes the office makes here are saved as the office&apos;s.
         </p>
       )}
       <main className="mx-auto max-w-3xl px-4 py-8">{children}</main>

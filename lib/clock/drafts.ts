@@ -26,6 +26,8 @@ export type DraftFacts = {
   lastPhotoDay?: string | null;
   holdExpires?: string | null;
   dueOn?: string | null;
+  /** The last day a roster and schedule can be taken (the agreement's deadline). */
+  deadlineOn?: string | null;
   missing?: string[];
 };
 
@@ -50,6 +52,9 @@ export function buildDraft(kind: DraftKind, f: DraftFacts): Draft {
   const sign = `Thank you,\n${f.companyName}`;
   const todo = missingLines(f.missing);
   const where = `Everything is in one place: ${PORTAL_LINK}`;
+  const lastDay = f.deadlineOn
+    ? ` The last day we can take a roster and schedule is ${day(f.deadlineOn)}. After that we may need to move your photo day.`
+    : "";
 
   switch (kind) {
     case "offers.send":
@@ -108,6 +113,7 @@ export function buildDraft(kind: DraftKind, f: DraftFacts): Draft {
           hi,
           `Photo day is ${day(f.photoDay)}, and the items below are due in one week, by ${day(f.dueOn)}:`,
           todo,
+          ...(lastDay ? [lastDay.trim()] : []),
           `${where}\n\nWe will also give you a call this week in case it is easier to sort out by phone.`,
           sign,
         ].join("\n\n"),
@@ -120,7 +126,7 @@ export function buildDraft(kind: DraftKind, f: DraftFacts): Draft {
           hi,
           `Photo day for ${f.leagueName} is ${day(f.photoDay)}, and we are still missing:`,
           todo,
-          "Without these we cannot prepare your teams and schedule in time. Please send them today, or reply so we can talk through options.",
+          "Without these we cannot prepare your teams and schedule in time. Please send them today, or reply so we can talk through options." + lastDay,
           where,
           sign,
         ].join("\n\n"),

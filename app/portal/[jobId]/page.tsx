@@ -4,6 +4,7 @@ import { requirePortalViewer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill, cx } from "@/components/ui";
 import { formatDate, formatTime } from "@/lib/dates";
+import { planningDates } from "@/lib/planning/dates";
 
 type Step = { title: string; detail: string; state: "done" | "todo" | "later"; href?: string; cta?: string };
 
@@ -15,11 +16,12 @@ export default async function PortalJob({ params }: PageProps<"/portal/[jobId]">
   const { data: job } = await supabase.from("jobs").select("id, name, status").eq("id", jobId).maybeSingle();
   if (!job) notFound();
 
-  const [{ data: days }, { data: holds }, { data: signatures }, { data: readiness }] = await Promise.all([
+  const [{ data: days }, { data: holds }, { data: signatures }, { data: readiness }, { data: due }] = await Promise.all([
     supabase.from("photo_days").select("id, date, start_time, end_time, location_name, city, state").eq("job_id", jobId).order("date"),
     supabase.from("date_holds").select("photo_day_id, status, expires_on").eq("job_id", jobId),
     supabase.from("agreement_signatures").select("id, signer_name, signed_at").eq("job_id", jobId).order("signed_at", { ascending: false }).limit(1),
     supabase.from("photo_day_readiness").select("*").eq("job_id", jobId),
+    supabase.rpc("planning_due", { p_job_id: jobId }),
   ]);
 
   const signature = signatures?.[0];
@@ -27,6 +29,9 @@ export default async function PortalJob({ params }: PageProps<"/portal/[jobId]">
   const held = (holds ?? []).filter((h) => h.status === "held");
   const firstExpiry = held.map((h) => h.expires_on).sort()[0];
   const r = readiness?.[0];
+  // A job with several photo days is done when every day's schedule is in.
+  const scheduleDone = !!readiness?.length && readiness.every((x) => x.schedule === "submitted" || x.schedule === "complete");
+  const dates = planningDates(days?.[0]?.date ?? null, due?.[0]?.weeks_due, due?.[0]?.deadline_days);
 
   const steps: Step[] = [
     {
@@ -44,16 +49,27 @@ export default async function PortalJob({ params }: PageProps<"/portal/[jobId]">
       title: "Planning form",
       detail: r?.planning_form === "submitted" ? "Received. Thank you." : "Tell us about your teams, fields and picture day contact.",
       state: r?.planning_form === "submitted" ? "done" : signature ? "todo" : "later",
+      href: signature ? `/portal/${jobId}/planning` : undefined,
+      cta: r?.planning_form === "submitted" ? "View or change" : "Fill in",
     },
     {
       title: "Rosters",
-      detail: r && r.roster !== "not_received" ? "Received." : "Upload your rosters in any format: spreadsheet, PDF or a photo.",
+      detail:
+        r && r.roster !== "not_received"
+          ? "Received."
+          : `Upload your rosters in any format: spreadsheet, PDF or a photo.${dates.askBy ? ` Due ${formatDate(dates.askBy)}.` : ""}`,
       state: r && r.roster !== "not_received" ? "done" : signature ? "todo" : "later",
+      href: signature ? `/portal/${jobId}/rosters` : undefined,
+      cta: r && r.roster !== "not_received" ? "Add or view" : "Upload",
     },
     {
       title: "Picture day schedule",
-      detail: r?.schedule === "submitted" || r?.schedule === "complete" ? "Submitted." : "Place each team in a time slot.",
-      state: r?.schedule === "submitted" || r?.schedule === "complete" ? "done" : signature ? "todo" : "later",
+      detail: scheduleDone
+        ? "Submitted."
+        : `Place each team in a time slot.${dates.askBy ? ` Due ${formatDate(dates.askBy)}.` : ""}`,
+      state: scheduleDone ? "done" : signature ? "todo" : "later",
+      href: signature ? `/portal/${jobId}/schedule` : undefined,
+      cta: scheduleDone ? "View or change" : "Build",
     },
   ];
 
@@ -88,6 +104,13 @@ export default async function PortalJob({ params }: PageProps<"/portal/[jobId]">
           })}
         </ul>
       </Card>
+
+      {!released && signature && dates.deadline && !(r && r.roster !== "not_received" && scheduleDone) && (
+        <p className="mb-4 text-sm text-muted">
+          Your roster and schedule are due {formatDate(dates.askBy, { weekday: true })}. The last day we can take them is{" "}
+          {formatDate(dates.deadline, { weekday: true })}.
+        </p>
+      )}
 
       {!released && (
         <ol className="space-y-3">

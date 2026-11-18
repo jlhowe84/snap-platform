@@ -7,6 +7,8 @@ import { formatDate, formatTime } from "@/lib/dates";
 import { MoneyTermsList } from "@/components/money-terms";
 import { seasonForDate } from "@/lib/season";
 import { DELIVERY_LABEL, STAGES, STAGE_LABEL, STATUS_LABEL, STATUS_TONE } from "@/lib/labels";
+import { answerRows, readAnswers } from "@/lib/planning/form";
+import { formatBytes, ROSTER_TYPES } from "@/lib/rosters/types";
 import { PortalLinkForm } from "./portal-link-form";
 import { revokePortalLink } from "./portal-actions";
 
@@ -59,6 +61,12 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     supabase.from("photo_day_readiness").select("*").eq("job_id", id).order("date"),
     supabase.from("clock_log").select("id, kind, outcome, run_on").eq("job_id", id).like("kind", "chase.%").order("created_at"),
   ]);
+  const [{ data: planningForm }, { data: rosterFiles }, { count: teamCount }] = await Promise.all([
+    supabase.from("planning_forms").select("answers, submitted_at").eq("job_id", id).maybeSingle(),
+    supabase.from("roster_files").select("id, file_name, mime_type, size_bytes, source, uploaded_at").eq("job_id", id).order("uploaded_at", { ascending: false }),
+    supabase.from("teams").select("id", { count: "exact", head: true }).eq("job_id", id),
+  ]);
+  const planningRows = answerRows(readAnswers(planningForm?.answers));
   const emailContacts = (contacts ?? [])
     .map((c) => c.contacts as { id: string; full_name: string; email: string | null } | null)
     .filter((c): c is { id: string; full_name: string; email: string } => !!c?.email)
@@ -140,6 +148,50 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                 Chase so far:{" "}
                 {clock.map((c) => `${CHASE[c.kind] ?? c.kind} ${CHASE_OUTCOME[c.outcome] ?? c.outcome} ${formatDate(c.run_on)}`).join(" · ")}
               </p>
+            )}
+          </Card>
+
+          <Card
+            title="Planning details"
+            action={
+              <span className="flex gap-3 text-sm">
+                <Link href={`/portal/${id}/planning`} className="text-accent hover:underline">Form</Link>
+                <Link href={`/portal/${id}/rosters`} className="text-accent hover:underline">Rosters</Link>
+                <Link href={`/portal/${id}/schedule`} className="text-accent hover:underline">Schedule</Link>
+              </span>
+            }
+          >
+            {planningRows.length ? (
+              <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[10rem_1fr]">
+                {planningRows.map((row) => (
+                  <div key={row.label} className="contents">
+                    <dt className="text-muted">{row.label}</dt>
+                    <dd className="whitespace-pre-wrap">{row.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <Empty>No planning answers yet.</Empty>
+            )}
+            {planningForm && !planningForm.submitted_at && planningRows.length > 0 && (
+              <p className="mt-2 text-xs text-warn">Saved as a draft, not sent yet.</p>
+            )}
+            <h3 className="mb-1 mt-5 text-xs font-semibold uppercase tracking-wider text-muted">
+              Roster files ({rosterFiles?.length ?? 0}) · {teamCount ?? 0} teams
+            </h3>
+            {rosterFiles?.length ? (
+              <ul className="divide-y divide-line text-sm">
+                {rosterFiles.map((f) => (
+                  <li key={f.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
+                    <a href={`/portal/${id}/rosters/${f.id}`} className="font-medium text-accent hover:underline">{f.file_name}</a>
+                    <span className="text-muted">
+                      {ROSTER_TYPES[f.mime_type] ?? "File"} · {formatBytes(f.size_bytes)} · {formatDate(f.uploaded_at.slice(0, 10))} · {f.source}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted">None received.</p>
             )}
           </Card>
           <Card title="Tasks">

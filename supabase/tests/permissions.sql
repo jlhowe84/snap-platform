@@ -163,7 +163,7 @@ insert into public.teams (id, company_id, job_id, name, source) values
   ('70000000-0000-0000-0000-0000000000a2', 'a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'Lions', 'roster'),
   ('70000000-0000-0000-0000-0000000000a3', 'a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a2', 'Hawks', 'roster');
 insert into public.roster_files (company_id, job_id, storage_path, file_name, mime_type, size_bytes, source) values
-  ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'a/a1/roster.csv', 'roster.csv', 'text/csv', 1200, 'email');
+  ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a/40000000-0000-0000-0000-0000000000a1/roster.csv', 'roster.csv', 'text/csv', 1200, 'email');
 insert into public.roster_versions (company_id, job_id, version, status) values
   ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 1, 'needs_answers');
 insert into public.schedules (id, company_id, job_id, photo_day_id)
@@ -329,7 +329,7 @@ select t.login('owner');
 select t.fails($$insert into public.agreement_signatures (company_id, job_id, version_id, signer_name, signer_email) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a2', '60000000-0000-0000-0000-0000000000a1', 'Fake', 'f@test.invalid')$$, 'nobody signs through the API, not even the owner');
 
 reset role;
-select t.works($$update public.agreement_signatures set pdf_path = 'a/a1/agreement.pdf' where id = '61000000-0000-0000-0000-0000000000a1'$$, 'the server files the signed PDF');
+select t.works($$update public.agreement_signatures set pdf_path = 'a0000000-0000-0000-0000-00000000000a/40000000-0000-0000-0000-0000000000a1/agreement.pdf' where id = '61000000-0000-0000-0000-0000000000a1'$$, 'the server files the signed PDF');
 select t.fails($$update public.agreement_signatures set signer_name = 'Someone else' where id = '61000000-0000-0000-0000-0000000000a1'$$, 'a signature cannot be changed');
 select t.fails($$delete from public.agreement_signatures where id = '61000000-0000-0000-0000-0000000000a1'$$, 'a signature cannot be removed');
 
@@ -340,10 +340,10 @@ select t.login('coord');
 select t.count_is($$with u as (update public.planning_forms set answers = '{"picture_day_contact": "Pat"}', submitted_at = now(), submitted_by = auth.uid() where job_id = '40000000-0000-0000-0000-0000000000a1' returning 1) select count(*) from u$$, 1, 'coordinator submits the planning form');
 select t.count_is($$with u as (update public.planning_forms set answers = '{}' where job_id = '40000000-0000-0000-0000-0000000000a2' returning 1) select count(*) from u$$, 0, 'coordinator cannot touch another job''s form');
 select t.fails($$update public.planning_forms set sent_at = null where job_id = '40000000-0000-0000-0000-0000000000a1'$$, 'coordinator cannot change when the form was sent');
-select t.works($$insert into public.roster_files (company_id, job_id, storage_path, file_name, mime_type, size_bytes, uploaded_by) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'a/a1/r2.xlsx', 'r2.xlsx', 'application/vnd.ms-excel', 5000, auth.uid())$$, 'coordinator uploads a roster');
-select t.fails($$insert into public.roster_files (company_id, job_id, storage_path, file_name, mime_type, size_bytes, uploaded_by) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a2', 'a/a2/r.csv', 'r.csv', 'text/csv', 10, auth.uid())$$, 'coordinator cannot upload to another job');
-select t.fails($$insert into public.roster_files (company_id, job_id, storage_path, file_name, mime_type, size_bytes, uploaded_by) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'a/a1/r3.csv', 'r3.csv', 'text/csv', 10, '10000000-0000-0000-0000-000000000003')$$, 'coordinator cannot upload as someone else');
-select t.fails($$insert into public.roster_files (company_id, job_id, storage_path, file_name, mime_type, size_bytes, uploaded_by) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'a/a1/big.pdf', 'big.pdf', 'application/pdf', 30000000, auth.uid())$$, 'a roster file over 25 MB is refused');
+select t.works($$insert into public.roster_files (company_id, job_id, storage_path, file_name, mime_type, size_bytes, uploaded_by) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a/40000000-0000-0000-0000-0000000000a1/r2.xlsx', 'r2.xlsx', 'application/vnd.ms-excel', 5000, auth.uid())$$, 'coordinator uploads a roster');
+select t.fails($$insert into public.roster_files (company_id, job_id, storage_path, file_name, mime_type, size_bytes, uploaded_by) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a2', 'a0000000-0000-0000-0000-00000000000a/40000000-0000-0000-0000-0000000000a2/r.csv', 'r.csv', 'text/csv', 10, auth.uid())$$, 'coordinator cannot upload to another job');
+select t.fails($$insert into public.roster_files (company_id, job_id, storage_path, file_name, mime_type, size_bytes, uploaded_by) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a/40000000-0000-0000-0000-0000000000a1/r3.csv', 'r3.csv', 'text/csv', 10, '10000000-0000-0000-0000-000000000003')$$, 'coordinator cannot upload as someone else');
+select t.fails($$insert into public.roster_files (company_id, job_id, storage_path, file_name, mime_type, size_bytes, uploaded_by) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a/40000000-0000-0000-0000-0000000000a1/big.pdf', 'big.pdf', 'application/pdf', 30000000, auth.uid())$$, 'a roster file over 25 MB is refused');
 select t.works($$insert into public.teams (id, company_id, job_id, name, source) values ('70000000-0000-0000-0000-0000000000a4', 'a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'Bears', 'coordinator')$$, 'coordinator adds a team');
 select t.fails($$insert into public.teams (company_id, job_id, name, source) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'Wolves', 'office')$$, 'coordinator cannot add a team as the office');
 select t.fails($$update public.teams set tc_number = '12' where id = '70000000-0000-0000-0000-0000000000a1'$$, 'coordinator cannot set team card numbers');
@@ -571,6 +571,32 @@ select t.login('coord');
 select t.count_is($$select count(*) from public.organization_terms$$, 0, 'a coordinator never sees league money terms');
 select t.login('crew');
 select t.count_is($$select count(*) from public.organization_terms$$, 0, 'crew never see league money terms');
+
+-- ---------------------------------------------------------------------------
+-- Wave A: planning form, roster paths and the scheduler helpers
+-- ---------------------------------------------------------------------------
+select t.login('coord');
+select t.works($$select public.save_planning_form('40000000-0000-0000-0000-0000000000a1', '{"setup": "indoors"}', false)$$, 'coordinator saves planning answers');
+select t.fails($$select public.save_planning_form('40000000-0000-0000-0000-0000000000a3', '{"setup": "indoors"}', false)$$, 'coordinator cannot fill in another job''s form');
+select t.fails($$select public.save_planning_form('40000000-0000-0000-0000-0000000000a1', '[]', false)$$, 'planning answers must be an object');
+select t.fails($$insert into public.roster_files (company_id, job_id, storage_path, file_name, mime_type, size_bytes, uploaded_by) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a/40000000-0000-0000-0000-0000000000a3/x.csv', 'x.csv', 'text/csv', 10, auth.uid())$$, 'a roster row cannot point at another job''s file');
+select t.fails($$insert into public.roster_files (company_id, job_id, storage_path, file_name, mime_type, size_bytes, uploaded_by) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a/40000000-0000-0000-0000-0000000000a1/x.exe', 'x.exe', 'application/octet-stream', 10, auth.uid())$$, 'a roster file of another type is refused');
+select t.count_is($$select count(*) from public.schedules where id = public.open_schedule((select id from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000a1'))$$, 1, 'opening a schedule twice returns the same one');
+select t.fails($$select public.open_schedule((select id from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000a3'))$$, 'coordinator cannot open another job''s schedule');
+select t.fails($$select public.set_schedule_status('80000000-0000-0000-0000-0000000000a1', 'complete')$$, 'coordinator cannot mark a schedule complete');
+select t.works($$update public.schedule_slots set minutes = 10 where team_id = '70000000-0000-0000-0000-0000000000a4'$$, 'coordinator changes a slot after submitting');
+select t.count_is($$select count(*) from public.schedules where id = '80000000-0000-0000-0000-0000000000a1' and status = 'started' and submitted_at is null$$, 1, 'a change after submitting reopens the schedule');
+select t.works($$select public.submit_schedule('80000000-0000-0000-0000-0000000000a1')$$, 'coordinator submits again');
+select t.login('office');
+select t.works($$select public.set_schedule_status('80000000-0000-0000-0000-0000000000a1', 'complete')$$, 'office marks the schedule complete');
+select t.works($$update public.schedule_slots set minutes = 15 where team_id = '70000000-0000-0000-0000-0000000000a4'$$, 'office edits a slot');
+select t.count_is($$select count(*) from public.schedules where id = '80000000-0000-0000-0000-0000000000a1' and status = 'complete'$$, 1, 'an office edit leaves the schedule complete');
+select t.fails($$select public.set_schedule_status('80000000-0000-0000-0000-0000000000a1', 'submitted')$$, 'only complete or started can be set');
+select t.works($$insert into public.teams (company_id, job_id, name, source) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'Late Team', 'office')$$, 'office adds a late team');
+select t.count_is($$select count(*) from public.schedules where id = '80000000-0000-0000-0000-0000000000a1' and status = 'started'$$, 1, 'a new team reopens a complete schedule');
+select t.count_is($$select count(*) from public.planning_due('40000000-0000-0000-0000-0000000000a1') where weeks_due = 3 and deadline_days = 10$$, 1, 'the planning dates read from settings');
+select t.login('crew');
+select t.fails($$select public.save_planning_form('40000000-0000-0000-0000-0000000000a1', '{}', true)$$, 'crew cannot fill in a planning form');
 
 select t.login('owner');   -- the never-list checks below run as the owner
 
