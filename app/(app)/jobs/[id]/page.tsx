@@ -9,7 +9,9 @@ import { seasonForDate } from "@/lib/season";
 import { DELIVERY_LABEL, STAGES, STAGE_LABEL, STATUS_LABEL, STATUS_TONE } from "@/lib/labels";
 import { answerRows, readAnswers } from "@/lib/planning/form";
 import { formatBytes, ROSTER_TYPES } from "@/lib/rosters/types";
+import { toClock, toMinutes } from "@/lib/schedule/layout";
 import { PortalLinkForm } from "./portal-link-form";
+import { StandardRosterUpload } from "./standard-roster";
 import { revokePortalLink } from "./portal-actions";
 
 const READY: Record<string, string> = {
@@ -61,11 +63,26 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     supabase.from("photo_day_readiness").select("*").eq("job_id", id).order("date"),
     supabase.from("clock_log").select("id, kind, outcome, run_on").eq("job_id", id).like("kind", "chase.%").order("created_at"),
   ]);
-  const [{ data: planningForm }, { data: rosterFiles }, { count: teamCount }] = await Promise.all([
+  const [{ data: planningForm }, { data: rosterFiles }, { count: teamCount }, { data: finishedRoster }] = await Promise.all([
     supabase.from("planning_forms").select("answers, submitted_at").eq("job_id", id).maybeSingle(),
     supabase.from("roster_files").select("id, file_name, mime_type, size_bytes, source, uploaded_at").eq("job_id", id).order("uploaded_at", { ascending: false }),
     supabase.from("teams").select("id", { count: "exact", head: true }).eq("job_id", id),
+    supabase
+      .from("roster_versions")
+      .select("version, status, subject_count, team_count, created_at")
+      .eq("job_id", id)
+      .in("status", ["ready", "uploaded"])
+      .not("csv_path", "is", null)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
+  const [{ data: schedules }, { data: scheduleSlots }, { data: scheduleTeams }] = await Promise.all([
+    supabase.from("schedules").select("id, photo_day_id, status, stations").eq("job_id", id),
+    supabase.from("schedule_slots").select("id, schedule_id, station, starts_at, minutes, kind, team_id, label").eq("job_id", id),
+    supabase.from("teams").select("id, name, division, coach_name").eq("job_id", id),
+  ]);
+  const teamById = new Map((scheduleTeams ?? []).map((t) => [t.id, t]));
   const planningRows = answerRows(readAnswers(planningForm?.answers));
   const emailContacts = (contacts ?? [])
     .map((c) => c.contacts as { id: string; full_name: string; email: string | null } | null)
@@ -152,6 +169,74 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
           </Card>
 
           <Card
+            title="Schedule"
+            action={<Link href={`/portal/${id}/schedule`} className="text-sm text-accent hover:underline">Open the scheduler</Link>}
+          >
+            {schedules?.length ? (
+              <div className="space-y-5">
+                {(days ?? []).map((d) => {
+                  const sc = schedules.find((x) => x.photo_day_id === d.id);
+                  if (!sc) return null;
+                  const final = sc.status === "submitted" || sc.status === "complete";
+                  const rows = (scheduleSlots ?? [])
+                    .filter((x) => x.schedule_id === sc.id)
+                    .sort((a, b) => toMinutes(a.starts_at) - toMinutes(b.starts_at) || a.station - b.station);
+                  return (
+                    <section key={sc.id}>
+                      <p className="mb-2 flex flex-wrap items-center gap-2 text-sm">
+                        <span className="font-medium">{formatDate(d.date, { weekday: true })}</span>
+                        <Pill tone={final ? "ok" : "warn"}>
+                          {sc.status === "complete" ? "Approved" : sc.status === "submitted" ? "Submitted, waiting for approval" : (READY[sc.status] ?? sc.status)}
+                        </Pill>
+                        {final && (
+                          <a href={`/portal/${id}/schedule/csv?day=${d.id}`} className="text-accent hover:underline">Download CSV</a>
+                        )}
+                      </p>
+                      {final ? (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-sm">
+                            <thead className="text-xs uppercase tracking-wider text-muted">
+                              <tr>
+                                <th className="py-1 pr-4 font-semibold">Time</th>
+                                <th className="py-1 pr-4 font-semibold">Station</th>
+                                <th className="py-1 pr-4 font-semibold">Team</th>
+                                <th className="py-1 pr-4 font-semibold">Division</th>
+                                <th className="py-1 font-semibold">Coach</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-line">
+                              {rows.map((x) => {
+                                const t = x.team_id ? teamById.get(x.team_id) : undefined;
+                                return (
+                                  <tr key={x.id} className={x.kind === "break" ? "text-muted" : undefined}>
+                                    <td className="whitespace-nowrap py-1.5 pr-4">
+                                      {formatTime(x.starts_at)} to {formatTime(toClock(toMinutes(x.starts_at) + x.minutes))}
+                                    </td>
+                                    <td className="py-1.5 pr-4">{x.station}</td>
+                                    <td className="py-1.5 pr-4">{x.kind === "break" ? x.label || "Break" : (t?.name ?? x.label ?? "Team removed")}</td>
+                                    <td className="py-1.5 pr-4">{t?.division ?? ""}</td>
+                                    <td className="py-1.5">{t?.coach_name ?? ""}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted">
+                          {rows.length} {rows.length === 1 ? "slot" : "slots"} so far. The full schedule shows here once it is submitted.
+                        </p>
+                      )}
+                    </section>
+                  );
+                })}
+              </div>
+            ) : (
+              <Empty>No schedule started yet.</Empty>
+            )}
+          </Card>
+
+          <Card
             title="Planning details"
             action={
               <span className="flex gap-3 text-sm">
@@ -193,6 +278,21 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             ) : (
               <p className="text-sm text-muted">None received.</p>
             )}
+            <h3 className="mb-1 mt-5 text-xs font-semibold uppercase tracking-wider text-muted">Finished roster</h3>
+            {finishedRoster ? (
+              <p className="mb-2 text-sm">
+                <a href={`/jobs/${id}/roster`} className="font-medium text-accent hover:underline">Download the SNAP roster CSV</a>
+                <span className="text-muted">
+                  {" "}· version {finishedRoster.version} · {finishedRoster.team_count ?? 0} teams · {finishedRoster.subject_count ?? 0} players ·{" "}
+                  {formatDate(finishedRoster.created_at.slice(0, 10))}
+                </span>
+              </p>
+            ) : (
+              <p className="mb-2 text-sm text-muted">
+                Not uploaded yet. Process the league&apos;s files into the SNAP roster format, then upload the CSV here. Its teams fill the schedule.
+              </p>
+            )}
+            {office && <StandardRosterUpload jobId={id} hasOne={!!finishedRoster} />}
           </Card>
           <Card title="Tasks">
             {tasks?.length ? (

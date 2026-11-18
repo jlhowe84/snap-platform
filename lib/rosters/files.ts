@@ -20,8 +20,8 @@ export function rosterPrefix(companyId: string, jobId: string) {
 }
 
 /** A one-time link the browser uploads one file to. */
-export async function rosterUploadLink(companyId: string, jobId: string, fileName: string) {
-  const path = `${rosterPrefix(companyId, jobId)}${randomUUID()}-${safeName(fileName)}`;
+export async function rosterUploadLink(companyId: string, jobId: string, fileName: string, folder = "") {
+  const path = `${rosterPrefix(companyId, jobId)}${folder}${randomUUID()}-${safeName(fileName)}`;
   const { data, error } = await createAdminClient().storage.from(ROSTER_BUCKET).createSignedUploadUrl(path);
   if (error || !data) throw new Error("could not start the upload");
   return { path, token: data.token };
@@ -52,4 +52,14 @@ export async function rosterDownloadUrl(path: string, fileName: string) {
     .createSignedUrl(path, 300, { download: fileName });
   if (error || !data) throw new Error("could not make a download link");
   return data.signedUrl;
+}
+
+/** Where the finished SNAP roster files of a job live, apart from what the league sent. */
+export const STANDARD_FOLDER = "standard/";
+
+/** The text of a small file in the bucket, for the server to check. */
+export async function rosterText(path: string): Promise<string | null> {
+  const { data, error } = await createAdminClient().storage.from(ROSTER_BUCKET).download(path);
+  if (error || !data) return null;
+  return await data.text();
 }

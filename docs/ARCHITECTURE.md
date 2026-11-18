@@ -172,6 +172,18 @@ sees; the office uses the same pages ("View as staff").
   back from storage. The bucket has no policies; downloads go through a
   five-minute link after an RLS read. A row's path must sit under its own
   company and job (check constraint).
+- **Finished roster** (job page, office only). Rosters are normalized outside
+  the platform by the office's roster process; nothing here guesses at a
+  league's layout. The office uploads the finished SNAP roster CSV, and
+  `lib/rosters/standard.ts` checks it against that one format (exact header,
+  reference numbers, Group equals Custom Data 3, Player or Coach, extra
+  player rows) and refuses it with the failing lines otherwise.
+  `import_standard_roster()` then fills `teams` (matched on
+  `teams.roster_group`, the roster's Group value), removes teams an earlier
+  roster brought that are gone and not on a schedule, and records a `ready`
+  row in `roster_versions` with the file's path. Player names stay in the
+  file; tables hold team facts and counts only. `/jobs/[id]/roster` hands
+  staff the current file for the Captura upload step.
 - **Scheduler** (`/portal/[jobId]/schedule`). Teams, then slots per station
   for each photo day. `open_schedule()` makes the schedule on a coordinator's
   first visit. "Place the remaining teams" (`lib/schedule/layout.ts`) fills

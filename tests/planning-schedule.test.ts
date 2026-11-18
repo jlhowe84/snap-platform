@@ -3,7 +3,7 @@ import { buildDraft } from "@/lib/clock/drafts";
 import { planningDates } from "@/lib/planning/dates";
 import { answerRows, PlanningAnswers, readAnswers, stillToCome } from "@/lib/planning/form";
 import { rosterMime } from "@/lib/rosters/types";
-import { nextFree, placeRemaining, scheduleCsv, toClock, toMinutes, type Slot } from "@/lib/schedule/layout";
+import { makeRoom, nextFree, placeRemaining, scheduleCsv, toClock, toMinutes, type Slot } from "@/lib/schedule/layout";
 
 describe("planning form", () => {
   it("drops blank answers and reads numbers", () => {
@@ -90,5 +90,21 @@ describe("scheduler", () => {
     expect(lines[1]).toBe(`2027-04-17,09:00,09:15,1,'=SUM(A1),U10,"Lee, Pat",101`);
     expect(lines[2]).toBe("2027-04-17,09:15,09:45,1,Lunch,,,");
     expect(lines[3]).toBe("2027-04-17,09:15,09:30,2,Tigers,,,");
+  });
+});
+
+describe("a break makes room", () => {
+  const slot = (id: string, station: number, starts_at: string, minutes = 15): Slot => ({ id, station, starts_at, minutes, kind: "team", team_id: id, label: null });
+  const day = [slot("a", 1, "09:00"), slot("b", 1, "09:15"), slot("c", 1, "09:30"), slot("d", 1, "10:30"), slot("x", 2, "09:15")];
+
+  it("pushes the teams behind it on that station only, as far as needed", () => {
+    expect(makeRoom(day, 1, "09:15", 10)).toEqual([{ id: "b", starts_at: "09:25" }, { id: "c", starts_at: "09:40" }]);
+  });
+  it("lets a gap absorb the push and moves nothing at a free time", () => {
+    expect(makeRoom(day, 1, "09:45", 30)).toEqual([]);
+    expect(makeRoom(day, 1, "09:45", 60)).toEqual([{ id: "d", starts_at: "10:45" }]);
+  });
+  it("refuses a break that would run a team past the end of the day", () => {
+    expect(makeRoom([slot("z", 1, "23:30", 30)], 1, "23:30", 15)).toBeNull();
   });
 });

@@ -93,7 +93,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
 
       <Card title={`Teams (${teams?.length ?? 0})`} className="mb-6">
         <p className="mb-3 text-sm text-muted">
-          List every team or group that will be photographed. Teams from your roster appear here once we have read it.
+          List every team or group that will be photographed. Teams from your roster appear here once we have processed it.
         </p>
         {teams?.length ? (
           <ul className="divide-y divide-line">
@@ -273,6 +273,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                   {MINUTES.map((m) => <option key={m} value={m}>{m} min</option>)}
                 </select>
                 <button className={quiet}>Add break</button>
+                <span className="text-xs text-muted">Teams after the break on that station move later to make room.</span>
               </form>
             </div>
           )}

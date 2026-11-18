@@ -2551,6 +2551,7 @@ export type Database = {
           job_id: string
           name: string
           player_count: number | null
+          roster_group: string | null
           source: string
           sponsor: string | null
           sport: string | null
@@ -2566,6 +2567,7 @@ export type Database = {
           job_id: string
           name: string
           player_count?: number | null
+          roster_group?: string | null
           source?: string
           sponsor?: string | null
           sport?: string | null
@@ -2581,6 +2583,7 @@ export type Database = {
           job_id?: string
           name?: string
           player_count?: number | null
+          roster_group?: string | null
           source?: string
           sponsor?: string | null
           sport?: string | null
@@ -2838,6 +2841,15 @@ export type Database = {
           p_stations?: number
         }
         Returns: string
+      }
+      import_standard_roster: {
+        Args: {
+          p_csv_path: string
+          p_job_id: string
+          p_subject_count: number
+          p_teams: Json
+        }
+        Returns: Json
       }
       integration_secret: {
         Args: { p_company: string; p_integration: string }
