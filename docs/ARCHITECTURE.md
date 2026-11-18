@@ -154,3 +154,35 @@ a signed version never changes, so edits always become a new version.
   placeholder filled at send time, so no live token is stored in a draft.
 - Approving does not send. The mail runner comes later and passes
   `lib/mail/guard.ts`.
+
+## Planning form, rosters and the scheduler (Wave A)
+
+The three portal steps after signing. Each page reads as the signed-in person
+through `lib/portal/job.ts`, so RLS decides what a coordinator or the office
+sees; the office uses the same pages ("View as staff").
+
+- **Planning form** (`/portal/[jobId]/planning`). Answers are one JSON object
+  on `planning_forms.answers`, shaped by `lib/planning/form.ts`.
+  `save_planning_form()` makes the row on first save (coordinators have no
+  insert policy) and marks it submitted on "Send".
+- **Rosters** (`/portal/[jobId]/rosters`). Files can be 25 MB, so the browser
+  uploads straight to the private `rosters` bucket through a one-time link the
+  server makes after checking the person (`lib/rosters/files.ts`). The row in
+  `roster_files` is then written as that person, with the size and type read
+  back from storage. The bucket has no policies; downloads go through a
+  five-minute link after an RLS read. A row's path must sit under its own
+  company and job (check constraint).
+- **Scheduler** (`/portal/[jobId]/schedule`). Teams, then slots per station
+  for each photo day. `open_schedule()` makes the schedule on a coordinator's
+  first visit. "Place the remaining teams" (`lib/schedule/layout.ts`) fills
+  the next open times and never moves a placed slot. Submit is blocked until
+  `schedule_problems()` is empty. A coordinator's change after submitting, or
+  any new team, sends the schedule back to started; the office marks a
+  submitted schedule complete with `set_schedule_status()`.
+- **Dates.** Coordinators are asked for the roster and schedule
+  `chase.weeks_due` weeks before photo day (3) and told the last day is
+  `chase.deadline_days` before it (10), matching the agreement. The portal
+  reads both through `planning_due()`.
+
+Not built yet: reading a roster into teams (the roster worker), drag to swap,
+a print layout, and automatic TC numbers.

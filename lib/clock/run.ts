@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { todayIn } from "@/lib/dates";
+import { planningDates } from "@/lib/planning/dates";
 import { seasonForDate } from "@/lib/season";
 import { buildDraft, firstName, isDraftKind, type DraftFacts } from "./drafts";
 
@@ -38,6 +39,11 @@ export async function runClock(onlyCompanyId?: string): Promise<ClockResult[]> {
 
   const { data: enabledRows } = await admin.from("settings").select("company_id, value").eq("key", "clock.enabled");
   const enabled = new Set((enabledRows ?? []).filter((r) => r.value === true).map((r) => r.company_id));
+
+  const { data: deadlineRows } = await admin.from("settings").select("company_id, value").eq("key", "chase.deadline_days");
+  const deadlineDays = new Map(
+    (deadlineRows ?? []).filter((r) => typeof r.value === "number").map((r) => [r.company_id, r.value as number]),
+  );
 
   const results: ClockResult[] = [];
   for (const company of companies ?? []) {
@@ -81,6 +87,7 @@ export async function runClock(onlyCompanyId?: string): Promise<ClockResult[]> {
         photoDay,
         holdExpires: item.expires_on ?? null,
         dueOn: item.due_on ?? null,
+        deadlineOn: planningDates(photoDay, 3, deadlineDays.get(company.id) ?? 10).deadline,
         missing: item.missing ?? [],
       };
 
