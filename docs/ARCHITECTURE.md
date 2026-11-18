@@ -106,3 +106,29 @@ Coordinators may write only: planning form answers, roster uploads (25 MB
 each), their own teams, schedule slots, and schedule status up to `started`.
 `public.submit_schedule()` submits only when `public.schedule_problems()` finds
 no missing team, overlap or out-of-range station.
+
+## Coordinator portal
+
+League coordinators never sign up or keep a password. The office makes a
+portal link for one of the job's contacts on the job page (shown once; only
+the SHA-256 of the token is stored in `portal_links`). Opening `/p/<token>`:
+
+1. `portal_link_lookup()` (service role only) finds the live link and its
+   contact. It refuses outright if the email belongs to staff.
+2. The server creates an auth user for that email if none exists.
+3. `portal_admit()` (service role only) gives the person the `coordinator`
+   role and links them to the job in `job_coordinators`.
+4. The server mints a normal Supabase session (admin `generateLink`, then
+   `verifyOtp` with the hashed token), so RLS treats them like any user.
+
+Links are reusable until they expire (60 days after the last photo day, at
+least 60 days from creation) or the office revokes them.
+
+`sign_agreement()` is the only way to write a signature. It checks the
+coordinator, the active version, every required initial and a typed name,
+then confirms the hold (hold row, job `held` to `planning`, season offer) and
+logs a touchpoint. The PDF is built with pdf-lib from the stored records and
+filed in the private `agreements` bucket; downloads go through
+`/portal/<job>/agreement/pdf`, which checks RLS before handing out a
+five-minute signed URL. Admins edit the agreement in Settings > Agreement;
+a signed version never changes, so edits always become a new version.

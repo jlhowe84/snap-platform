@@ -5,6 +5,7 @@ import { Card, Empty, PageHeader, Pill, StatusDot } from "@/components/ui";
 import { ROLE_LABEL } from "@/lib/labels";
 import { InviteForm } from "./invite-form";
 import { CapturaTest } from "./captura-test";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -30,7 +31,9 @@ export default async function SettingsPage() {
       <div className="grid gap-6 xl:grid-cols-2">
         <Card title="Team">
           <ul className="mb-4 divide-y divide-line text-sm">
-            {(people ?? []).map((p) => (
+            {(people ?? [])
+              .filter((p) => (p.profile_roles as { role: string }[]).some((r) => r.role !== "coordinator"))
+              .map((p) => (
               <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <span>{p.full_name ?? p.email}</span>
                 <span className="flex flex-wrap gap-1">
@@ -101,6 +104,15 @@ export default async function SettingsPage() {
               </li>
             ))}
           </ul>
+        </Card>
+
+        <Card
+          title="Photo day agreement"
+          action={<Link href="/settings/agreement" className="text-sm text-accent hover:underline">Edit</Link>}
+        >
+          <p className="text-sm text-muted">
+            The text league coordinators read, initial and sign in the portal. Signing confirms their held date.
+          </p>
         </Card>
 
         <Card title="Company settings" className="xl:col-span-2">

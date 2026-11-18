@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireStaff } from "@/lib/auth";
+import { requireStaff, hasAnyRole, OFFICE_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill, ReadinessStrip, StatusDot } from "@/components/ui";
 import { formatDate, formatTime } from "@/lib/dates";
 import { seasonForDate } from "@/lib/season";
 import { DELIVERY_LABEL, STAGES, STAGE_LABEL, STATUS_LABEL, STATUS_TONE } from "@/lib/labels";
+import { PortalLinkForm } from "./portal-link-form";
+import { revokePortalLink } from "./portal-actions";
 
 export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
-  await requireStaff();
+  const viewer = await requireStaff();
+  const office = hasAnyRole(viewer, OFFICE_ROLES);
   const { id } = await params;
   const supabase = await createClient();
 
@@ -25,6 +28,20 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     supabase.from("job_contacts").select("role, contacts(id, full_name, email, phone)").eq("job_id", id),
     supabase.from("tasks").select("id, title, status, due_on").eq("job_id", id).order("due_on"),
   ]);
+  const [{ data: holds }, { data: signatures }, { data: portalLinks }] = await Promise.all([
+    supabase.from("date_holds").select("photo_day_id, status, expires_on").eq("job_id", id),
+    supabase.from("agreement_signatures").select("id, signer_name, signed_at").eq("job_id", id).order("signed_at", { ascending: false }),
+    supabase
+      .from("portal_links")
+      .select("id, created_at, expires_at, last_used_at, revoked_at, contacts(full_name)")
+      .eq("job_id", id)
+      .order("created_at", { ascending: false }),
+  ]);
+  const emailContacts = (contacts ?? [])
+    .map((c) => c.contacts as { id: string; full_name: string; email: string | null } | null)
+    .filter((c): c is { id: string; full_name: string; email: string } => !!c?.email)
+    .map((c) => ({ id: c.id, name: c.full_name, email: c.email }));
+  const nowIso = new Date().toISOString();
 
   const season = seasonForDate(days?.[0]?.date);
   const stageIndex = job.production_stage ? STAGES.indexOf(job.production_stage) : -1;
@@ -115,6 +132,60 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
               {job.promo && <Detail label="Promo">{job.promo}</Detail>}
               {job.imported_planning_stage && <Detail label="Notion stage">{job.imported_planning_stage}</Detail>}
             </dl>
+          </Card>
+
+          <Card title="Booking">
+            <ul className="space-y-2 text-sm">
+              {(holds ?? []).map((h) => (
+                <li key={h.photo_day_id} className="flex justify-between gap-3">
+                  <span className="text-muted">Hold</span>
+                  <span>
+                    {h.status === "held" ? `Held until ${formatDate(h.expires_on)}` : h.status === "confirmed" ? "Confirmed" : "Released"}
+                  </span>
+                </li>
+              ))}
+              <li className="flex justify-between gap-3">
+                <span className="text-muted">Agreement</span>
+                {signatures?.[0] ? (
+                  <a href={`/portal/${id}/agreement/pdf`} className="text-accent hover:underline">
+                    Signed by {signatures[0].signer_name}, {formatDate(signatures[0].signed_at.slice(0, 10))}
+                  </a>
+                ) : (
+                  <span>Not signed</span>
+                )}
+              </li>
+            </ul>
+          </Card>
+
+          <Card title="Coordinator portal" action={<Link href={`/portal/${id}`} className="text-sm text-accent hover:underline">View as staff</Link>}>
+            {office && <PortalLinkForm jobId={id} contacts={emailContacts} />}
+            {portalLinks?.length ? (
+              <ul className="mt-4 divide-y divide-line text-sm">
+                {portalLinks.map((l) => {
+                  const live = !l.revoked_at && l.expires_at > nowIso;
+                  return (
+                    <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                      <div>
+                        <p>{(l.contacts as { full_name: string } | null)?.full_name ?? "Contact"}</p>
+                        <p className="text-xs text-muted">
+                          {l.revoked_at
+                            ? `Revoked ${formatDate(l.revoked_at.slice(0, 10))}`
+                            : live
+                              ? `Open until ${formatDate(l.expires_at.slice(0, 10))}`
+                              : "Expired"}
+                          {l.last_used_at ? ` · last used ${formatDate(l.last_used_at.slice(0, 10))}` : " · not used yet"}
+                        </p>
+                      </div>
+                      {live && office && (
+                        <form action={revokePortalLink.bind(null, id, l.id)}>
+                          <button className="text-xs text-risk hover:underline">Revoke</button>
+                        </form>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
           </Card>
 
           <Card title="Links">
