@@ -74,3 +74,57 @@ export async function testCapturaConnection(): Promise<CapturaTestState> {
   revalidatePath("/settings");
   return result;
 }
+
+export type GmailTestState = { ok: boolean; message: string } | null;
+
+// Signs in as each allowed mailbox and reads its profile (address and message
+// count, no message content). Records the outcome on integration_status.
+export async function testGmailConnection(): Promise<GmailTestState> {
+  const viewer = await requireStaff(ADMIN_ROLES);
+  const { loadServiceAccount, allowedMailboxes, createGmailClient } = await import("@/lib/gmail/client");
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const admin = createAdminClient();
+  const now = new Date().toISOString();
+
+  let result: GmailTestState;
+  try {
+    const sa = await loadServiceAccount(viewer.companyId);
+    const { data: rows } = await admin
+      .from("settings")
+      .select("key, value")
+      .eq("company_id", viewer.companyId)
+      .eq("key", "mail.mailboxes");
+    const boxes = allowedMailboxes(rows ?? []);
+    if (!sa) {
+      result = { ok: false, message: "No Workspace key is stored yet." };
+    } else if (!boxes.length) {
+      result = { ok: false, message: "No mailboxes are listed in mail.mailboxes." };
+    } else {
+      const seen: string[] = [];
+      for (const box of boxes) {
+        const p = await createGmailClient(sa, box, boxes).profile();
+        seen.push(`${p.emailAddress} (${p.messagesTotal.toLocaleString("en-US")} messages)`);
+      }
+      await admin.from("integration_status").upsert({
+        company_id: viewer.companyId,
+        integration: "gmail",
+        enabled: true,
+        last_success_at: now,
+        last_error: null,
+        details: { test: "profile", mailboxes: boxes.length },
+      });
+      result = { ok: true, message: `Gmail answered for ${seen.join(", ")}. Read-only check.` };
+    }
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    await admin.from("integration_status").upsert({
+      company_id: viewer.companyId,
+      integration: "gmail",
+      last_error_at: now,
+      last_error: message,
+    });
+    result = { ok: false, message };
+  }
+  revalidatePath("/settings");
+  return result;
+}

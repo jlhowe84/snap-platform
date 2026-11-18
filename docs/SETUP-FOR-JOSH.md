@@ -45,3 +45,14 @@ select private.set_integration_secret(
 
 Settings > Team in the app. Pick roles; the person signs in with Google.
 Only an owner can make someone an admin.
+
+## 5. Google Workspace mail (done Nov 18)
+
+The platform reads mail through a service account (`snap-platform-mail`) with
+domain-wide delegation, scope `gmail.modify`. Its JSON key is in Vault as the
+`google_workspace` integration. The grant reaches every mailbox, so the code
+opens only the addresses in the `mail.mailboxes` setting (today: the help@
+user mailbox). Shared addresses that are groups include help@ as a member;
+addresses that are aliases on a person's mailbox reach help@ through a Gmail
+filter in that mailbox, so no one's own mailbox is ever read.
+Settings > Test Gmail connection checks it (profile only, no message content).
