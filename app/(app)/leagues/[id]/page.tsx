@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireStaff, OFFICE_ROLES } from "@/lib/auth";
+import { requireStaff, hasAnyRole, OFFICE_ROLES } from "@/lib/auth";
+import { MoneyTermsForm } from "./terms-form";
+import { MoneyTermsList } from "@/components/money-terms";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill, StatusDot } from "@/components/ui";
 import { formatDate, formatRange } from "@/lib/dates";
@@ -11,14 +13,15 @@ const CHANNEL_LABEL: Record<string, string> = {
 };
 
 export default async function LeaguePage({ params }: PageProps<"/leagues/[id]">) {
-  await requireStaff([...OFFICE_ROLES, "support"]);
+  const viewer = await requireStaff([...OFFICE_ROLES, "support"]);
+  const office = hasAnyRole(viewer, OFFICE_ROLES);
   const { id } = await params;
   const supabase = await createClient();
 
   const { data: org } = await supabase.from("organizations").select("*").eq("id", id).maybeSingle();
   if (!org) notFound();
 
-  const [{ data: jobs }, { data: people }, { data: offers }, { data: timeline }] = await Promise.all([
+  const [{ data: jobs }, { data: people }, { data: offers }, { data: timeline }, { data: terms }] = await Promise.all([
     supabase
       .from("job_overview")
       .select("id, name, season, first_date, last_date, status")
@@ -42,7 +45,13 @@ export default async function LeaguePage({ params }: PageProps<"/leagues/[id]">)
       .eq("org_id", id)
       .order("occurred_at", { ascending: false })
       .limit(25),
+    supabase
+      .from("organization_terms")
+      .select("sponsorship, rebate, parent_discount, other_terms")
+      .eq("org_id", id)
+      .maybeSingle(),
   ]);
+  const money = terms ?? { sponsorship: null, rebate: null, parent_discount: null, other_terms: null };
 
   return (
     <>
@@ -125,6 +134,12 @@ export default async function LeaguePage({ params }: PageProps<"/leagues/[id]">)
                 </>
               )}
             </dl>
+          </Card>
+          <Card title="Money terms">
+            <p className="mb-3 text-xs text-muted">
+              Agreed with this league only. Kept out of the standard agreement and shown on each of its jobs.
+            </p>
+            {office ? <MoneyTermsForm orgId={id} terms={money} /> : <MoneyTermsList terms={money} />}
           </Card>
           <Card title="Season offers">
             {offers?.length ? (

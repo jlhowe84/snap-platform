@@ -558,6 +558,20 @@ select t.count_is($$select (public.decide_action('70000000-0000-0000-0000-000000
 select t.login('admin');
 select t.count_is($$select (public.decide_action('70000000-0000-0000-0000-0000000000a3', true) = 'approved')::int$$, 1, 'an admin decides a date-at-risk note');
 
+-- ---------------------------------------------------------------------------
+-- League money terms
+-- ---------------------------------------------------------------------------
+select t.login('support');
+select t.count_is($$with u as (update public.organization_terms set sponsorship = 'x' where org_id = '20000000-0000-0000-0000-0000000000a1' returning 1) select count(*) from u$$, 0, 'support cannot change league money terms');
+select t.login('office');
+select t.count_is($$with u as (update public.organization_terms set sponsorship = '$500 a season', rebate = '10% of sales' where org_id = '20000000-0000-0000-0000-0000000000a1' returning 1) select count(*) from u$$, 1, 'the office records league money terms');
+select t.login('support');
+select t.count_is($$select count(*) from public.organization_terms where org_id = '20000000-0000-0000-0000-0000000000a1' and rebate = '10% of sales'$$, 1, 'support reads league money terms');
+select t.login('coord');
+select t.count_is($$select count(*) from public.organization_terms$$, 0, 'a coordinator never sees league money terms');
+select t.login('crew');
+select t.count_is($$select count(*) from public.organization_terms$$, 0, 'crew never see league money terms');
+
 select t.login('owner');   -- the never-list checks below run as the owner
 
 -- ---------------------------------------------------------------------------

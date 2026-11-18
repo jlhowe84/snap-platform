@@ -4,6 +4,7 @@ import { requireStaff, hasAnyRole, OFFICE_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill, ReadinessStrip, StatusDot } from "@/components/ui";
 import { formatDate, formatTime } from "@/lib/dates";
+import { MoneyTermsList } from "@/components/money-terms";
 import { seasonForDate } from "@/lib/season";
 import { DELIVERY_LABEL, STAGES, STAGE_LABEL, STATUS_LABEL, STATUS_TONE } from "@/lib/labels";
 import { PortalLinkForm } from "./portal-link-form";
@@ -50,7 +51,11 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       .eq("job_id", id)
       .order("created_at", { ascending: false }),
   ]);
-  const [{ data: readiness }, { data: clock }] = await Promise.all([
+  const [{ data: moneyTerms }, { data: minSetting }, { data: readiness }, { data: clock }] = await Promise.all([
+    job.org_id
+      ? supabase.from("organization_terms").select("sponsorship, rebate, parent_discount, other_terms").eq("org_id", job.org_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase.from("settings").select("value").eq("key", "photo_day.min_players").maybeSingle(),
     supabase.from("photo_day_readiness").select("*").eq("job_id", id).order("date"),
     supabase.from("clock_log").select("id, kind, outcome, run_on").eq("job_id", id).like("kind", "chase.%").order("created_at"),
   ]);
@@ -59,6 +64,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     .filter((c): c is { id: string; full_name: string; email: string } => !!c?.email)
     .map((c) => ({ id: c.id, name: c.full_name, email: c.email }));
   const nowIso = new Date().toISOString();
+  const minPlayers = typeof minSetting?.value === "number" ? minSetting.value : 50;
 
   const season = seasonForDate(days?.[0]?.date);
   const stageIndex = job.production_stage ? STAGES.indexOf(job.production_stage) : -1;
@@ -167,7 +173,12 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
               <Detail label="Type">{job.job_type}</Detail>
               <Detail label="Sports">{job.sports.join(", ") || "None"}</Detail>
               <Detail label="Teams">{job.expected_teams ?? "Unknown"}</Detail>
-              <Detail label="Subjects">{job.expected_subjects ?? "Unknown"}</Detail>
+              <Detail label="Subjects">
+                {job.expected_subjects ?? "Unknown"}
+                {job.expected_subjects != null && job.expected_subjects < minPlayers && (
+                  <span className="ml-2"><Pill tone="warn">Under the {minPlayers}-player minimum</Pill></span>
+                )}
+              </Detail>
               <Detail label="Delivery">{job.delivery_method ? DELIVERY_LABEL[job.delivery_method] : "Not set"}</Detail>
               <Detail label="Team photo">{job.team_photo_type ?? "Not set"}</Detail>
               <Detail label="Sponsors">{job.sponsors == null ? "Unknown" : job.sponsors ? "Yes" : "No"}</Detail>
@@ -176,6 +187,12 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             </dl>
           </Card>
 
+          <Card
+            title="League money terms"
+            action={job.organizations ? <Link href={`/leagues/${job.organizations.id}`} className="text-sm text-accent hover:underline">{office ? "Edit on league" : "League"}</Link> : undefined}
+          >
+            <MoneyTermsList terms={moneyTerms} />
+          </Card>
           <Card title="Booking">
             <ul className="space-y-2 text-sm">
               {(holds ?? []).map((h) => (

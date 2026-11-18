@@ -1397,8 +1397,13 @@ export type Database = {
           company_id: string
           delivery_method: Database["public"]["Enums"]["delivery_method"] | null
           org_id: string
+          other_terms: string | null
+          parent_discount: string | null
+          rebate: string | null
           services: string[]
+          sponsorship: string | null
           team_photo_types: string[]
+          terms_updated_by: string | null
           updated_at: string
         }
         Insert: {
@@ -1407,8 +1412,13 @@ export type Database = {
             | Database["public"]["Enums"]["delivery_method"]
             | null
           org_id: string
+          other_terms?: string | null
+          parent_discount?: string | null
+          rebate?: string | null
           services?: string[]
+          sponsorship?: string | null
           team_photo_types?: string[]
+          terms_updated_by?: string | null
           updated_at?: string
         }
         Update: {
@@ -1417,8 +1427,13 @@ export type Database = {
             | Database["public"]["Enums"]["delivery_method"]
             | null
           org_id?: string
+          other_terms?: string | null
+          parent_discount?: string | null
+          rebate?: string | null
           services?: string[]
+          sponsorship?: string | null
           team_photo_types?: string[]
+          terms_updated_by?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1434,6 +1449,13 @@ export type Database = {
             columns: ["org_id"]
             isOneToOne: true
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_terms_terms_updated_by_fkey"
+            columns: ["terms_updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
