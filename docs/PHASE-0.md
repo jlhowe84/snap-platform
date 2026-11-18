@@ -15,4 +15,4 @@ the new design.
 | Notion import: crew and templates | Done: 41 active crew, 41 playbook steps |
 | Notion import: league contacts | Done: 415 current contacts (active, unsure, or named on a job; past-only contacts stay in Notion); 208 leagues and 215 of 235 jobs have at least one |
 | Captura client ported server-side | Done (read-only); credentials in Vault, live test passed Nov 18 (Settings > Test Captura connection) |
-| Workspace grant | Waits on Josh (Nov 21) |
+| Workspace grant | Granted Nov 18 (gmail.modify, help@ mailbox only); Settings > Test Gmail connection |
