@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+/* Design tokens. Dark first (the office runs on big screens all day), with the
+   brand accent kept in one place so a second company can restyle by tokens. */
+:root {
+  --bg: #0f1012;
+  --surface: #17181b;
+  --surface-2: #1f2125;
+  --line: #2a2d32;
+  --text: #f2f2f0;
+  --muted: #9a9ea6;
+  --accent: #f0803f;
+  --accent-ink: #1a0d05;
+  --ok: #4cc38a;
+  --warn: #e8b84a;
+  --risk: #ef6461;
+  --info: #6aa9ff;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-risk: var(--risk);
+  --color-info: var(--info);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-barlow), var(--font-inter), ui-sans-serif, sans-serif;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
