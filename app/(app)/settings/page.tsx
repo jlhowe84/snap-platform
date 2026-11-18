@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill, StatusDot } from "@/components/ui";
 import { ROLE_LABEL } from "@/lib/labels";
 import { InviteForm } from "./invite-form";
+import { CapturaTest } from "./captura-test";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -74,6 +75,7 @@ export default async function SettingsPage() {
           ) : (
             <Empty>No integrations set up.</Empty>
           )}
+          <CapturaTest />
         </Card>
 
         <Card title="Never without a person">
