@@ -641,6 +641,60 @@ select t.login('admin');
 select t.count_is($$select count(*) from public.agent_runs where trigger = 'ask_snap'$$, 3, 'admin reads every Ask SNAP run');
 select t.count_is($$select count(*) from (select public.ask_snap_status() as r) s where (r ->> 'spent_today')::numeric = 1.1 and (r ->> 'daily_cap')::numeric = 1$$, 1, 'the status shows the day''s spend and cap');
 
+-- ---------------------------------------------------------------------------
+-- The Wave A exit line, start to finish on one league: a held date, a signed
+-- agreement, a complete schedule in the portal, and the chase on the right days.
+-- ---------------------------------------------------------------------------
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+insert into public.organizations (id, company_id, name) values
+  ('20000000-0000-0000-0000-0000000000a9', 'a0000000-0000-0000-0000-00000000000a', 'League A9');
+insert into public.season_offers (company_id, org_id, season, stage, tier) values
+  ('a0000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-0000000000a9', 'Spring 2029', 'offered', 'other');
+
+select t.login('office');
+select t.works($$select public.hold_date((select id from public.season_offers where season = 'Spring 2029'), '2029-04-14', 1::smallint)$$, 'exit: the office holds a date for the league');
+select t.count_is($$select count(*) from public.jobs where name = 'League A9 Spring 2029' and status = 'held'$$, 1, 'exit: the job starts as held');
+
+reset role;
+insert into public.portal_links (company_id, job_id, contact_id, token_hash, expires_at)
+  select 'a0000000-0000-0000-0000-00000000000a', id, '30000000-0000-0000-0000-0000000000a2', 'hash-a9', now() + interval '30 days'
+  from public.jobs where name = 'League A9 Spring 2029';
+select t.works($$select public.portal_admit((select id from public.portal_links where token_hash = 'hash-a9'), '10000000-0000-0000-0000-000000000006')$$, 'exit: the coordinator opens the portal link');
+
+select t.login('coord');
+select t.works($$select public.sign_agreement((select id from public.jobs where name = 'League A9 Spring 2029'), '60000000-0000-0000-0000-0000000000a1', 'Coord Person', '{"fees": "CP"}')$$, 'exit: the coordinator signs the agreement');
+select t.count_is($$select count(*) from public.jobs where name = 'League A9 Spring 2029' and status = 'planning'$$, 1, 'exit: the signed job moves to planning');
+
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', '2029-02-16')) e where e ->> 'job_id' = (select id from public.jobs where name = 'League A9 Spring 2029')::text$$, 0, 'exit: no chase the day before eight weeks out');
+select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', '2029-02-17')) e
+  where e ->> 'kind' = 'chase.request' and e ->> 'job_id' = (select id from public.jobs where name = 'League A9 Spring 2029')::text and e ->> 'due_on' = '2029-03-24'
+    and e -> 'missing' = '["planning_form", "roster", "schedule"]'$$, 1, 'exit: eight weeks out the request is drafted for the form, roster and schedule');
+
+select t.login('coord');
+select t.works($$select public.save_planning_form((select id from public.jobs where name = 'League A9 Spring 2029'), '{"setup": "outdoors"}', true)$$, 'exit: the coordinator submits the planning form');
+select t.login('office');
+select t.works($$select public.import_standard_roster((select id from public.jobs where name = 'League A9 Spring 2029'), 'a0000000-0000-0000-0000-00000000000a/' || (select id from public.jobs where name = 'League A9 Spring 2029')::text || '/standard/final.csv', '[{"group":"U10 - Bears - Lee","name":"Bears","division":"U10","coach":"Coach Lee","sponsor":null,"players":12},{"group":"U10 - Wolves - Diaz","name":"Wolves","division":"U10","coach":"Coach Diaz","sponsor":null,"players":11}]', 23)$$, 'exit: the office uploads the finished roster');
+
+select t.login('coord');
+select t.works($$select public.open_schedule((select id from public.photo_days where job_id = (select id from public.jobs where name = 'League A9 Spring 2029')))$$, 'exit: the coordinator opens the schedule');
+select t.fails($$select public.submit_schedule((select id from public.schedules where job_id = (select id from public.jobs where name = 'League A9 Spring 2029')))$$, 'exit: a schedule with unplaced teams cannot be submitted');
+select t.works($$insert into public.schedule_slots (company_id, job_id, schedule_id, station, starts_at, minutes, team_id)
+  select s.company_id, s.job_id, s.id, 1, time '09:00' + (row_number() over (order by tm.name) - 1) * interval '15 minutes', 15, tm.id
+  from public.schedules s join public.teams tm on tm.job_id = s.job_id where s.job_id = (select id from public.jobs where name = 'League A9 Spring 2029')$$, 'exit: the coordinator places both teams');
+select t.works($$select public.submit_schedule((select id from public.schedules where job_id = (select id from public.jobs where name = 'League A9 Spring 2029')))$$, 'exit: the coordinator submits the schedule');
+select t.login('office');
+select t.works($$select public.set_schedule_status((select id from public.schedules where job_id = (select id from public.jobs where name = 'League A9 Spring 2029')), 'complete')$$, 'exit: the office approves the schedule');
+select t.count_is($$select count(*) from public.photo_day_readiness where job_id = (select id from public.jobs where name = 'League A9 Spring 2029')
+  and agreement_signed and planning_form = 'submitted' and roster = 'standardized' and schedule = 'complete'$$, 1, 'exit: the photo day reads as ready on every step');
+
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', '2029-03-10')) e where e ->> 'job_id' = (select id from public.jobs where name = 'League A9 Spring 2029')::text$$, 0, 'exit: five weeks out nothing is chased once everything is in');
+select t.count_is($$select count(*) from public.clock_log where key = 'chase:' || (select id from public.jobs where name = 'League A9 Spring 2029')::text || ':reminder' and outcome = 'not_needed'$$, 1, 'exit: the clock records that no reminder was needed');
+
 select t.login('owner');   -- the never-list checks below run as the owner
 
 -- ---------------------------------------------------------------------------
