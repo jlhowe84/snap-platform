@@ -2729,6 +2729,21 @@ export type Database = {
         Args: { p_company: string; p_integration: string }
         Returns: string
       }
+      portal_admit: {
+        Args: { p_link_id: string; p_profile_id: string }
+        Returns: string
+      }
+      portal_link_lookup: {
+        Args: { p_token_hash: string }
+        Returns: {
+          company_id: string
+          email: string
+          full_name: string
+          job_id: string
+          link_id: string
+          profile_id: string
+        }[]
+      }
       schedule_problems: {
         Args: { p_schedule_id: string }
         Returns: {
@@ -2737,6 +2752,17 @@ export type Database = {
         }[]
       }
       season_label: { Args: { p_date: string }; Returns: string }
+      sign_agreement: {
+        Args: {
+          p_initials: Json
+          p_ip?: unknown
+          p_job_id: string
+          p_signer_name: string
+          p_user_agent?: string
+          p_version_id: string
+        }
+        Returns: string
+      }
       submit_schedule: { Args: { p_schedule_id: string }; Returns: string }
     }
     Enums: {

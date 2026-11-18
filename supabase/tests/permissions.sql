@@ -149,6 +149,10 @@ insert into public.agreement_versions (id, company_id, version, title, status) v
   ('60000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', 1, 'Agreement v1', 'active'),
   ('60000000-0000-0000-0000-0000000000a2', 'a0000000-0000-0000-0000-00000000000a', 2, 'Agreement v2', 'draft'),
   ('60000000-0000-0000-0000-0000000000b1', 'b0000000-0000-0000-0000-00000000000b', 1, 'Agreement B', 'active');
+update public.agreement_versions set sections =
+  '[{"key": "fees", "title": "Fees", "body": "Fee terms", "initial": true},
+    {"key": "weather", "title": "Weather", "body": "Weather terms", "initial": false}]'
+  where id = '60000000-0000-0000-0000-0000000000a1';
 insert into public.agreement_signatures (id, company_id, job_id, version_id, signer_name, signer_email) values
   ('61000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', '60000000-0000-0000-0000-0000000000a1', 'Contact A1', 'c@test.invalid');
 insert into public.planning_forms (job_id, company_id, sent_at) values
@@ -365,6 +369,64 @@ select t.login('office');
 select t.count_is($$select count(*) from public.agent_events where kind in ('planning_form.submitted', 'roster.uploaded', 'schedule.submitted', 'portal.message')$$, 5, 'portal actions wake the agent');
 select t.fails($$insert into public.agent_events (company_id, kind) values ('a0000000-0000-0000-0000-00000000000a', 'test.event')$$, 'people cannot write agent events');
 select t.works($$update public.schedules set stations = 3 where id = '80000000-0000-0000-0000-0000000000a2'$$, 'office changes stations');
+-- ---------------------------------------------------------------------------
+-- Wave A: portal links and signing
+-- ---------------------------------------------------------------------------
+reset role;
+insert into public.contacts (id, company_id, full_name, email) values
+  ('30000000-0000-0000-0000-0000000000a2', 'a0000000-0000-0000-0000-00000000000a', 'Coord Person', 'COORD@test.invalid'),
+  ('30000000-0000-0000-0000-0000000000a3', 'a0000000-0000-0000-0000-00000000000a', 'Office Person', 'office@test.invalid'),
+  ('30000000-0000-0000-0000-0000000000a4', 'a0000000-0000-0000-0000-00000000000a', 'New Person', 'new@test.invalid');
+insert into public.portal_links (company_id, job_id, contact_id, token_hash, expires_at, revoked_at) values
+  ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a2', '30000000-0000-0000-0000-0000000000a2', 'hash-a2', now() + interval '30 days', null),
+  ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', '30000000-0000-0000-0000-0000000000a3', 'hash-staff', now() + interval '30 days', null),
+  ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', '30000000-0000-0000-0000-0000000000a4', 'hash-old', now() - interval '1 day', null),
+  ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', '30000000-0000-0000-0000-0000000000a4', 'hash-revoked', now() + interval '30 days', now());
+
+select t.count_is($$select count(*) from public.portal_link_lookup('hash-a2') where profile_id = '10000000-0000-0000-0000-000000000006' and email = 'coord@test.invalid'$$, 1, 'the server finds a live link and its person');
+select t.count_is($$select count(*) from public.portal_link_lookup('hash-old')$$, 0, 'an expired link finds nothing');
+select t.count_is($$select count(*) from public.portal_link_lookup('hash-revoked')$$, 0, 'a revoked link finds nothing');
+select t.count_is($$select count(*) from public.portal_link_lookup('no-such-hash')$$, 0, 'an unknown token finds nothing');
+select t.fails($$select * from public.portal_link_lookup('hash-staff')$$, 'a portal link never opens a staff account');
+select t.fails($$select public.portal_admit((select id from public.portal_links where token_hash = 'hash-a2'), '10000000-0000-0000-0000-000000000003')$$, 'a link cannot admit a different person');
+
+select t.login('coord');
+select t.fails($$select * from public.portal_link_lookup('hash-a2')$$, 'people cannot look up portal links');
+select t.fails($$select public.portal_admit((select id from public.portal_links limit 1), auth.uid())$$, 'people cannot admit themselves');
+
+reset role;
+select t.works($$select public.portal_admit((select id from public.portal_links where token_hash = 'hash-a2'), '10000000-0000-0000-0000-000000000006')$$, 'the server admits the coordinator to the job on their link');
+select t.count_is($$select count(*) from public.portal_links where token_hash = 'hash-a2' and last_used_at is not null$$, 1, 'the link records its use');
+
+select t.login('coord');
+select t.count_is($$select count(*) from public.jobs$$, 2, 'the coordinator now sees both of their jobs');
+select t.fails($$select public.sign_agreement('40000000-0000-0000-0000-0000000000a2', '60000000-0000-0000-0000-0000000000a1', 'Coord Person', '{"fees": "CP"}')$$, 'a released date cannot be signed');
+
+reset role;
+update public.jobs set status = 'held' where id = '40000000-0000-0000-0000-0000000000a2';
+insert into public.date_holds (company_id, job_id, photo_day_id, offer_id, expires_on)
+  select pd.company_id, pd.job_id, pd.id, o.id, current_date + 14
+  from public.photo_days pd, public.season_offers o
+  where pd.job_id = '40000000-0000-0000-0000-0000000000a2' and o.company_id = 'a0000000-0000-0000-0000-00000000000a' and o.season = 'Spring 2027';
+
+select t.login('office');
+select t.fails($$select public.sign_agreement('40000000-0000-0000-0000-0000000000a2', '60000000-0000-0000-0000-0000000000a1', 'Office Person', '{"fees": "OP"}')$$, 'the office cannot sign for a league');
+
+select t.login('coord');
+select t.fails($$select public.sign_agreement('40000000-0000-0000-0000-0000000000a2', '60000000-0000-0000-0000-0000000000a2', 'Coord Person', '{"fees": "CP"}')$$, 'a draft agreement cannot be signed');
+select t.fails($$select public.sign_agreement('40000000-0000-0000-0000-0000000000a2', '60000000-0000-0000-0000-0000000000a1', 'Coord Person', '{}')$$, 'every section that needs initials must be initialled');
+select t.fails($$select public.sign_agreement('40000000-0000-0000-0000-0000000000a2', '60000000-0000-0000-0000-0000000000a1', ' ', '{"fees": "CP"}')$$, 'a signature needs a typed name');
+select t.fails($$select public.sign_agreement('40000000-0000-0000-0000-0000000000a1', '60000000-0000-0000-0000-0000000000a1', 'Coord Person', '{"fees": "CP"}')$$, 'the same agreement cannot be signed twice for a job');
+select t.works($$select public.sign_agreement('40000000-0000-0000-0000-0000000000a2', '60000000-0000-0000-0000-0000000000a1', 'Coord Person', '{"fees": "CP"}', '203.0.113.9', 'test agent')$$, 'the coordinator signs');
+select t.count_is($$select count(*) from public.agreement_signatures where job_id = '40000000-0000-0000-0000-0000000000a2' and signer_email = 'coord@test.invalid' and initials ->> 'fees' = 'CP'$$, 1, 'the signature records the signer and initials');
+select t.count_is($$select count(*) from public.jobs where id = '40000000-0000-0000-0000-0000000000a2' and status = 'planning'$$, 1, 'signing moves the job from held to planning');
+select t.count_is($$select count(*) from public.date_holds where job_id = '40000000-0000-0000-0000-0000000000a2' and status = 'confirmed'$$, 1, 'signing confirms the hold');
+
+select t.login('office');
+select t.count_is($$select count(*) from public.season_offers where season = 'Spring 2027' and stage = 'confirmed'$$, 1, 'signing confirms the season offer');
+select t.count_is($$select count(*) from public.touchpoints where actor_kind = 'contact' and channel = 'portal'$$, 1, 'signing is logged as a touchpoint');
+select t.count_is($$select count(*) from public.agent_events where kind = 'agreement.signed' and job_id = '40000000-0000-0000-0000-0000000000a2'$$, 1, 'signing wakes the agent');
+
 select t.login('owner');   -- the never-list checks below run as the owner
 
 -- ---------------------------------------------------------------------------

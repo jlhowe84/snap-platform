@@ -71,7 +71,20 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
 export async function requireStaff(allowed: readonly AppRole[] = STAFF_ROLES) {
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
+  if (viewer.companyId && !hasAnyRole(viewer, STAFF_ROLES) && viewer.roles.includes("coordinator")) {
+    redirect("/portal");
+  }
   if (!viewer.companyId || !hasAnyRole(viewer, STAFF_ROLES)) redirect("/waiting");
   if (!hasAnyRole(viewer, allowed)) redirect("/");
   return viewer as Viewer & { companyId: string };
+}
+
+/** For portal screens: a league coordinator, or staff looking at what they see. */
+export async function requirePortalViewer() {
+  const viewer = await getViewer();
+  if (!viewer) redirect("/p/expired?reason=signin");
+  if (!viewer.companyId) redirect("/waiting");
+  const staff = hasAnyRole(viewer, STAFF_ROLES);
+  if (!staff && !viewer.roles.includes("coordinator")) redirect("/waiting");
+  return { ...viewer, companyId: viewer.companyId, staff };
 }
