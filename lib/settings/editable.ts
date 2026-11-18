@@ -32,6 +32,12 @@ export const EDITABLE_SETTINGS: { group: string; items: EditableSetting[] }[] = 
       { key: "agreement.facility_fee_cap_usd", label: "Facility fee cap", hint: "The most SNAP covers per location. Matches the agreement text.", min: 0, max: 5000, unit: "dollars" },
     ],
   },
+  {
+    group: "Ask SNAP",
+    items: [
+      { key: "agent.daily_budget_usd", label: "Daily spending cap", hint: "Once a day's questions have cost this much, Ask SNAP waits until tomorrow. 0 turns it off.", min: 0, max: 100, unit: "dollars a day" },
+    ],
+  },
 ];
 
 export const EDITABLE_KEYS = new Map(EDITABLE_SETTINGS.flatMap((g) => g.items).map((s) => [s.key, s]));

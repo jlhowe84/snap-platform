@@ -2818,6 +2818,22 @@ export type Database = {
         Args: { p_company: string; p_key: string }
         Returns: boolean
       }
+      ask_snap_begin: { Args: { p_question: string }; Returns: Json }
+      ask_snap_finish: {
+        Args: {
+          p_answer: string
+          p_cost_usd: number
+          p_error: string
+          p_input_tokens: number
+          p_model: string
+          p_ok: boolean
+          p_output_tokens: number
+          p_run_id: string
+          p_tool_calls: number
+        }
+        Returns: undefined
+      }
+      ask_snap_status: { Args: never; Returns: Json }
       build_season_board: { Args: { p_season: string }; Returns: number }
       clock_due: { Args: { p_company: string; p_today: string }; Returns: Json }
       decide_action: {

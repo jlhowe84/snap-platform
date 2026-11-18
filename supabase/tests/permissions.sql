@@ -617,6 +617,30 @@ select t.count_is($$select count(*) from public.teams where job_id = '40000000-0
 select t.count_is($$select count(*) from public.roster_versions where job_id = '40000000-0000-0000-0000-0000000000a1' and status = 'ready'$$, 1, 'only the newest roster is the ready one');
 select t.count_is($$select count(*) from public.roster_versions where job_id = '40000000-0000-0000-0000-0000000000a1' and status = 'superseded' and csv_path like '%/standard/x.csv'$$, 1, 'the earlier roster is superseded');
 
+-- Ask SNAP: staff only, one question at a time each, stopped at the day's cap.
+select t.login('coord');
+select t.fails($$select public.ask_snap_begin('How many jobs are in planning?')$$, 'a coordinator cannot use Ask SNAP');
+select t.fails($$select public.ask_snap_status()$$, 'a coordinator cannot read Ask SNAP spend');
+select t.login('office');
+select t.count_is($$select count(*) from (select public.ask_snap_begin('How many jobs are in planning?') as r) s where r ->> 'stop' = 'off'$$, 1, 'Ask SNAP is off until a cap is set');
+select t.login('admin');
+select t.works($$insert into public.settings (company_id, key, value) values ('a0000000-0000-0000-0000-00000000000a', 'agent.daily_budget_usd', '1')$$, 'admin sets the daily cap');
+select t.login('office');
+select t.fails($$select public.ask_snap_finish((public.ask_snap_begin('q') ->> 'run_id')::uuid, true, 'm', 'a', 1, 10, 10, 9, null)$$, 'a question cannot record an absurd cost');
+select t.works($$select public.ask_snap_finish((public.ask_snap_begin('How many jobs are in planning?') ->> 'run_id')::uuid, true, 'm', 'Two.', 1, 100, 20, 0.4, null)$$, 'office asks and the run is recorded');
+select t.count_is($$select count(*) from (select public.ask_snap_begin('still thinking') as r) s where r ->> 'run_id' is not null$$, 1, 'office asks again under the cap');
+select t.count_is($$select count(*) from (select public.ask_snap_begin('a second at once') as r) s where r ->> 'stop' = 'busy'$$, 1, 'one question at a time per person');
+select t.login('support');
+select t.fails($$select public.ask_snap_finish(gen_random_uuid(), true, 'm', 'a', 0, 0, 0, 0, null)$$, 'nobody closes a question that is not theirs');
+select t.works($$select public.ask_snap_finish((public.ask_snap_begin('Who has not sent a roster?') ->> 'run_id')::uuid, true, 'm', 'Nobody.', 2, 100, 20, 0.7, null)$$, 'support asks');
+select t.count_is($$select count(*) from (select public.ask_snap_begin('one more') as r) s where r ->> 'stop' = 'day'$$, 1, 'the daily cap stops the next question');
+select t.count_is($$select count(*) from public.agent_runs$$, 0, 'support cannot read the run log');
+select t.login('crew');
+select t.fails($$select public.ask_snap_begin('one more')$$, 'crew cannot use Ask SNAP');
+select t.login('admin');
+select t.count_is($$select count(*) from public.agent_runs where trigger = 'ask_snap'$$, 3, 'admin reads every Ask SNAP run');
+select t.count_is($$select count(*) from (select public.ask_snap_status() as r) s where (r ->> 'spent_today')::numeric = 1.1 and (r ->> 'daily_cap')::numeric = 1$$, 1, 'the status shows the day''s spend and cap');
+
 select t.login('owner');   -- the never-list checks below run as the owner
 
 -- ---------------------------------------------------------------------------
