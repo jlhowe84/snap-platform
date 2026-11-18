@@ -4,7 +4,7 @@ import { requireStaff, hasAnyRole, OFFICE_ROLES } from "@/lib/auth";
 import { MoneyTermsForm } from "./terms-form";
 import { MoneyTermsList } from "@/components/money-terms";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Empty, PageHeader, Pill, StatusDot } from "@/components/ui";
+import { ButtonLink, Card, Empty, PageHeader, Pill, StatusDot } from "@/components/ui";
 import { formatDate, formatRange } from "@/lib/dates";
 import { OFFER_STAGE_LABEL, STATUS_LABEL, STATUS_TONE } from "@/lib/labels";
 
@@ -57,6 +57,7 @@ export default async function LeaguePage({ params }: PageProps<"/leagues/[id]">)
     <>
       <PageHeader eyebrow={org.relationship ?? "League"} title={org.name}>
         {!org.active && <Pill tone="warn">Inactive</Pill>}
+        <ButtonLink href={`/jobs/new?org=${org.id}`} variant="ghost">New job</ButtonLink>
       </PageHeader>
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">

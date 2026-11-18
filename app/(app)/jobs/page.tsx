@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireStaff } from "@/lib/auth";
+import { hasAnyRole, OFFICE_ROLES, requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Empty, PageHeader, Pill, ReadinessStrip, StatusDot } from "@/components/ui";
+import { ButtonLink, Card, Empty, PageHeader, Pill, ReadinessStrip, StatusDot } from "@/components/ui";
 import { formatRange } from "@/lib/dates";
 import { seasonSortKey } from "@/lib/season";
 import { STAGES, STAGE_LABEL, STATUS_LABEL, STATUS_TONE } from "@/lib/labels";
@@ -10,7 +10,8 @@ import { STAGES, STAGE_LABEL, STATUS_LABEL, STATUS_TONE } from "@/lib/labels";
 export const metadata: Metadata = { title: "Jobs" };
 
 export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
-  await requireStaff();
+  const viewer = await requireStaff();
+  const office = hasAnyRole(viewer, OFFICE_ROLES);
   const params = await searchParams;
   const season = typeof params.season === "string" ? params.season : null;
   const q = typeof params.q === "string" ? params.q.trim() : "";
@@ -42,6 +43,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
             className="w-56 rounded-lg border border-line bg-surface px-3 py-2 text-sm placeholder:text-muted focus:border-accent focus:outline-none"
           />
         </form>
+        {office && <ButtonLink href="/jobs/new">New job</ButtonLink>}
       </PageHeader>
 
       <nav className="mb-4 flex flex-wrap gap-2" aria-label="Seasons">
