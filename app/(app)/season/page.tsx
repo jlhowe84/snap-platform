@@ -27,7 +27,7 @@ export default async function SeasonBoardPage({ searchParams }: PageProps<"/seas
   const range = seasonRange(season);
   const supabase = await createClient();
 
-  const [{ data: offers }, { data: holds }, { data: capacity }, { data: setting }] = await Promise.all([
+  const [{ data: offers }, { data: holds }, { data: capacity }, { data: setting }, { data: minSetting }] = await Promise.all([
     supabase
       .from("season_offers")
       .select("id, org_id, stage, tier, priority_rank, priority_basis, offered_at, responded_at, organizations(name)")
@@ -44,7 +44,9 @@ export default async function SeasonBoardPage({ searchParams }: PageProps<"/seas
       .lte("date", range.end)
       .order("date"),
     supabase.from("settings").select("value").eq("key", "capacity.stations_per_date").maybeSingle(),
+    supabase.from("settings").select("value").eq("key", "photo_day.min_players").maybeSingle(),
   ]);
+  const minPlayers = typeof minSetting?.value === "number" ? minSetting.value : 50;
 
   const perDate = typeof setting?.value === "number" ? setting.value : 10;
   const holdByOffer = new Map((holds ?? []).filter((h) => h.offer_id).map((h) => [h.offer_id!, h]));
@@ -136,6 +138,9 @@ export default async function SeasonBoardPage({ searchParams }: PageProps<"/seas
                         {o.tier === "top" && <Pill tone="accent">Top tier</Pill>}
                         {basis.subjects ? <Pill>{basis.subjects} players</Pill> : null}
                         {basis.teams ? <Pill>{basis.teams} teams</Pill> : null}
+                        {basis.subjects != null && basis.subjects < minPlayers && (
+                          <Pill tone="warn">Under {minPlayers} players</Pill>
+                        )}
                       </div>
                       {basis.last_date && (
                         <p className="mt-2 text-xs text-muted">Last time {formatDate(basis.last_date, { weekday: true })}</p>
