@@ -12,7 +12,7 @@ function dbNeverList(): string[] {
     .map((f) => readFileSync(join(dir, f), "utf8"))
     .join("\n");
   // The last definition of private.never_action_keys() wins.
-  const defs = [...sql.matchAll(/function private\.never_action_keys\(\)[\s\S]*?array\[([\s\S]*?)\]/g)];
+  const defs = [...sql.matchAll(/create (?:or replace )?function private\.never_action_keys\(\)[\s\S]*?array\[([\s\S]*?)\]/g)];
   const body = defs.at(-1)?.[1] ?? "";
   return [...body.matchAll(/'([^']+)'/g)].map((m) => m[1]);
 }
