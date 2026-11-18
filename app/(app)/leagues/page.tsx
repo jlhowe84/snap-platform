@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireStaff, OFFICE_ROLES } from "@/lib/auth";
+import { hasAnyRole, requireStaff, OFFICE_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Empty, PageHeader, Pill } from "@/components/ui";
+import { ButtonLink, Card, Empty, PageHeader, Pill } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Leagues" };
 
 const FILTERS = ["Spring", "Summer", "Fall", "Winter"] as const;
 
 export default async function LeaguesPage({ searchParams }: PageProps<"/leagues">) {
-  await requireStaff([...OFFICE_ROLES, "support"]);
+  const viewer = await requireStaff([...OFFICE_ROLES, "support"]);
+  const office = hasAnyRole(viewer, OFFICE_ROLES);
   const params = await searchParams;
   const season = FILTERS.find((f) => f === params.season) ?? null;
   const showAll = params.all === "1";
@@ -33,7 +34,9 @@ export default async function LeaguesPage({ searchParams }: PageProps<"/leagues"
 
   return (
     <>
-      <PageHeader eyebrow="Customers" title={season ? `${season} leagues` : "Leagues"} />
+      <PageHeader eyebrow="Customers" title={season ? `${season} leagues` : "Leagues"}>
+        {office && <ButtonLink href="/leagues/new">New league</ButtonLink>}
+      </PageHeader>
       <nav className="mb-4 flex flex-wrap gap-2">
         <Tab href={qs({ season: null })} active={!season} label="Any season" />
         {FILTERS.map((f) => (
