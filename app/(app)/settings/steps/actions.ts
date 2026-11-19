@@ -54,7 +54,7 @@ export async function addStep(playbookId: string, _prev: StepState, form: FormDa
   return { ok: true, message: "Added at the end of the list." };
 }
 
-export async function removeStep(stepId: string, _prev: StepState, _form: FormData): Promise<StepState> {
+export async function removeStep(stepId: string): Promise<StepState> {
   await requireStaff(ADMIN_ROLES);
   if (!z.uuid().safeParse(stepId).success) return { ok: false, message: "That step could not be found." };
   const supabase = await createClient();
