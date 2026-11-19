@@ -377,8 +377,12 @@ reset role;
 insert into public.contacts (id, company_id, full_name, email) values
   ('30000000-0000-0000-0000-0000000000a2', 'a0000000-0000-0000-0000-00000000000a', 'Coord Person', 'COORD@test.invalid'),
   ('30000000-0000-0000-0000-0000000000a3', 'a0000000-0000-0000-0000-00000000000a', 'Office Person', 'office@test.invalid'),
-  ('30000000-0000-0000-0000-0000000000a4', 'a0000000-0000-0000-0000-00000000000a', 'New Person', 'new@test.invalid');
+  ('30000000-0000-0000-0000-0000000000a4', 'a0000000-0000-0000-0000-00000000000a', 'New Person', 'new@test.invalid'),
+  ('30000000-0000-0000-0000-0000000000a5', 'a0000000-0000-0000-0000-00000000000a', 'Two Addresses', 'First@test.invalid; second@test.invalid'),
+  ('30000000-0000-0000-0000-0000000000a6', 'a0000000-0000-0000-0000-00000000000a', 'Hides Staff', 'other@test.invalid; office@test.invalid');
 insert into public.portal_links (company_id, job_id, contact_id, token_hash, expires_at, revoked_at) values
+  ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', '30000000-0000-0000-0000-0000000000a5', 'hash-two', now() + interval '30 days', null),
+  ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', '30000000-0000-0000-0000-0000000000a6', 'hash-staff-second', now() + interval '30 days', null),
   ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a2', '30000000-0000-0000-0000-0000000000a2', 'hash-a2', now() + interval '30 days', null),
   ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', '30000000-0000-0000-0000-0000000000a3', 'hash-staff', now() + interval '30 days', null),
   ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', '30000000-0000-0000-0000-0000000000a4', 'hash-old', now() - interval '1 day', null),
@@ -389,6 +393,9 @@ select t.count_is($$select count(*) from public.portal_link_lookup('hash-old')$$
 select t.count_is($$select count(*) from public.portal_link_lookup('hash-revoked')$$, 0, 'a revoked link finds nothing');
 select t.count_is($$select count(*) from public.portal_link_lookup('no-such-hash')$$, 0, 'an unknown token finds nothing');
 select t.fails($$select * from public.portal_link_lookup('hash-staff')$$, 'a portal link never opens a staff account');
+select t.count_is($$select count(*) from public.portal_link_lookup('hash-two') where email = 'first@test.invalid'$$, 1, 'a contact with two addresses signs in with the first');
+select t.fails($$select * from public.portal_link_lookup('hash-staff-second')$$, 'a staff address anywhere in the field blocks the link');
+select t.count_is($$select count(*) from unnest(private.email_addresses('A@x.org;  b@y.org, <c@z.org> nope')) a$$, 3, 'an email field splits into its addresses');
 select t.fails($$select public.portal_admit((select id from public.portal_links where token_hash = 'hash-a2'), '10000000-0000-0000-0000-000000000003')$$, 'a link cannot admit a different person');
 
 select t.login('coord');

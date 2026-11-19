@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { firstName } from "@/lib/clock/drafts";
 import { formatDate } from "@/lib/dates";
 import { buildDateNotice, DATE_CHANGE_KINDS } from "@/lib/jobs/date-change";
+import { addressesOf } from "@/lib/mail/addresses";
 
 export type DateChangeState = { ok: boolean; message: string } | null;
 
@@ -56,7 +57,7 @@ export async function changePhotoDay(jobId: string, photoDayId: string, _prev: D
           companyName: viewer.companyName ?? "SNAP",
           leagueName: (job.organizations as { name: string } | null)?.name ?? job.name,
           contactFirstName: firstName(contacts[0].full_name),
-          to: contacts.map((c) => c.email),
+          to: addressesOf(contacts),
           fromDate: day.date,
           toDate: d.newDate ?? null,
         })

@@ -6,6 +6,7 @@ import { requireStaff, OFFICE_ROLES, ADMIN_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { isSeasonLabel } from "@/lib/season";
 import { buildDraft, firstName } from "@/lib/clock/drafts";
+import { splitAddresses } from "@/lib/mail/addresses";
 
 export type BoardState = { ok: boolean; message: string } | null;
 
@@ -143,7 +144,7 @@ export async function draftOffers(season: string, offerId: string | null): Promi
         companyName: viewer.companyName ?? "The photo team",
         leagueName: (o.organizations as { name: string } | null)?.name ?? "your league",
         contactFirstName: firstName(contact?.full_name),
-        to: contact?.email ? [contact.email] : [],
+        to: splitAddresses(contact?.email),
         season,
         lastPhotoDay: basis.last_date ?? null,
       }),
