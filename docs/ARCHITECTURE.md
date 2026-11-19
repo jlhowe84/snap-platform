@@ -307,3 +307,69 @@ Ask SNAP is also a pop-up in the corner of every staff page
 It reuses the `/ask` box and server action, so roles, the daily cap and the
 question log are the same. The conversation is kept in the layout, so it
 stays while the person moves between pages and is gone on a full reload.
+
+## Support desk (Wave B)
+
+Module 12, the replacement for Hiver. Built so far: the data model, reading
+mail in, and the pages to work a conversation. Replying comes next.
+
+- `support_conversations`: one row per Gmail thread in a mailbox listed in
+  `mail.mailboxes` (unique on company, mailbox and thread id). Holds the
+  subject, the customer, status (`new`, `open`, `waiting_customer`,
+  `waiting_lab`, `closed`), category, assignee, and an optional league and job.
+- `support_messages`: each mail in (`in`) or out (`out`), plus internal notes
+  (`note`). Text only, no attachments yet.
+- `support_saved_replies`: reusable answers. Switched off with `active`, never
+  removed, so no delete is granted.
+- `support_sync_state`: where the mail sync left off per mailbox. Server only.
+
+Conversations hold parents' names and addresses, so every policy is staff only
+(`private.is_staff()`: owner, admin, office, support). Coordinators and crew
+see nothing.
+
+- People may change only the assignee, status, category, league and job of a
+  conversation (`private.guard_support_conversation()`). Mail fields and
+  timestamps are written by the server sync alone.
+- People may add only notes, in their own name. Mail rows come from the sync
+  and from the send path.
+- `private.support_message_added()` keeps the conversation's times current,
+  stamps the first response, reopens a closed or waiting conversation when the
+  customer writes again, and moves `new` to `open` on the first reply.
+- Conversations and messages are not copied into the change log, so customer
+  text stays in one place. Saved replies are logged.
+
+Mail comes in through `lib/support/sync.ts`, a server job. It reads each
+mailbox in `mail.mailboxes` a day at a time, oldest first, and hands every
+thread to `public.support_ingest()` (service role only), which stores the
+thread and only the messages it does not have yet. It is read only: nothing is
+sent, labelled, marked read or moved in Gmail.
+
+- `lib/support/parse.ts` turns a Gmail thread into rows: plain text (HTML is
+  reduced to text, never rendered), drafts, spam and trash dropped, and mail
+  from the company's own addresses (`mail.mailboxes` plus
+  `support.own_addresses`) marked `out`.
+- Mail from an address in `support.quiet_senders` (automatic notices such as
+  an order receipt) is left out, so its thread appears only once a person
+  answers. Each run also clears untouched conversations made only of such
+  mail (`public.support_drop_quiet()`), which covers ones stored before the
+  sender was listed.
+- `support.quiet_rules` does the same for an address that also writes real
+  mail: an array of `{ from, subject }`, where the mail is left out only when
+  its subject holds that text (`public.support_drop_quiet_rules()` clears the
+  ones already stored).
+- A thread with no mail from outside is not a conversation, so the platform's
+  own sends stay out of the queue until someone answers them.
+- The sender is matched to a league when their address belongs to a contact
+  of exactly one league.
+- The first run goes back `support.first_sync_days` (7 when not set). Each
+  finished day is recorded in `support_sync_state`, so a run that stops early
+  is picked up by the next one.
+- Two ways to run it: "Check for new mail" on `/support` (any support desk
+  role, their own company), and `/api/cron/support-sync` every ten minutes,
+  which needs `CRON_SECRET` and only touches companies whose
+  `support.sync_enabled` setting is true.
+
+`/support` lists conversations (needs a reply, mine, unassigned, waiting,
+closed) and `/support/[id]` shows one with its mail and notes, and lets staff
+set who has it, where it stands and what it is about. Optional suggestions for
+"about" come from the `support.categories` setting.

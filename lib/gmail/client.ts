@@ -54,6 +54,16 @@ export function delegatedAssertion(sa: ServiceAccount, mailbox: string, now = Ma
 
 type FetchLike = typeof fetch;
 
+export type GmailPart = {
+  mimeType?: string;
+  filename?: string;
+  headers?: { name: string; value: string }[];
+  body?: { data?: string; size?: number };
+  parts?: GmailPart[];
+};
+export type GmailMessage = { id: string; threadId: string; labelIds?: string[]; internalDate?: string; payload?: GmailPart };
+export type GmailThread = { id: string; messages?: GmailMessage[] };
+
 export function createGmailClient(
   sa: ServiceAccount,
   mailbox: string,
@@ -115,6 +125,16 @@ export function createGmailClient(
      * base64url RFC 822 text.
      */
     sendRaw: (raw: string) => post<{ id: string; threadId: string }>("messages/send", { raw }),
+    /**
+     * Thread ids matching a Gmail search, newest first. Spam and trash are
+     * left out by Gmail unless asked for, and they are never asked for.
+     */
+    listThreads: (q: string, pageToken?: string) =>
+      get<{ threads?: { id: string }[]; nextPageToken?: string }>(
+        `threads?maxResults=50&q=${encodeURIComponent(q)}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`,
+      ),
+    /** One thread with its messages. Only lib/support/sync.ts calls this. */
+    getThread: (id: string) => get<GmailThread>(`threads/${encodeURIComponent(id)}?format=full`),
     /** Address and message count only; no message content. */
     profile: () => get<{ emailAddress: string; messagesTotal: number; threadsTotal: number }>("profile"),
   };

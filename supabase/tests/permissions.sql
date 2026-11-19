@@ -179,6 +179,18 @@ insert into public.job_messages (company_id, job_id, author_kind, body, internal
   ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'staff', 'Welcome', false),
   ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'staff', 'Office only', true);
 
+-- Wave B: support desk. One conversation with a parent in company A, one in B.
+insert into public.support_conversations (id, company_id, mailbox, gmail_thread_id, subject, customer_email, customer_name) values
+  ('c0000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-a1', 'Where is my order', 'parent@test.invalid', 'Pat Parent'),
+  ('c0000000-0000-0000-0000-0000000000b1', 'b0000000-0000-0000-0000-00000000000b', 'help@b.invalid', 'thread-b1', 'Other company', 'someone@test.invalid', 'Some One');
+insert into public.support_messages (company_id, conversation_id, direction, gmail_message_id, from_address, body_text, sent_at) values
+  ('a0000000-0000-0000-0000-00000000000a', 'c0000000-0000-0000-0000-0000000000a1', 'in', 'msg-a1', 'parent@test.invalid', 'I ordered two weeks ago.', '2027-01-04 15:00+00'),
+  ('b0000000-0000-0000-0000-00000000000b', 'c0000000-0000-0000-0000-0000000000b1', 'in', 'msg-b1', 'someone@test.invalid', 'Hello.', '2027-01-04 15:00+00');
+insert into public.support_saved_replies (company_id, title, body) values
+  ('a0000000-0000-0000-0000-00000000000a', 'Order status', 'Your order is on its way.');
+insert into public.support_sync_state (company_id, mailbox, history_id) values
+  ('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', '100');
+
 -- ---------------------------------------------------------------------------
 -- Sign-up and invites
 -- ---------------------------------------------------------------------------
@@ -231,7 +243,10 @@ declare
     array['agent_events',          '2','2','2','2','0','0','0','0'],
     array['clock_log',             '0','0','0','0','0','0','0','0'],
     array['date_capacity',         '2','2','2','2','0','1','0','1'],
-    array['photo_day_readiness',   '2','2','2','2','0','1','0','1']
+    array['photo_day_readiness',   '2','2','2','2','0','1','0','1'],
+    array['support_conversations', '1','1','1','1','0','0','0','1'],
+    array['support_messages',      '1','1','1','1','0','0','0','1'],
+    array['support_saved_replies', '1','1','1','1','0','0','0','0']
   ];
   who text[] := array['owner','admin','office','support','crew','coord','outsider','owner_b'];
   i int; k int;
@@ -885,6 +900,87 @@ select t.login('office');
 select t.count_is($$select count(*) from public.activity_log where table_name = 'organizations' and action = 'insert' and actor_kind = 'person' and row_id is not null and company_id = 'a0000000-0000-0000-0000-00000000000a' and changes ->> 'name' = 'New league'$$, 1, 'the league office added is in the activity log');
 select t.login('crew');
 select t.count_is($$select count(*) from public.activity_log$$, 0, 'crew cannot read the activity log');
+
+-- ---------------------------------------------------------------------------
+-- Wave B: the support desk. Staff work conversations; the mail is the server's.
+-- ---------------------------------------------------------------------------
+reset role;
+select t.count_is($$select count(*) from public.support_conversations where id = 'c0000000-0000-0000-0000-0000000000a1' and status = 'new' and last_inbound_at = '2027-01-04 15:00+00' and first_response_at is null$$, 1, 'mail in stamps the conversation');
+select t.login('support');
+select t.fails($$select count(*) from public.support_sync_state$$, 'people cannot read the mail sync state');
+select t.works($$update public.support_conversations set assignee_id = '10000000-0000-0000-0000-000000000004', status = 'open', category = 'order' where id = 'c0000000-0000-0000-0000-0000000000a1'$$, 'support takes a conversation');
+select t.fails($$update public.support_conversations set customer_email = 'else@test.invalid' where id = 'c0000000-0000-0000-0000-0000000000a1'$$, 'the mail facts of a conversation cannot be changed');
+select t.fails($$update public.support_conversations set company_id = 'b0000000-0000-0000-0000-00000000000b' where id = 'c0000000-0000-0000-0000-0000000000a1'$$, 'a conversation cannot be moved to another company');
+select t.fails($$delete from public.support_conversations where id = 'c0000000-0000-0000-0000-0000000000a1'$$, 'a conversation cannot be deleted');
+select t.works($$insert into public.support_messages (company_id, conversation_id, direction, author_id, body_text) values ('a0000000-0000-0000-0000-00000000000a', 'c0000000-0000-0000-0000-0000000000a1', 'note', '10000000-0000-0000-0000-000000000004', 'Checked Captura: shipped.')$$, 'support adds a note');
+select t.fails($$insert into public.support_messages (company_id, conversation_id, direction, author_id, body_text) values ('a0000000-0000-0000-0000-00000000000a', 'c0000000-0000-0000-0000-0000000000a1', 'note', '10000000-0000-0000-0000-000000000003', 'As someone else')$$, 'a note cannot be written in another name');
+select t.fails($$insert into public.support_messages (company_id, conversation_id, direction, author_id, from_address, body_text) values ('a0000000-0000-0000-0000-00000000000a', 'c0000000-0000-0000-0000-0000000000a1', 'out', '10000000-0000-0000-0000-000000000004', 'help@test.invalid', 'Pretend reply')$$, 'people cannot write mail rows by hand');
+select t.fails($$insert into public.support_messages (company_id, conversation_id, direction, author_id, body_text) values ('a0000000-0000-0000-0000-00000000000a', 'c0000000-0000-0000-0000-0000000000b1', 'note', '10000000-0000-0000-0000-000000000004', 'Wrong company')$$, 'a note cannot be added to another company''s conversation');
+select t.fails($$update public.support_messages set body_text = 'changed' where direction = 'in'$$, 'a message cannot be reworded');
+select t.count_is($$select count(*) from public.support_conversations where id = 'c0000000-0000-0000-0000-0000000000a1' and status = 'open' and first_response_at is null$$, 1, 'a note does not count as a reply');
+select t.works($$update public.support_conversations set status = 'closed' where id = 'c0000000-0000-0000-0000-0000000000a1'$$, 'support closes a conversation');
+select t.count_is($$select count(*) from public.support_conversations where id = 'c0000000-0000-0000-0000-0000000000a1' and closed_by = '10000000-0000-0000-0000-000000000004' and closed_at is not null$$, 1, 'closing records who and when');
+select t.works($$insert into public.support_saved_replies (company_id, title, body, created_by) values ('a0000000-0000-0000-0000-00000000000a', 'Gallery link', 'Here is your gallery link.', '10000000-0000-0000-0000-000000000004')$$, 'support saves a reply');
+select t.fails($$delete from public.support_saved_replies$$, 'a saved reply is switched off, not deleted');
+
+select t.login('crew');
+select t.fails($$insert into public.support_messages (company_id, conversation_id, direction, author_id, body_text) values ('a0000000-0000-0000-0000-00000000000a', 'c0000000-0000-0000-0000-0000000000a1', 'note', '10000000-0000-0000-0000-000000000005', 'crew note')$$, 'crew cannot add a note');
+select t.works($$update public.support_conversations set status = 'open'$$, 'a crew update touches nothing');
+select t.login('coord');
+select t.fails($$insert into public.support_saved_replies (company_id, title, body, created_by) values ('a0000000-0000-0000-0000-00000000000a', 'x', 'y', '10000000-0000-0000-0000-000000000006')$$, 'a coordinator cannot save a reply');
+select t.login('owner_b');
+select t.works($$update public.support_conversations set status = 'open' where id = 'c0000000-0000-0000-0000-0000000000a1'$$, 'another company''s update touches nothing');
+
+-- Mail from the server: a reply stamps the first response, new mail reopens.
+reset role;
+select t.count_is($$select count(*) from public.support_conversations where id = 'c0000000-0000-0000-0000-0000000000a1' and status = 'closed'$$, 1, 'the conversation is still closed after the others tried');
+insert into public.support_messages (company_id, conversation_id, direction, gmail_message_id, from_address, body_text, sent_at) values
+  ('a0000000-0000-0000-0000-00000000000a', 'c0000000-0000-0000-0000-0000000000a1', 'out', 'msg-a2', 'help@test.invalid', 'It shipped Monday.', '2027-01-04 16:30+00');
+select t.count_is($$select count(*) from public.support_conversations where id = 'c0000000-0000-0000-0000-0000000000a1' and first_response_at = '2027-01-04 16:30+00' and status = 'closed'$$, 1, 'the first reply stamps the response time');
+insert into public.support_messages (company_id, conversation_id, direction, gmail_message_id, from_address, body_text, sent_at) values
+  ('a0000000-0000-0000-0000-00000000000a', 'c0000000-0000-0000-0000-0000000000a1', 'in', 'msg-a3', 'parent@test.invalid', 'It still has not arrived.', '2027-01-06 14:00+00');
+select t.count_is($$select count(*) from public.support_conversations where id = 'c0000000-0000-0000-0000-0000000000a1' and status = 'open' and closed_at is null and closed_by is null and last_inbound_at = '2027-01-06 14:00+00'$$, 1, 'new mail from the customer reopens a closed conversation');
+select t.fails($$insert into public.support_messages (company_id, conversation_id, direction, gmail_message_id, body_text) values ('a0000000-0000-0000-0000-00000000000a', 'c0000000-0000-0000-0000-0000000000a1', 'in', 'msg-a3', 'again')$$, 'the same mail cannot be stored twice');
+
+-- Mail in: only the server stores a thread, once, and a thread with no mail
+-- from outside stays out of the queue.
+select t.login('owner');
+select t.fails($$select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-x', 'Hi', '[]'::jsonb)$$, 'people cannot store mail');
+select t.fails($$select public.support_sync_mark('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid')$$, 'people cannot move the sync point');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+select t.count_is($$select count(*) from (select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-out', 'Your photo day', '[{"id":"g-out-1","direction":"out","from_address":"help@test.invalid","to":["c@test.invalid"],"body":"Details","sent_at":"2027-02-01T15:00:00Z"}]'::jsonb) as r) q where r->>'conversation_id' is null$$, 1, 'a thread with only our own mail is not a conversation');
+select t.count_is($$select (public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'Help@test.invalid', 'thread-in', '  Picture day question ', '[{"id":"g-in-2","direction":"out","from_address":"help@test.invalid","to":["c@test.invalid"],"body":"Reply","sent_at":"2027-02-02T16:00:00Z"},{"id":"g-in-1","direction":"in","from_address":"C@test.invalid","from_name":"Contact A1","to":["Help@test.invalid"],"body":"When is it?","sent_at":"2027-02-02T15:00:00Z"}]'::jsonb)->>'added')::int$$, 2, 'the server stores a thread with its messages');
+select t.count_is($$select count(*) from public.support_conversations where gmail_thread_id = 'thread-in' and mailbox = 'help@test.invalid' and subject = 'Picture day question' and customer_email = 'c@test.invalid' and organization_id = '20000000-0000-0000-0000-0000000000a1' and status = 'open' and first_response_at = '2027-02-02 16:00+00' and first_message_at = '2027-02-02 15:00+00'$$, 1, 'the conversation knows its customer, league and times');
+select t.count_is($$select (public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-in', 'Picture day question', '[{"id":"g-in-1","direction":"in","from_address":"c@test.invalid","body":"When is it?","sent_at":"2027-02-02T15:00:00Z"},{"id":"g-in-3","direction":"in","from_address":"c@test.invalid","body":"Thanks","sent_at":"2027-02-03T15:00:00Z"}]'::jsonb)->>'added')::int$$, 1, 'reading a thread again adds only the new mail');
+select t.count_is($$select count(*) from public.support_conversations where gmail_thread_id in ('thread-in', 'thread-out')$$, 1, 'a thread is one conversation');
+select t.works($$select public.support_sync_mark('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', '2027-02-03 00:00+00')$$, 'the server records the sync point');
+select t.works($$select public.support_sync_mark('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', null, 'Gmail GET failed (500)')$$, 'the server records a failed run');
+select t.count_is($$select count(*) from public.support_sync_state where mailbox = 'help@test.invalid' and last_synced_at = '2027-02-03 00:00+00' and last_error is not null$$, 1, 'a failed run keeps the last good point');
+
+-- Quiet senders: untouched conversations made only of automatic notices go.
+select t.login('owner');
+select t.fails($$select public.support_drop_quiet('a0000000-0000-0000-0000-00000000000a', array['no-reply@orders.invalid'])$$, 'people cannot clear the queue');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-q1', 'Order received', '[{"id":"g-q1","direction":"in","from_address":"no-reply@orders.invalid","body":"Receipt","sent_at":"2027-02-05T15:00:00Z"}]'::jsonb);
+select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-q2', 'Order received', '[{"id":"g-q2","direction":"in","from_address":"no-reply@orders.invalid","body":"Receipt","sent_at":"2027-02-05T15:00:00Z"},{"id":"g-q3","direction":"in","from_address":"parent2@test.invalid","body":"Wrong pose","sent_at":"2027-02-05T16:00:00Z"}]'::jsonb);
+select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-q3', 'Order received', '[{"id":"g-q4","direction":"in","from_address":"no-reply@orders.invalid","body":"Receipt","sent_at":"2027-02-05T15:00:00Z"}]'::jsonb);
+update public.support_conversations set status = 'open' where gmail_thread_id = 'thread-q3';
+select t.count_is($$select public.support_drop_quiet('a0000000-0000-0000-0000-00000000000a', array[' No-Reply@orders.invalid '])$$, 1, 'only the untouched notice is cleared');
+select t.count_is($$select count(*) from public.support_conversations where gmail_thread_id in ('thread-q1', 'thread-q2', 'thread-q3', 'thread-in', 'thread-a1')$$, 4, 'answered and worked conversations stay');
+select t.count_is($$select public.support_drop_quiet('a0000000-0000-0000-0000-00000000000a', '{}'::text[])$$, 0, 'an empty list clears nothing');
+
+-- Quiet rules: a sender is cleared only where the subject matches.
+select t.login('owner');
+select t.fails($$select public.support_drop_quiet_rules('a0000000-0000-0000-0000-00000000000a', '[]'::jsonb)$$, 'people cannot clear the queue by rule');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-r1', 'Lab Invoice 123', '[{"id":"g-r1","direction":"in","from_address":"rep@lab.invalid","body":"Invoice","sent_at":"2027-02-06T15:00:00Z"}]'::jsonb);
+select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-r2', 'Question about your order', '[{"id":"g-r2","direction":"in","from_address":"rep@lab.invalid","body":"Call me","sent_at":"2027-02-06T15:00:00Z"}]'::jsonb);
+select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-r3', 'Re: Lab Invoice 124', '[{"id":"g-r3","direction":"in","from_address":"parent3@test.invalid","body":"What is this","sent_at":"2027-02-06T15:00:00Z"}]'::jsonb);
+select t.count_is($$select public.support_drop_quiet_rules('a0000000-0000-0000-0000-00000000000a', '[{"from":" Rep@lab.invalid ","subject":"lab invoice"},{"from":"rep@lab.invalid"}]'::jsonb)$$, 1, 'only the matching untouched invoice is cleared');
+select t.count_is($$select count(*) from public.support_conversations where gmail_thread_id in ('thread-r1', 'thread-r2', 'thread-r3')$$, 2, 'other mail from that sender and other senders stay');
 
 reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;
