@@ -66,6 +66,14 @@ describe("drafted support replies", () => {
     expect(prompt).toContain("Fall 2026 (gallery id 77)");
   });
 
+  it("shows the matching knowledge base articles, and says when none matched", () => {
+    const base = { companyName: null, agentFirstName: "", customerName: null, league: null, subject: "Rain", messages: [msg("in", "Is it still on if it rains?")], savedReplies: [] };
+    const prompt = draftUserPrompt({ ...base, articles: [{ title: 'What "if" it rains?', section: "Photo Day", body: "We reschedule." }] });
+    expect(prompt).toContain('<article title="What  if  it rains?" section="Photo Day">\nWe reschedule.\n</article>');
+    expect(draftUserPrompt(base)).toContain("No knowledge base article matched");
+    expect(draftSystemPrompt({ companyName: null, agentFirstName: "" })).toContain("knowledge base articles");
+  });
+
   it("knows the customer by the address in a form as well as the sender", () => {
     const form = msg("in", "Question: Email Answer: Pat.Parent@Example.org\nQuestion: Player First Name Answer: Sam");
     expect(customerEmails("forms@example.com", [form, msg("out", "from us@example.com"), msg("note", "x@example.com")])).toEqual(["forms@example.com", "pat.parent@example.org"]);

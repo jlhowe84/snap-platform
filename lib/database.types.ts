@@ -1296,6 +1296,143 @@ export type Database = {
           },
         ]
       }
+      kb_article_versions: {
+        Row: {
+          article_id: string
+          body: string
+          company_id: string
+          edited_at: string
+          edited_by: string | null
+          id: string
+          section: string | null
+          shelf: Database["public"]["Enums"]["kb_shelf"]
+          status: Database["public"]["Enums"]["kb_status"]
+          title: string
+          version: number
+        }
+        Insert: {
+          article_id: string
+          body: string
+          company_id: string
+          edited_at?: string
+          edited_by?: string | null
+          id?: string
+          section?: string | null
+          shelf: Database["public"]["Enums"]["kb_shelf"]
+          status: Database["public"]["Enums"]["kb_status"]
+          title: string
+          version: number
+        }
+        Update: {
+          article_id?: string
+          body?: string
+          company_id?: string
+          edited_at?: string
+          edited_by?: string | null
+          id?: string
+          section?: string | null
+          shelf?: Database["public"]["Enums"]["kb_shelf"]
+          status?: Database["public"]["Enums"]["kb_status"]
+          title?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_article_versions_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "kb_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kb_article_versions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kb_article_versions_edited_by_fkey"
+            columns: ["edited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kb_articles: {
+        Row: {
+          body: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          position: number
+          search: unknown
+          section: string | null
+          shelf: Database["public"]["Enums"]["kb_shelf"]
+          status: Database["public"]["Enums"]["kb_status"]
+          title: string
+          updated_at: string
+          updated_by: string | null
+          version: number
+        }
+        Insert: {
+          body: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          position?: number
+          search?: unknown
+          section?: string | null
+          shelf?: Database["public"]["Enums"]["kb_shelf"]
+          status?: Database["public"]["Enums"]["kb_status"]
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Update: {
+          body?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          position?: number
+          search?: unknown
+          section?: string | null
+          shelf?: Database["public"]["Enums"]["kb_shelf"]
+          status?: Database["public"]["Enums"]["kb_status"]
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_articles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kb_articles_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kb_articles_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lab_invoice_items: {
         Row: {
           company_id: string
@@ -3667,6 +3804,21 @@ export type Database = {
         Args: { p_company: string; p_integration: string }
         Returns: string
       }
+      kb_search: {
+        Args: {
+          p_limit?: number
+          p_query: string
+          p_shelves?: Database["public"]["Enums"]["kb_shelf"][]
+        }
+        Returns: {
+          body: string
+          id: string
+          rank: number
+          section: string
+          shelf: Database["public"]["Enums"]["kb_shelf"]
+          title: string
+        }[]
+      }
       lab_assign_reference: {
         Args: { p_job: string; p_reference: string }
         Returns: number
@@ -3815,6 +3967,8 @@ export type Database = {
         | "archived"
         | "cancelled"
         | "released"
+      kb_shelf: "answers" | "support" | "handbook"
+      kb_status: "published" | "draft" | "retired"
       offer_stage:
         | "not_offered"
         | "offered"
@@ -3996,6 +4150,8 @@ export const Constants = {
         "cancelled",
         "released",
       ],
+      kb_shelf: ["answers", "support", "handbook"],
+      kb_status: ["published", "draft", "retired"],
       offer_stage: [
         "not_offered",
         "offered",
