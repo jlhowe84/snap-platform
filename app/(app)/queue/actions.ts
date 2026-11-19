@@ -1,10 +1,12 @@
 "use server";
 
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStaff, ADMIN_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { runClock } from "@/lib/clock/run";
+import { sendApprovedAction, type SendResult } from "@/lib/mail/send";
 
 export type QueueState = { ok: boolean; message: string } | null;
 
@@ -19,10 +21,31 @@ const Decide = z.object({
   note: z.string().trim().max(500).optional(),
 });
 
-// Approving records the decision and the final wording. Nothing is emailed
-// from here yet: sending arrives with the mail runner, and stays in test mode.
+async function baseUrl() {
+  const h = await headers();
+  return `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
+}
+
+/** Sends one approved draft. The caller has already checked the person; this checks they can see the action. */
+async function send(companyId: string, actionId: string): Promise<SendResult> {
+  const supabase = await createClient();
+  const { data: visible } = await supabase.from("agent_actions").select("id").eq("id", actionId).maybeSingle();
+  if (!visible) return { ok: false, message: "That draft could not be found." };
+  try {
+    return await sendApprovedAction(companyId, actionId, await baseUrl());
+  } catch {
+    return { ok: false, message: "The message could not be sent. Check the server key in Vercel." };
+  }
+}
+
+const sentLine = (r: Extract<SendResult, { ok: true }>) =>
+  r.testMode ? `Sent to the test address (${r.sentTo.join(", ")}).` : `Sent to ${r.sentTo.join(", ")}.`;
+
+// Approving records the decision and the final wording, then sends. While
+// mail.test_mode is on, lib/mail/guard.ts sends it to the test address only.
+// If it cannot be sent, the approval stands and the draft can be sent later.
 export async function decideDraft(_prev: QueueState, form: FormData): Promise<QueueState> {
-  await requireStaff(STAFF_DESK);
+  const viewer = await requireStaff(STAFF_DESK);
   const parsed = Decide.safeParse({
     id: form.get("id"),
     intent: form.get("intent"),
@@ -46,16 +69,29 @@ export async function decideDraft(_prev: QueueState, form: FormData): Promise<Qu
     p_note: d.note,
   });
   if (error) return { ok: false, message: error.message };
+  if (data === "rejected") {
+    revalidatePath("/queue");
+    return { ok: true, message: "Rejected." };
+  }
+  const sent = await send(viewer.companyId, d.id);
   revalidatePath("/queue");
-  return {
-    ok: true,
-    message: data === "rejected" ? "Rejected." : data === "edited" ? "Approved with your changes." : "Approved.",
-  };
+  const approved = data === "edited" ? "Approved with your changes." : "Approved.";
+  return { ok: true, message: sent.ok ? `${approved} ${sentLine(sent)}` : `${approved} Not sent: ${sent.message}` };
 }
 
-/** Approves every waiting draft of one type exactly as written. */
+/** Sends a draft that was approved earlier, or tries a failed one again. */
+export async function sendNow(_prev: QueueState, form: FormData): Promise<QueueState> {
+  const viewer = await requireStaff(STAFF_DESK);
+  const id = z.uuid().safeParse(form.get("id"));
+  if (!id.success) return { ok: false, message: "That draft could not be found." };
+  const sent = await send(viewer.companyId, id.data);
+  revalidatePath("/queue");
+  return sent.ok ? { ok: true, message: sentLine(sent) } : { ok: false, message: sent.message };
+}
+
+/** Approves every waiting draft of one type exactly as written, and sends each. */
 export async function approveAll(typeKey: string): Promise<void> {
-  await requireStaff(STAFF_DESK);
+  const viewer = await requireStaff(STAFF_DESK);
   const key = z.string().regex(/^[a-z0-9_]+(\.[a-z0-9_]+)+$/).parse(typeKey);
   const supabase = await createClient();
   const { data: waiting } = await supabase
@@ -65,13 +101,14 @@ export async function approveAll(typeKey: string): Promise<void> {
     .eq("action_type_key", key)
     .limit(200);
   for (const a of waiting ?? []) {
-    await supabase.rpc("decide_action", { p_action_id: a.id, p_approve: true });
+    const { error } = await supabase.rpc("decide_action", { p_action_id: a.id, p_approve: true });
+    if (!error) await send(viewer.companyId, a.id);
   }
   revalidatePath("/queue");
 }
 
 // An owner or admin can run today's clock by hand. It releases lapsed holds
-// and queues drafts for this company; it sends nothing.
+// and queues drafts for this company; it sends nothing by itself.
 export async function runClockNow(): Promise<QueueState> {
   const viewer = await requireStaff(ADMIN_ROLES);
   if (!viewer.companyId) return { ok: false, message: "No company." };

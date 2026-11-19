@@ -62,6 +62,24 @@ pause switch; `agent_actions` records every proposal and run;
 `lib/mail/guard.ts` rewrites every recipient to `mail.test_recipient` while
 `mail.test_mode` is true. Both are company settings, not code.
 
+`lib/mail/send.ts` is the only place a message leaves. It sends an approved
+row of `agent_actions` through Gmail from an allowed mailbox
+(`mail.send_from`, else the first of `mail.mailboxes`):
+
+1. It refuses before touching the action when test mode is on with no test
+   recipient, when no mailbox is allowed, or when no Workspace key is stored.
+2. `action_send_begin()` (service role only) claims the action. It refuses a
+   draft nobody approved, a sent one, one claimed in the last two minutes,
+   and any action type the pause switch covers.
+3. The portal link placeholder becomes a fresh link for the job contact in
+   the To line. The token goes into the email only; the row keeps its hash.
+4. The recipients pass the guard, the message goes out as plain text
+   (`lib/mail/mime.ts`), and `action_send_finish()` records `sent` with the
+   Gmail message id, who it went to and who it was meant for, or `failed`
+   with the reason. A failed send can be tried again.
+
+`mail.test_mode` and `mail.test_recipient` are not editable in the app.
+
 ## Integrations
 
 Credentials are stored in Supabase Vault, mapped per company in
@@ -155,8 +173,8 @@ a signed version never changes, so edits always become a new version.
   type's clean streak. A date-at-risk note is decided by an owner or admin.
 - Drafts are templates (`lib/clock/drafts.ts`). The portal link is a
   placeholder filled at send time, so no live token is stored in a draft.
-- Approving does not send. The mail runner comes later and passes
-  `lib/mail/guard.ts`.
+- Approving sends (see Mail). If the send cannot happen, the approval stands
+  and the queue offers "Send now".
 
 ## Planning form, rosters and the scheduler (Wave A)
 

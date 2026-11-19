@@ -2814,6 +2814,20 @@ export type Database = {
       }
     }
     Functions: {
+      action_send_begin: {
+        Args: { p_action: string; p_company: string }
+        Returns: Json
+      }
+      action_send_finish: {
+        Args: {
+          p_action: string
+          p_company: string
+          p_error?: string
+          p_ok: boolean
+          p_result?: Json
+        }
+        Returns: Database["public"]["Enums"]["action_status"]
+      }
       agent_is_paused: {
         Args: { p_company: string; p_key: string }
         Returns: boolean

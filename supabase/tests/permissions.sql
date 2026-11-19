@@ -706,6 +706,37 @@ select t.count_is($$select count(*) from public.clock_log where job_id = '400000
 insert into public.settings (company_id, key, value) values ('a0000000-0000-0000-0000-00000000000a', 'chase.include_imported', 'true'::jsonb);
 select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', '2030-03-09')) e where e ->> 'kind' = 'chase.request' and e ->> 'job_id' = '40000000-0000-0000-0000-0000000000b7'$$, 1, 'with the setting on, an imported job is chased');
 
+-- Sending an approved draft: server only, once, and never while paused.
+insert into public.agent_actions (id, company_id, action_type_key, actor_kind, status, draft) values
+  ('70000000-0000-0000-0000-0000000000c1', 'a0000000-0000-0000-0000-00000000000a', 'chase.request', 'system', 'proposed', '{"to": ["c@example.com"], "subject": "S", "body": "B"}'),
+  ('70000000-0000-0000-0000-0000000000c2', 'a0000000-0000-0000-0000-00000000000a', 'chase.request', 'system', 'proposed', '{"to": ["c@example.com"], "subject": "S", "body": "B"}'),
+  ('70000000-0000-0000-0000-0000000000c3', 'a0000000-0000-0000-0000-00000000000a', 'chase.request', 'system', 'proposed', '{"to": ["c@example.com"], "subject": "S", "body": "B"}');
+select t.fails($$select public.action_send_begin('a0000000-0000-0000-0000-00000000000a', '70000000-0000-0000-0000-0000000000c1')$$, 'a draft nobody approved cannot be sent');
+select t.login('support');
+select t.works($$select public.decide_action('70000000-0000-0000-0000-0000000000c1', true)$$, 'support approves a draft to send');
+select t.works($$select public.decide_action('70000000-0000-0000-0000-0000000000c2', true)$$, 'support approves a second draft');
+select t.works($$select public.decide_action('70000000-0000-0000-0000-0000000000c3', false)$$, 'support rejects a third draft');
+select t.login('owner');
+select t.fails($$select public.action_send_begin('a0000000-0000-0000-0000-00000000000a', '70000000-0000-0000-0000-0000000000c1')$$, 'even the owner cannot start a send from a signed-in session');
+select t.fails($$select public.action_send_finish('a0000000-0000-0000-0000-00000000000a', '70000000-0000-0000-0000-0000000000c1', true)$$, 'even the owner cannot mark a message sent');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+select t.fails($$select public.action_send_begin('a0000000-0000-0000-0000-00000000000a', '70000000-0000-0000-0000-0000000000c3')$$, 'a rejected draft cannot be sent');
+select t.fails($$select public.action_send_begin('b0000000-0000-0000-0000-00000000000b', '70000000-0000-0000-0000-0000000000c1')$$, 'a send cannot be started for another company');
+select t.fails($$select public.action_send_finish('a0000000-0000-0000-0000-00000000000a', '70000000-0000-0000-0000-0000000000c1', true)$$, 'a send that was not started cannot be finished');
+select t.works($$select public.action_send_begin('a0000000-0000-0000-0000-00000000000a', '70000000-0000-0000-0000-0000000000c1')$$, 'the server starts sending an approved draft');
+select t.fails($$select public.action_send_begin('a0000000-0000-0000-0000-00000000000a', '70000000-0000-0000-0000-0000000000c1')$$, 'a draft being sent cannot be started twice');
+select t.count_is($$select (public.action_send_finish('a0000000-0000-0000-0000-00000000000a', '70000000-0000-0000-0000-0000000000c1', false, null, 'Gmail said no') = 'failed')::int$$, 1, 'a send that failed is recorded as failed');
+select t.count_is($$select count(*) from public.agent_actions where id = '70000000-0000-0000-0000-0000000000c1' and error = 'Gmail said no' and not result ? 'send_started_at'$$, 1, 'the failure keeps its reason');
+select t.works($$select public.action_send_begin('a0000000-0000-0000-0000-00000000000a', '70000000-0000-0000-0000-0000000000c1')$$, 'a failed send can be tried again');
+select t.count_is($$select (public.action_send_finish('a0000000-0000-0000-0000-00000000000a', '70000000-0000-0000-0000-0000000000c1', true, '{"message_id": "m1", "test_mode": true}') = 'sent')::int$$, 1, 'a finished send is recorded as sent');
+select t.count_is($$select count(*) from public.agent_actions where id = '70000000-0000-0000-0000-0000000000c1' and status = 'sent' and result ->> 'message_id' = 'm1' and error is null$$, 1, 'the sent message keeps its record');
+select t.fails($$select public.action_send_begin('a0000000-0000-0000-0000-00000000000a', '70000000-0000-0000-0000-0000000000c1')$$, 'a sent message cannot be sent again');
+insert into public.agent_pauses (company_id, reason) values ('a0000000-0000-0000-0000-00000000000a', 'send test');
+select t.fails($$select public.action_send_begin('a0000000-0000-0000-0000-00000000000a', '70000000-0000-0000-0000-0000000000c2')$$, 'the pause switch stops an approved send');
+update public.agent_pauses set lifted_at = now() where company_id = 'a0000000-0000-0000-0000-00000000000a' and reason = 'send test';
+select t.works($$select public.action_send_begin('a0000000-0000-0000-0000-00000000000a', '70000000-0000-0000-0000-0000000000c2')$$, 'with the pause lifted the send starts');
+
 select t.login('owner');   -- the never-list checks below run as the owner
 
 -- ---------------------------------------------------------------------------
