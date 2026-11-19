@@ -141,6 +141,9 @@ a signed version never changes, so edits always become a new version.
   confirmed job's chase step counted back from its first photo day (8, 5, 4
   and 3 weeks; all settings). A step whose day passed is logged as skipped,
   never sent late. A job with nothing missing gets no chase.
+  Jobs imported from Notion (`jobs.notion_page_id` set) stay out of the chase
+  until the company's `chase.include_imported` setting is true, because their
+  planning lives in Notion until cutover.
 - `lib/clock/run.ts` turns each item into a drafted row in `agent_actions`
   (status `proposed`) and logs it in `clock_log`, whose unique key makes each
   step happen once per job, or once per hold window. It sends nothing.

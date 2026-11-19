@@ -695,6 +695,17 @@ select set_config('request.jwt.claim.sub', '', true);
 select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', '2029-03-10')) e where e ->> 'job_id' = (select id from public.jobs where name = 'League A9 Spring 2029')::text$$, 0, 'exit: five weeks out nothing is chased once everything is in');
 select t.count_is($$select count(*) from public.clock_log where key = 'chase:' || (select id from public.jobs where name = 'League A9 Spring 2029')::text || ':reminder' and outcome = 'not_needed'$$, 1, 'exit: the clock records that no reminder was needed');
 
+-- Imported jobs stay out of the chase until the company lets them in.
+insert into public.jobs (id, company_id, org_id, name, status, notion_page_id)
+select '40000000-0000-0000-0000-0000000000b7', 'a0000000-0000-0000-0000-00000000000a', org_id, 'League A imported Spring 2030', 'planning', 'notion-test-b7'
+from public.jobs where id = '40000000-0000-0000-0000-0000000000a2';
+insert into public.photo_days (company_id, job_id, date) values
+  ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000b7', '2030-05-04');
+select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', '2030-03-09')) e where e ->> 'job_id' = '40000000-0000-0000-0000-0000000000b7'$$, 0, 'an imported job gets no chase');
+select t.count_is($$select count(*) from public.clock_log where job_id = '40000000-0000-0000-0000-0000000000b7'$$, 0, 'a skipped imported job leaves no clock log row');
+insert into public.settings (company_id, key, value) values ('a0000000-0000-0000-0000-00000000000a', 'chase.include_imported', 'true'::jsonb);
+select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', '2030-03-09')) e where e ->> 'kind' = 'chase.request' and e ->> 'job_id' = '40000000-0000-0000-0000-0000000000b7'$$, 1, 'with the setting on, an imported job is chased');
+
 select t.login('owner');   -- the never-list checks below run as the owner
 
 -- ---------------------------------------------------------------------------
