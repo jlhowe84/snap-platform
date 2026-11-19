@@ -2,6 +2,11 @@ import { requireStaff, hasAnyRole, OFFICE_ROLES, ADMIN_ROLES } from "@/lib/auth"
 import { ROLE_LABEL } from "@/lib/labels";
 import { createClient } from "@/lib/supabase/server";
 import { NavLink } from "./nav-link";
+import { AskWidget } from "./ask-widget";
+import { ASK_ROLES } from "@/lib/ask/roles";
+
+// Ask SNAP can be asked from any page, and an answer can take a few lookups.
+export const maxDuration = 60;
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const viewer = await requireStaff();
@@ -55,6 +60,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
       </aside>
       <main className="min-w-0 flex-1 px-4 py-6 md:px-10 md:py-10">{children}</main>
+      {hasAnyRole(viewer, ASK_ROLES) && <AskWidget />}
     </div>
   );
 }
