@@ -250,6 +250,17 @@ stations in use per day against `capacity.stations_per_date`. Views: everything,
 my tasks only, photo days only. It reads as the signed-in person. Makeup
 sessions and crew shifts join it with their modules.
 
+## Captura setup list
+
+The job page lists the planning playbook's steps tagged `captura` as
+checkboxes (`lib/captura/setup.ts`). Ticking one writes a task on the job
+linked to the step, so it also shows on the task list. Beside the steps are
+the values the office pastes into Captura: the coupon code (`jobs.coupon`),
+the four marketing fields, and the welcome message, filled from the
+`captura.welcome_templates` setting (keys `default` and one per sport, with a
+`{{coupon}}` slot). Nothing here calls Captura. A Notion re-import rewrites
+step tags, so re-tag the steps after one.
+
 ## Notices
 
 `/notices` is each person's own list. A notice is one row in `notices`,

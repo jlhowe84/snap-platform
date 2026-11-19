@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireStaff, hasAnyRole, ADMIN_ROLES, OFFICE_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill, ReadinessStrip, StatusDot } from "@/components/ui";
-import { formatDate, formatTime } from "@/lib/dates";
+import { formatDate, formatTime, todayIn } from "@/lib/dates";
 import { MoneyTermsList } from "@/components/money-terms";
 import { seasonForDate } from "@/lib/season";
 import { DELIVERY_LABEL, STAGES, STAGE_LABEL, STATUS_LABEL, STATUS_TONE } from "@/lib/labels";
@@ -11,6 +11,8 @@ import { answerRows, readAnswers } from "@/lib/planning/form";
 import { formatBytes, ROSTER_TYPES } from "@/lib/rosters/types";
 import { toClock, toMinutes } from "@/lib/schedule/layout";
 import { DATE_CHANGE_LABEL, type DateChangeKind } from "@/lib/jobs/date-change";
+import { buildSetupValues, CAPTURA_TAG, readTemplates, setupProgress, stepDueOn, WELCOME_TEMPLATES_KEY } from "@/lib/captura/setup";
+import { CapturaSetup } from "./captura-setup";
 import { ChangeDateForm } from "./change-date-form";
 import { PortalLinkForm } from "./portal-link-form";
 import { StandardRosterUpload } from "./standard-roster";
@@ -47,7 +49,18 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     supabase.from("photo_days").select("*").eq("job_id", id).order("date").order("start_time"),
     supabase.from("job_links").select("*").eq("job_id", id).maybeSingle(),
     supabase.from("job_contacts").select("role, contacts(id, full_name, email, phone)").eq("job_id", id),
-    supabase.from("tasks").select("id, title, status, due_on").eq("job_id", id).order("due_on"),
+    supabase.from("tasks").select("id, title, status, due_on, playbook_step_id, completed_at").eq("job_id", id).order("due_on"),
+  ]);
+  const [{ data: setupSteps }, { data: welcomeSetting }] = await Promise.all([
+    supabase
+      .from("playbook_steps")
+      .select("id, name, stage, offset_days, playbooks!inner(kind, active)")
+      .eq("active", true)
+      .eq("playbooks.kind", "planning")
+      .eq("playbooks.active", true)
+      .contains("tags", [CAPTURA_TAG])
+      .order("position"),
+    supabase.from("settings").select("value").eq("key", WELCOME_TEMPLATES_KEY).maybeSingle(),
   ]);
   const { data: dateChanges } = await supabase
     .from("date_changes")
@@ -98,6 +111,21 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     .map((c) => ({ id: c.id, name: c.full_name, email: c.email }));
   const nowIso = new Date().toISOString();
   const minPlayers = typeof minSetting?.value === "number" ? minSetting.value : 50;
+
+  const liveDays = (days ?? []).filter((d) => d.status === "scheduled");
+  const today = todayIn(viewer.timeZone);
+  const progress = setupProgress(setupSteps ?? [], tasks ?? []);
+  const setupRows = (setupSteps ?? []).map((s) => {
+    const due = stepDueOn(liveDays[0]?.date, s.offset_days);
+    return { id: s.id, name: s.name, stage: s.stage, due: due ? formatDate(due) : null, late: !!due && due < today, done: progress.doneIds.has(s.id) };
+  });
+  const setupValues = buildSetupValues({
+    coupon: job.coupon,
+    promo: job.promo,
+    sports: job.sports,
+    days: liveDays,
+    templates: readTemplates(welcomeSetting?.value),
+  });
 
   const season = seasonForDate(days?.[0]?.date);
   const stageIndex = job.production_stage ? STAGES.indexOf(job.production_stage) : -1;
@@ -326,6 +354,12 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
               </p>
             )}
             {office && <StandardRosterUpload jobId={id} hasOne={!!finishedRoster} />}
+          </Card>
+          <Card title={`Captura setup (${progress.done} of ${progress.total})`}>
+            <p className="mb-3 text-sm text-muted">
+              Done by hand in Captura. Tick each step as you finish it; the platform does not change anything in Captura.
+            </p>
+            <CapturaSetup jobId={id} steps={setupRows} values={setupValues} coupon={job.coupon} canEdit={office} />
           </Card>
           <Card title="Tasks">
             {tasks?.length ? (
