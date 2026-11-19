@@ -170,7 +170,7 @@ describe("lab costs", () => {
 
   it("adds up by year, season and job, with profit only over priced orders", () => {
     const v = costView(rows, null);
-    expect(v.all).toEqual({ invoices: 6, orders: 7, products: 30.1, shipping: 16.7, tax: 2.82, total: 49.62, needsCheck: 1, priced: 5, orderTotal: 81, fees: 8.88, netPay: 72.12, profit: 49.89 });
+    expect(v.all).toEqual({ invoices: 6, orders: 7, products: 30.1, shipping: 16.7, tax: 2.82, total: 49.62, needsCheck: 1, priced: 5, orderTotal: 81, fees: 8.88, netPay: 72.12, pricedLab: 22.23, profit: 49.89 });
     expect(v.years.map((y) => [y.year, y.total])).toEqual([[2027, 16.43], [2026, 33.19]]);
     expect(v.seasons.map((s) => [s.season, s.total])).toEqual([["Fall 2026", 16.76], ["Spring 2026", 32.86]]);
     expect(v.jobs.map((j) => [j.reference, j.jobId, j.invoices, j.total, j.profit])).toEqual([["2026 B", null, 2, 32.86, 49.33], ["2026 A", "j1", 4, 16.76, 0.56]]);

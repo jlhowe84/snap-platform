@@ -38,8 +38,8 @@ const AT_ONCE = 4;
 const BUDGET_MS = 40_000;
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
 const DEFAULT_FIRST_DAYS = 7;
-const ORDER_LOOKUPS = 40;
-const LOOKUPS_AT_ONCE = 5;
+const ORDER_LOOKUPS = 150;
+const LOOKUPS_AT_ONCE = 8;
 const RECHECK_MS = 7 * 24 * 60 * 60 * 1000;
 
 type Setting = { key: string; value: unknown };

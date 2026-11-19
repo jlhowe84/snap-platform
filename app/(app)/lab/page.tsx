@@ -8,23 +8,21 @@ import { CheckInvoices } from "./forms";
 
 export const metadata: Metadata = { title: "Lab costs" };
 
-const MONEY_HEAD = (first: string) => [first, "Orders", "Shipping", "Lab total", "Net pay", "Profit"];
+// Two sets of columns: what the lab charged for every order read, then the
+// profit for only those orders Captura has answered for, so the two never mix.
+const MONEY_HEAD = (first: string) => [first, "Orders", "Lab charged", "Found in Captura", "Net pay", "Lab on those", "Profit"];
 
-function coverage(s: Sums) {
-  if (s.orders === 0) return "";
-  if (s.priced === s.orders) return "Every order found in Captura";
-  return `${s.priced.toLocaleString("en-US")} of ${s.orders.toLocaleString("en-US")} orders found in Captura so far`;
-}
+const count = (n: number) => n.toLocaleString("en-US");
+const pct = (part: number, whole: number) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : "");
 
 function MoneyCells({ s }: { s: Sums }) {
   return (
     <>
-      <td className="px-3 py-2">{s.orders.toLocaleString("en-US")}</td>
-      <td className="px-3 py-2">{usd(s.shipping)}</td>
+      <td className="px-3 py-2">{count(s.orders)}</td>
       <td className="px-3 py-2 font-semibold">{usd(s.total)}</td>
-      <td className="px-3 py-2" title={coverage(s)}>
-        {s.priced ? usd(s.netPay) : <span className="text-muted">Not yet</span>}
-      </td>
+      <td className="px-3 py-2 text-muted">{s.priced === s.orders ? "All" : `${count(s.priced)} of ${count(s.orders)}`}</td>
+      <td className="px-3 py-2">{s.priced ? usd(s.netPay) : <span className="text-muted">Not yet</span>}</td>
+      <td className="px-3 py-2">{s.priced ? usd(s.pricedLab) : ""}</td>
       <td className={s.profit < 0 ? "px-3 py-2 font-semibold text-risk" : "px-3 py-2 font-semibold"}>{s.priced ? usd(s.profit) : ""}</td>
     </>
   );
@@ -36,13 +34,16 @@ export default async function LabCostsPage({ searchParams }: PageProps<"/lab">) 
   const viewer = await requireStaff(OFFICE_ROLES);
   const sp = await searchParams;
   const supabase = await createClient();
-  const [{ data: rows }, { data: state }, { count: unread }] = await Promise.all([
+  const picked = typeof sp.year === "string" && /^\d{4}$/.test(sp.year) ? Number(sp.year) : null;
+  let invoiceCount = supabase.from("lab_invoices").select("id", { count: "exact", head: true });
+  if (picked) invoiceCount = invoiceCount.gte("invoice_date", `${picked}-01-01`).lte("invoice_date", `${picked}-12-31`);
+  const [{ data: rows }, { data: state }, { count: unread }, { count: invoices }] = await Promise.all([
     supabase.rpc("lab_cost_summary"),
     supabase.from("lab_invoice_sync_state").select("last_run_at, last_error").order("last_run_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("lab_invoice_skips").select("gmail_message_id", { count: "exact", head: true }).neq("reason", "These invoices were already stored from another email."),
+    invoiceCount,
   ]);
   const all = (rows ?? []) as CostRow[];
-  const picked = typeof sp.year === "string" && /^\d{4}$/.test(sp.year) ? Number(sp.year) : null;
   const view = costView(all, picked);
   const when = new Intl.DateTimeFormat("en-US", { timeZone: viewer.timeZone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   const unmatched = view.jobs.filter((j) => !j.jobId).length;
@@ -82,12 +83,31 @@ export default async function LabCostsPage({ searchParams }: PageProps<"/lab">) 
             ))}
           </nav>
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <Stat label="Lab total" value={usd(view.all.total)} hint={`${view.all.orders.toLocaleString("en-US")} orders on ${view.all.invoices.toLocaleString("en-US")} invoices`} />
-            <Stat label="Shipping in that" value={usd(view.all.shipping)} hint={`Products ${usd(view.all.products)}, tax ${usd(view.all.tax)}`} />
-            <Stat label="Net pay from Captura" value={usd(view.all.netPay)} hint={coverage(view.all)} />
-            <Stat label="Profit after lab" value={usd(view.all.profit)} hint="Net pay less the lab's charge, for the orders found in Captura" />
-          </div>
+          <section>
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">What the lab charged</h2>
+            <p className="mb-3 text-sm text-muted">Every order on every invoice read so far.</p>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <Stat label="Lab charged" value={usd(view.all.total)} hint={`${count(view.all.orders)} orders on ${count(invoices ?? 0)} invoices`} />
+              <Stat label="Prints and products" value={usd(view.all.products)} hint={`${pct(view.all.products, view.all.total)} of the lab's charge`} />
+              <Stat label="Shipping to families" value={usd(view.all.shipping)} hint={`${pct(view.all.shipping, view.all.total)} of the lab's charge`} />
+              <Stat label="Sales tax" value={usd(view.all.tax)} hint="Charged by the lab" />
+            </div>
+          </section>
+
+          <section>
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Profit on orders found in Captura</h2>
+            <p className="mb-3 text-sm text-muted">
+              {view.all.priced === view.all.orders
+                ? "Every order has been found in Captura."
+                : `Only the ${count(view.all.priced)} of ${count(view.all.orders)} orders looked up in Captura so far. Each check looks up more, so these numbers grow until every order is in.`}
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <Stat label="Customers paid" value={usd(view.all.orderTotal)} hint={`${count(view.all.priced)} orders, including their tax and shipping`} />
+              <Stat label="Net pay from Captura" value={usd(view.all.netPay)} hint="What Captura pays SNAP after its fees" />
+              <Stat label="Lab charged for these" value={usd(view.all.pricedLab)} hint={`${usd(view.all.priced ? view.all.pricedLab / view.all.priced : 0)} an order`} />
+              <Stat label="Profit after lab" value={usd(view.all.profit)} hint={`${pct(view.all.profit, view.all.netPay)} of net pay kept`} />
+            </div>
+          </section>
 
           <div className="grid gap-6 xl:grid-cols-2">
             <Card title="By year">
@@ -113,8 +133,8 @@ export default async function LabCostsPage({ searchParams }: PageProps<"/lab">) 
             </Card>
           </div>
           <p className="text-xs text-muted">
-            Net pay is what Captura pays out on each order after its fees. Profit is net pay less what the lab charged for that order, counted only for orders
-            already found in Captura. Orders with nothing printed (digital downloads) never reach the lab, so they are not here.
+            In the tables, Lab charged covers every order. Net pay, Lab on those and Profit cover only the orders found in Captura, so Profit is Net pay less
+            Lab on those. Orders with nothing printed (digital downloads) never reach the lab, so they are not here.
           </p>
 
           <Card title={picked ? `By job, invoices dated ${picked}` : "By job"}>
