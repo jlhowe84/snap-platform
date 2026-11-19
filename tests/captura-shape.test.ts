@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchGalleries, matchPlayers, orderSummary, playerSummary, shapeOrder } from "@/lib/captura/shape";
+import { matchGalleries, matchPlayers, orderSummary, pageRows, playerSummary, shapeOrder } from "@/lib/captura/shape";
 
 const order = {
   billTo: { firstName: "Pat", lastName: "Parent", email: "Pat@Example.org", phone: "555-0100", address1: "1 Main St" },
@@ -64,6 +64,10 @@ describe("captura facts for a support reply", () => {
     expect(matchGalleries(list, "2026", 2)).toHaveLength(2);
     expect(matchGalleries(list, "  ")).toEqual([]);
     expect(matchGalleries("nope", "x")).toEqual([]);
+    // The live list call wraps its rows in a page.
+    expect(matchGalleries({ data: list, total: 4, start: 1, end: 100 }, "example fall")).toHaveLength(1);
+    expect(pageRows({ data: list, total: 4 })).toEqual({ rows: list, total: 4 });
+    expect(pageRows(list).total).toBeNull();
   });
 
   it("finds a player with code, link and team, and never an image count", () => {

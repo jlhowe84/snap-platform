@@ -3,7 +3,7 @@ import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { createCapturaClient } from "@/lib/captura/client";
-import { matchGalleries, matchPlayers, orderSummary, playerSummary, shapeOrder } from "@/lib/captura/shape";
+import { matchGalleries, matchPlayers, orderSummary, pageRows, playerSummary, shapeOrder } from "@/lib/captura/shape";
 
 // The Captura lookups a drafted reply may make. All three only read, through
 // the read-only client, and only the few facts a reply needs are passed on
@@ -13,7 +13,7 @@ import { matchGalleries, matchPlayers, orderSummary, playerSummary, shapeOrder }
 type Captura = ReturnType<typeof createCapturaClient>;
 export type DraftToolContext = { captura: Captura; customerEmail: string | null; found: string[] };
 
-const GALLERY_PAGES = 5; // newest 500 galleries
+const GALLERY_PAGES = 10; // newest 1,000 galleries
 const PAGE = 100;
 
 export const DRAFT_TOOLS: Anthropic.Tool[] = [
@@ -72,7 +72,8 @@ export async function runDraftTool(name: string, rawInput: unknown, ctx: DraftTo
       for (let page = 0; page < GALLERY_PAGES && hits.length < 8; page++) {
         const list = await ctx.captura.listGalleries({ start: page * PAGE + 1, end: (page + 1) * PAGE });
         hits.push(...matchGalleries(list, input.data.search, 8 - hits.length));
-        if (!Array.isArray(list) || list.length < PAGE) break;
+        // A page's "total" is its own size, so a short page is the only end sign.
+        if (pageRows(list).rows.length < PAGE) break;
       }
       ctx.found.push(`Galleries matching "${input.data.search}": ${hits.length === 0 ? "none" : hits.map((h) => h.title).join("; ")}.`);
       return { content: JSON.stringify({ galleries: hits }), isError: false };

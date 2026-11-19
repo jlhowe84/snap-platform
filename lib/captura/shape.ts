@@ -104,6 +104,17 @@ export function orderSummary(o: OrderFacts): string {
   return `Order ${o.order_number}: payment ${o.orders[0].payment ?? "unknown"}, shipment ${state}, ${owner}.`;
 }
 
+/**
+ * Captura's list calls answer with a page: { data: [...], total, start, end }.
+ * Some answers are a bare list, so both are read.
+ */
+export function pageRows(page: unknown): { rows: unknown[]; total: number | null } {
+  if (Array.isArray(page)) return { rows: page, total: null };
+  const p = obj(page);
+  const total = Number(p.total);
+  return { rows: arr(p.data), total: Number.isFinite(total) ? total : null };
+}
+
 export type GalleryHit = { id: string; title: string; photo_day: string | null; status: string | null };
 
 const words = (text: string) =>
@@ -119,7 +130,7 @@ export function matchGalleries(list: unknown, search: string, max = 8): GalleryH
   const wanted = words(search);
   if (wanted.length === 0) return [];
   const out: GalleryHit[] = [];
-  for (const g of arr(list)) {
+  for (const g of pageRows(list).rows) {
     const gallery = obj(g);
     const id = str(gallery.id);
     const title = str(gallery.title);
