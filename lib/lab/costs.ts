@@ -9,29 +9,61 @@ export type CostRow = {
   season: string | null;
   year: number;
   invoices: number;
+  orders: number;
   products: number;
   shipping: number;
   tax: number;
   total: number;
   needs_check: number;
+  priced: number;
+  order_total: number;
+  fees: number;
+  net_pay: number;
+  priced_lab_total: number;
 };
 
-export type Sums = { invoices: number; products: number; shipping: number; tax: number; total: number; needsCheck: number };
+export type Sums = {
+  invoices: number;
+  orders: number;
+  products: number;
+  shipping: number;
+  tax: number;
+  total: number;
+  needsCheck: number;
+  /** Orders whose Captura order was found. */
+  priced: number;
+  orderTotal: number;
+  fees: number;
+  netPay: number;
+  /** Net pay less what the lab charged, over the priced orders only. */
+  profit: number;
+};
 export type JobCost = Sums & { reference: string; jobId: string | null; jobName: string | null; season: string | null };
 
 const cents = (n: unknown) => Math.round(Number(n ?? 0) * 100);
-const zero = (): Sums => ({ invoices: 0, products: 0, shipping: 0, tax: 0, total: 0, needsCheck: 0 });
+const MONEY_KEYS = ["products", "shipping", "tax", "total", "orderTotal", "fees", "netPay", "profit"] as const;
+const zero = (): Sums => ({ invoices: 0, orders: 0, products: 0, shipping: 0, tax: 0, total: 0, needsCheck: 0, priced: 0, orderTotal: 0, fees: 0, netPay: 0, profit: 0 });
 
 // Sums are kept in cents while adding, so thousands of small invoices do not drift.
 function add(into: Sums, row: CostRow) {
   into.invoices += Number(row.invoices ?? 0);
+  into.orders += Number(row.orders ?? 0);
   into.products += cents(row.products);
   into.shipping += cents(row.shipping);
   into.tax += cents(row.tax);
   into.total += cents(row.total);
   into.needsCheck += Number(row.needs_check ?? 0);
+  into.priced += Number(row.priced ?? 0);
+  into.orderTotal += cents(row.order_total);
+  into.fees += cents(row.fees);
+  into.netPay += cents(row.net_pay);
+  into.profit += cents(row.net_pay) - cents(row.priced_lab_total);
 }
-const dollars = <T extends Sums>(s: T): T => ({ ...s, products: s.products / 100, shipping: s.shipping / 100, tax: s.tax / 100, total: s.total / 100 });
+const dollars = <T extends Sums>(s: T): T => {
+  const out = { ...s };
+  for (const k of MONEY_KEYS) out[k] = s[k] / 100;
+  return out;
+};
 
 function seasonKey(label: string | null): number {
   if (!label) return -1;

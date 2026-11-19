@@ -7,7 +7,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
 const { createDriveClient, driveProblem, DriveError, folderIdFrom, serviceAssertion, DRIVE_SCOPE } = await import("@/lib/drive/client");
 const { fileNameFor, invoiceQuery, invoiceRow, labSettings, pdfParts } = await import("@/lib/lab/sync");
 const { costView, searchTerm } = await import("@/lib/lab/costs");
-const { orderGalleryId } = await import("@/lib/captura/shape");
+const { orderMoney } = await import("@/lib/captura/shape");
 
 const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const sa = {
@@ -114,42 +114,66 @@ describe("invoice pickup", () => {
     expect(fileNameFor("scan.exe", "5400001")).toBe("Invoice 5400001.pdf");
   });
 
-  it("shapes an invoice for storing, flagging one that needs a look", () => {
+  it("shapes an invoice for storing, with each order's share of the cost", () => {
     const row = invoiceRow(
       {
-        invoiceNumber: "5400001", invoiceDate: null, labOrderNumber: "2070001", receivedDate: "2026-11-17", onlineOrderNumber: "IQ1", capturaOrderNumber: "70000001",
-        reference: "2026 Example", customerName: "Pat Sample", subtotal: 2.5, tax: 0.15, total: 2.65, payments: 2.65, balance: 0,
-        items: [{ description: "Magnet", orgQty: 1, eachQty: 1, unitPrice: 2.5, extended: 2.5, taxed: true, shipping: false }],
+        invoiceNumber: "5400001", invoiceDate: null, subtotal: 2.5, tax: 0.15, total: 2.65, payments: 2.65, balance: 0,
+        orders: [{
+          labOrderNumber: "2070001", receivedDate: "2026-11-17", onlineOrderNumber: "IQ1", capturaOrderNumber: "70000001", reference: "2026 Example", customerName: "Pat Sample",
+          items: [{ description: "Magnet", orgQty: 1, eachQty: 1, unitPrice: 2.5, extended: 2.5, taxed: true, shipping: false }],
+        }],
         problems: ["No invoice date was found."],
       },
       { lab: "Lab", mailbox: "help@test.invalid", messageId: "m1", fileName: "a.pdf", driveFileId: "f1", driveFolder: "2026-11", fallbackDate: "2026-11-19" },
     );
-    expect(row).toMatchObject({ lab: "Lab", invoice_number: "5400001", invoice_date: "2026-11-19", needs_check: true, check_note: "No invoice date was found.", drive_file_id: "f1", captura_order_number: "70000001" });
-    expect(row.items).toEqual([{ description: "Magnet", org_qty: 1, each_qty: 1, unit_price: 2.5, extended: 2.5, taxed: true, shipping: false }]);
+    expect(row).toMatchObject({ lab: "Lab", invoice_number: "5400001", invoice_date: "2026-11-19", needs_check: true, check_note: "No invoice date was found.", drive_file_id: "f1" });
+    expect(row.orders).toEqual([
+      {
+        lab_order_number: "2070001", received_date: "2026-11-17", online_order_number: "IQ1", captura_order_number: "70000001", reference: "2026 Example", customer_name: "Pat Sample",
+        products: 2.5, shipping: 0, tax: 0.15, total: 2.65,
+        items: [{ description: "Magnet", org_qty: 1, each_qty: 1, unit_price: 2.5, extended: 2.5, taxed: true, shipping: false }],
+      },
+    ]);
   });
 
-  it("reads the gallery from a Captura order only when there is exactly one", () => {
-    expect(orderGalleryId({ orders: [{ galleryOrders: [{ galleryID: 123456 }] }] })).toBe("123456");
-    expect(orderGalleryId({ galleryOrders: [{ galleryID: "123456" }, { galleryID: 123456 }] })).toBe("123456");
-    expect(orderGalleryId({ orders: [{ galleryOrders: [{ galleryID: 1 }, { galleryID: 2 }] }] })).toBeNull();
-    expect(orderGalleryId({})).toBeNull();
+  it("reads the money on a Captura order, without names or addresses", () => {
+    const raw = {
+      billTo: { firstName: "Pat", email: "pat@test.invalid" },
+      orders: [
+        { id: 70000002, total: 99 },
+        {
+          id: 70000001, total: "42.40", tax: 2.4, shipping: 5.5, handling: 1, amountRefunded: 0, commission: 4.65, processingFee: 4.65, transactionFee: 0.3,
+          labPrintingFee: 0, labShippingFee: 0, netPay: 35.05, photogNet: 35.05, payDate: "2026-11-20 00:00:00", paymentStatus: "processed",
+          galleryOrders: [{ galleryID: 123456 }],
+        },
+      ],
+    };
+    const money = orderMoney(raw, "70000001");
+    expect(money).toEqual({ gallery_id: "123456", total: 42.4, tax: 2.4, shipping: 6.5, refunded: 0, fees: 4.95, lab_fees: 0, net_pay: 35.05, pay_date: "2026-11-20", payment_status: "processed" });
+    expect(JSON.stringify(money)).not.toContain("pat");
+    expect(orderMoney({ id: 5, total: 10, photogNet: 8 }, "5")).toMatchObject({ net_pay: 8, gallery_id: null, fees: null });
+    expect(orderMoney({ orders: [{ id: 1 }, { id: 2 }] }, "3")).toBeNull();
+    expect(orderMoney({}, "3")).toBeNull();
   });
 });
 
 describe("lab costs", () => {
-  const row = (o: Partial<Parameters<typeof costView>[0][number]>) => ({ reference: "2026 A", job_id: null, job_name: null, season: "Fall 2026", year: 2026, invoices: 1, products: 0, shipping: 0, tax: 0, total: 0, needs_check: 0, ...o });
+  const row = (o: Partial<Parameters<typeof costView>[0][number]>) => ({
+    reference: "2026 A", job_id: null, job_name: null, season: "Fall 2026", year: 2026, invoices: 1, orders: 1, products: 0, shipping: 0, tax: 0, total: 0, needs_check: 0,
+    priced: 0, order_total: 0, fees: 0, net_pay: 0, priced_lab_total: 0, ...o,
+  });
   const rows = [
-    row({ job_id: "j1", job_name: "League A Fall", invoices: 3, products: 0.1, shipping: 0.2, tax: 0.03, total: 0.33 }),
-    row({ job_id: "j1", job_name: "League A Fall", year: 2027, invoices: 1, products: 10, shipping: 5.5, tax: 0.93, total: 16.43 }),
-    row({ reference: "2026 B", season: "Spring 2026", invoices: 2, products: 20, shipping: 11, tax: 1.86, total: 32.86, needs_check: 1 }),
+    row({ job_id: "j1", job_name: "League A Fall", invoices: 3, orders: 3, products: 0.1, shipping: 0.2, tax: 0.03, total: 0.33, priced: 3, order_total: 1, fees: 0.11, net_pay: 0.89, priced_lab_total: 0.33 }),
+    row({ job_id: "j1", job_name: "League A Fall", year: 2027, invoices: 1, orders: 1, products: 10, shipping: 5.5, tax: 0.93, total: 16.43 }),
+    row({ reference: "2026 B", season: "Spring 2026", invoices: 2, orders: 3, products: 20, shipping: 11, tax: 1.86, total: 32.86, needs_check: 1, priced: 2, order_total: 80, fees: 8.77, net_pay: 71.23, priced_lab_total: 21.9 }),
   ];
 
-  it("adds up by year, season and job", () => {
+  it("adds up by year, season and job, with profit only over priced orders", () => {
     const v = costView(rows, null);
-    expect(v.all).toEqual({ invoices: 6, products: 30.1, shipping: 16.7, tax: 2.82, total: 49.62, needsCheck: 1 });
+    expect(v.all).toEqual({ invoices: 6, orders: 7, products: 30.1, shipping: 16.7, tax: 2.82, total: 49.62, needsCheck: 1, priced: 5, orderTotal: 81, fees: 8.88, netPay: 72.12, profit: 49.89 });
     expect(v.years.map((y) => [y.year, y.total])).toEqual([[2027, 16.43], [2026, 33.19]]);
     expect(v.seasons.map((s) => [s.season, s.total])).toEqual([["Fall 2026", 16.76], ["Spring 2026", 32.86]]);
-    expect(v.jobs.map((j) => [j.reference, j.jobId, j.invoices, j.total])).toEqual([["2026 B", null, 2, 32.86], ["2026 A", "j1", 4, 16.76]]);
+    expect(v.jobs.map((j) => [j.reference, j.jobId, j.invoices, j.total, j.profit])).toEqual([["2026 B", null, 2, 32.86, 49.33], ["2026 A", "j1", 4, 16.76, 0.56]]);
   });
 
   it("narrows to one year by invoice date, keeping every year in the list", () => {

@@ -3,10 +3,32 @@ import Link from "next/link";
 import { OFFICE_ROLES, requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill, Stat, Table, cx } from "@/components/ui";
-import { costView, usd, type CostRow } from "@/lib/lab/costs";
+import { costView, usd, type CostRow, type Sums } from "@/lib/lab/costs";
 import { CheckInvoices } from "./forms";
 
 export const metadata: Metadata = { title: "Lab costs" };
+
+const MONEY_HEAD = (first: string) => [first, "Orders", "Shipping", "Lab total", "Net pay", "Profit"];
+
+function coverage(s: Sums) {
+  if (s.orders === 0) return "";
+  if (s.priced === s.orders) return "Every order found in Captura";
+  return `${s.priced.toLocaleString("en-US")} of ${s.orders.toLocaleString("en-US")} orders found in Captura so far`;
+}
+
+function MoneyCells({ s }: { s: Sums }) {
+  return (
+    <>
+      <td className="px-3 py-2">{s.orders.toLocaleString("en-US")}</td>
+      <td className="px-3 py-2">{usd(s.shipping)}</td>
+      <td className="px-3 py-2 font-semibold">{usd(s.total)}</td>
+      <td className="px-3 py-2" title={coverage(s)}>
+        {s.priced ? usd(s.netPay) : <span className="text-muted">Not yet</span>}
+      </td>
+      <td className={s.profit < 0 ? "px-3 py-2 font-semibold text-risk" : "px-3 py-2 font-semibold"}>{s.priced ? usd(s.profit) : ""}</td>
+    </>
+  );
+}
 // Checking for invoices reads mail and files PDFs.
 export const maxDuration = 60;
 
@@ -61,43 +83,39 @@ export default async function LabCostsPage({ searchParams }: PageProps<"/lab">) 
           </nav>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <Stat label="Lab total" value={usd(view.all.total)} hint={`${view.all.invoices.toLocaleString("en-US")} invoices, by invoice date`} />
-            <Stat label="Products" value={usd(view.all.products)} />
-            <Stat label="Shipping" value={usd(view.all.shipping)} />
-            <Stat label="Tax" value={usd(view.all.tax)} />
+            <Stat label="Lab total" value={usd(view.all.total)} hint={`${view.all.orders.toLocaleString("en-US")} orders on ${view.all.invoices.toLocaleString("en-US")} invoices`} />
+            <Stat label="Shipping in that" value={usd(view.all.shipping)} hint={`Products ${usd(view.all.products)}, tax ${usd(view.all.tax)}`} />
+            <Stat label="Net pay from Captura" value={usd(view.all.netPay)} hint={coverage(view.all)} />
+            <Stat label="Profit after lab" value={usd(view.all.profit)} hint="Net pay less the lab's charge, for the orders found in Captura" />
           </div>
 
           <div className="grid gap-6 xl:grid-cols-2">
             <Card title="By year">
-              <Table head={["Year", "Invoices", "Products", "Shipping", "Tax", "Total"]}>
+              <Table head={MONEY_HEAD("Year")}>
                 {view.years.map((y) => (
                   <tr key={y.year} className="border-b border-line last:border-0">
                     <td className="px-3 py-2">{y.year}</td>
-                    <td className="px-3 py-2">{y.invoices.toLocaleString("en-US")}</td>
-                    <td className="px-3 py-2">{usd(y.products)}</td>
-                    <td className="px-3 py-2">{usd(y.shipping)}</td>
-                    <td className="px-3 py-2">{usd(y.tax)}</td>
-                    <td className="px-3 py-2 font-semibold">{usd(y.total)}</td>
+                    <MoneyCells s={y} />
                   </tr>
                 ))}
               </Table>
             </Card>
             <Card title={picked ? `By season, invoices dated ${picked}` : "By season"}>
-              <Table head={["Season", "Invoices", "Products", "Shipping", "Tax", "Total"]}>
+              <Table head={MONEY_HEAD("Season")}>
                 {view.seasons.map((s) => (
                   <tr key={s.season} className="border-b border-line last:border-0">
                     <td className="px-3 py-2">{s.season}</td>
-                    <td className="px-3 py-2">{s.invoices.toLocaleString("en-US")}</td>
-                    <td className="px-3 py-2">{usd(s.products)}</td>
-                    <td className="px-3 py-2">{usd(s.shipping)}</td>
-                    <td className="px-3 py-2">{usd(s.tax)}</td>
-                    <td className="px-3 py-2 font-semibold">{usd(s.total)}</td>
+                    <MoneyCells s={s} />
                   </tr>
                 ))}
               </Table>
               <p className="mt-3 text-xs text-muted">A matched job counts in its own season. An unmatched one counts in the season of its first invoice.</p>
             </Card>
           </div>
+          <p className="text-xs text-muted">
+            Net pay is what Captura pays out on each order after its fees. Profit is net pay less what the lab charged for that order, counted only for orders
+            already found in Captura. Orders with nothing printed (digital downloads) never reach the lab, so they are not here.
+          </p>
 
           <Card title={picked ? `By job, invoices dated ${picked}` : "By job"}>
             {unmatched > 0 && (
@@ -105,7 +123,7 @@ export default async function LabCostsPage({ searchParams }: PageProps<"/lab">) 
                 {unmatched} lab job {unmatched === 1 ? "name is" : "names are"} not matched to a job yet. Open one to match it.
               </p>
             )}
-            <Table head={["Lab job name", "Job", "Season", "Invoices", "Products", "Shipping", "Tax", "Total"]}>
+            <Table head={["Lab job name", "Job", "Season", ...MONEY_HEAD("").slice(1)]}>
               {view.jobs.map((j) => (
                 <tr key={`${j.reference}:${j.jobId ?? ""}`} className="border-b border-line last:border-0">
                   <td className="px-3 py-2">
@@ -128,11 +146,7 @@ export default async function LabCostsPage({ searchParams }: PageProps<"/lab">) 
                     )}
                   </td>
                   <td className="px-3 py-2">{j.season ?? ""}</td>
-                  <td className="px-3 py-2">{j.invoices.toLocaleString("en-US")}</td>
-                  <td className="px-3 py-2">{usd(j.products)}</td>
-                  <td className="px-3 py-2">{usd(j.shipping)}</td>
-                  <td className="px-3 py-2">{usd(j.tax)}</td>
-                  <td className="px-3 py-2 font-semibold">{usd(j.total)}</td>
+                  <MoneyCells s={j} />
                 </tr>
               ))}
             </Table>

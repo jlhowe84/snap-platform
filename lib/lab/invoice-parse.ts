@@ -1,11 +1,13 @@
 // Reads a lab invoice from the text of its PDF, by rule. No network, no
 // database and no model here, so every rule can be tested on its own.
 //
-// The layout is the one Alkit's invoice emails use: one invoice per page with
-// an "INVOICE <number>" heading, an order line carrying the lab's order
-// number, the date received, the "Online Order No" and the "PO No" (the PO No
-// is the Captura order number), a "Reference:" line (the job's name as the lab
-// has it), a "For:" line (the customer), the item lines, then the totals.
+// The layout is the one Alkit's invoice emails use. An invoice has an
+// "INVOICE <number>" heading, then one or more orders, then its totals. Each
+// order starts with a line carrying the lab's order number, the date
+// received, the "Online Order No" and the "PO No" (the PO No is the Captura
+// order number), then a "Reference:" line (the job's name as the lab has it),
+// usually a "For:" line (the customer), then its item lines. A long invoice
+// runs onto further pages, each repeating the page heading.
 //
 // The ship-to address is on the page but is never read: the record keeps the
 // customer's name only.
@@ -39,10 +41,7 @@ export type InvoiceItem = {
   shipping: boolean;
 };
 
-export type ParsedInvoice = {
-  invoiceNumber: string;
-  /** "YYYY-MM-DD" */
-  invoiceDate: string | null;
+export type InvoiceOrder = {
   labOrderNumber: string | null;
   receivedDate: string | null;
   onlineOrderNumber: string | null;
@@ -51,6 +50,13 @@ export type ParsedInvoice = {
   reference: string | null;
   customerName: string | null;
   items: InvoiceItem[];
+};
+
+export type ParsedInvoice = {
+  invoiceNumber: string;
+  /** "YYYY-MM-DD" */
+  invoiceDate: string | null;
+  orders: InvoiceOrder[];
   subtotal: number | null;
   tax: number | null;
   total: number | null;
@@ -63,6 +69,8 @@ export type ParsedInvoice = {
 const MONEY = String.raw`\(?-?\$?-?[\d,]*\.\d{2}\)?`;
 const DATE = String.raw`\d{1,2}\/\d{1,2}\/\d{4}`;
 const HEADING = /(?:^|\s)INVOICE\s+(\d{4,12})\s*$/;
+const COLUMNS = /^Order\s+Item Description\b/;
+const ORDER = /^(\d+)\s+Received:/;
 const ITEM = new RegExp(String.raw`^(.*\S)\s+(\d+)\s+(\d+)\s+(${MONEY})\s+(X\s+)?(${MONEY})$`);
 
 function money(text: string | undefined): number | null {
@@ -82,7 +90,7 @@ function isoDate(text: string | undefined): string | null {
   return `${m[3]}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-const cents = (n: number) => Math.round(n * 100);
+export const cents = (n: number) => Math.round(n * 100);
 const clean = (s: string) => s.replace(/\s+/g, " ").trim();
 
 function labelled(lines: string[], label: RegExp): number | null {
@@ -93,73 +101,92 @@ function labelled(lines: string[], label: RegExp): number | null {
   return null;
 }
 
+function itemFrom(line: string): InvoiceItem | null {
+  const m = ITEM.exec(line);
+  const unit = m ? money(m[4]) : null;
+  const extended = m ? money(m[6]) : null;
+  if (!m || unit === null || extended === null) return null;
+  const description = clean(m[1]);
+  return {
+    description,
+    orgQty: Number(m[2]),
+    eachQty: Number(m[3]),
+    unitPrice: unit,
+    extended,
+    taxed: !!m[5],
+    shipping: /^(shipping|postage|freight|handling)\b/i.test(description),
+  };
+}
+
+function newOrder(line: string): InvoiceOrder {
+  return {
+    labOrderNumber: ORDER.exec(line)?.[1] ?? null,
+    receivedDate: isoDate(new RegExp(String.raw`Received:\s*(${DATE})`).exec(line)?.[1]),
+    onlineOrderNumber: /Online Order No:\s*([A-Za-z0-9-]+)/.exec(line)?.[1] ?? null,
+    capturaOrderNumber: /PO No:\s*([A-Za-z0-9-]+)/.exec(line)?.[1] ?? null,
+    reference: null,
+    customerName: null,
+    items: [],
+  };
+}
+
 function parseOne(invoiceNumber: string, lines: string[]): ParsedInvoice {
   const all = lines.join("\n");
   const problems: string[] = [];
-  const orderLines = lines.filter((l) => /^\d+\s+Received:/.test(l));
-  const order = orderLines[0] ?? "";
+  const orders: InvoiceOrder[] = [];
+  let order: InvoiceOrder | null = null;
+  // "reference" while a job name may still wrap; "items" after it.
+  let mode: "reference" | "items" | "after" = "after";
 
-  let reference: string | null = null;
-  let customerName: string | null = null;
-  const items: InvoiceItem[] = [];
-  let mode: "before" | "reference" | "items" | "after" = "before";
   for (const line of lines) {
-    if (/^List of Payments\b/.test(line) || /\bSub Total\b/.test(line)) {
-      if (mode !== "before") mode = "after";
+    if (ORDER.test(line)) {
+      order = newOrder(line);
+      orders.push(order);
+      mode = "items";
       continue;
     }
-    if (mode === "after") continue;
-    if (/^\d+\s+Received:/.test(line)) continue;
+    if (/^List of Payments\b/.test(line) || /\bSub Total\b/.test(line)) {
+      mode = "after";
+      continue;
+    }
+    if (!order || mode === "after") continue;
     const ref = /^Reference:\s*(.*)$/.exec(line);
     if (ref) {
-      if (reference === null) reference = ref[1];
+      order.reference = order.reference ?? ref[1];
       mode = "reference";
       continue;
     }
     const who = /^For:\s*(.*)$/.exec(line);
     if (who) {
-      if (customerName === null) customerName = who[1];
+      order.customerName = order.customerName ?? who[1];
+      mode = "items";
+      continue;
+    }
+    const item = itemFrom(line);
+    if (item) {
+      order.items.push(item);
       mode = "items";
       continue;
     }
     if (mode === "reference") {
       // A long job name wraps onto the next line.
-      reference = `${reference ?? ""} ${line}`;
-      continue;
+      order.reference = `${order.reference ?? ""} ${line}`;
+    } else if (order.items.length > 0) {
+      // A long description wraps onto the next line.
+      const last = order.items[order.items.length - 1];
+      last.description = clean(`${last.description} ${line}`);
     }
-    if (mode === "items") {
-      const m = ITEM.exec(line);
-      const unit = m ? money(m[4]) : null;
-      const extended = m ? money(m[6]) : null;
-      if (m && unit !== null && extended !== null) {
-        const description = clean(m[1]);
-        items.push({
-          description,
-          orgQty: Number(m[2]),
-          eachQty: Number(m[3]),
-          unitPrice: unit,
-          extended,
-          taxed: !!m[5],
-          shipping: /^(shipping|postage|freight|handling)\b/i.test(description),
-        });
-      } else if (items.length > 0) {
-        // A long description wraps onto the next line.
-        const last = items[items.length - 1];
-        last.description = clean(`${last.description} ${line}`);
-      }
-    }
+  }
+
+  for (const o of orders) {
+    o.reference = o.reference ? clean(o.reference).slice(0, 300) || null : null;
+    o.customerName = o.customerName ? clean(o.customerName).slice(0, 200) || null : null;
   }
 
   const invoice: ParsedInvoice = {
     invoiceNumber,
     invoiceDate: isoDate(new RegExp(String.raw`Invoice Date:\s*(${DATE})`).exec(all)?.[1]),
-    labOrderNumber: /^(\d+)\s+Received:/.exec(order)?.[1] ?? null,
-    receivedDate: isoDate(new RegExp(String.raw`Received:\s*(${DATE})`).exec(order)?.[1]),
-    onlineOrderNumber: /Online Order No:\s*([A-Za-z0-9-]+)/.exec(order)?.[1] ?? null,
-    capturaOrderNumber: /PO No:\s*([A-Za-z0-9-]+)/.exec(order)?.[1] ?? null,
-    reference: reference ? clean(reference).slice(0, 300) || null : null,
-    customerName: customerName ? clean(customerName).slice(0, 200) || null : null,
-    items,
+    orders,
     subtotal: labelled(lines, new RegExp(String.raw`\bSub Total\s+(${MONEY})`)),
     // The column heading also says "Tax", so the amount must carry its "$".
     tax: labelled(lines, /(?:^|\s)Tax\s+(\(?-?\$[\d,]*\.\d{2}\)?)/),
@@ -169,11 +196,12 @@ function parseOne(invoiceNumber: string, lines: string[]): ParsedInvoice {
     problems,
   };
 
+  const items = orders.flatMap((o) => o.items);
   if (!invoice.invoiceDate) problems.push("No invoice date was found.");
-  if (orderLines.length > 1) problems.push("More than one order is on this invoice.");
-  if (!invoice.capturaOrderNumber) problems.push("No PO number was found.");
-  if (!invoice.reference) problems.push("No job reference was found.");
-  if (items.length === 0) problems.push("No item lines were found.");
+  if (orders.length === 0) problems.push("No order was found.");
+  if (orders.some((o) => !o.capturaOrderNumber)) problems.push("An order has no PO number.");
+  if (orders.some((o) => !o.reference)) problems.push("An order has no job reference.");
+  if (orders.length > 0 && items.length === 0) problems.push("No item lines were found.");
   if (invoice.total === null) problems.push("No total was found.");
   const sum = items.reduce((n, i) => n + cents(i.extended), 0);
   if (items.length > 0 && invoice.subtotal !== null && sum !== cents(invoice.subtotal)) {
@@ -187,29 +215,53 @@ function parseOne(invoiceNumber: string, lines: string[]): ParsedInvoice {
 
 /**
  * Every invoice in a document's lines. A new invoice starts at each
- * "INVOICE <number>" heading; a heading that repeats the number in hand is a
- * second page of the same invoice.
+ * "INVOICE <number>" heading. A heading that repeats the number in hand is a
+ * further page of the same invoice: its page heading, down to the column
+ * titles, is skipped.
  */
 export function parseInvoices(lines: string[]): ParsedInvoice[] {
   const chunks: { number: string; lines: string[] }[] = [];
+  let skipping = false;
   for (const raw of lines) {
     const line = clean(raw);
-    if (!line) continue;
+    if (!line || /^Page \d+ of \d+$/.test(line)) continue;
     const heading = HEADING.exec(line);
-    if (heading && chunks[chunks.length - 1]?.number !== heading[1]) {
-      chunks.push({ number: heading[1], lines: [] });
+    if (heading) {
+      if (chunks[chunks.length - 1]?.number !== heading[1]) chunks.push({ number: heading[1], lines: [] });
+      skipping = true;
       continue;
     }
-    if (heading) continue;
+    if (skipping) {
+      if (COLUMNS.test(line)) skipping = false;
+      // The first page's heading holds the invoice date; keep that line.
+      if (/Invoice Date:/.test(line)) chunks[chunks.length - 1]?.lines.push(line);
+      continue;
+    }
     chunks[chunks.length - 1]?.lines.push(line);
   }
   return chunks.map((c) => parseOne(c.number, c.lines));
 }
 
-/** What was made and what it cost to ship, from the item lines. */
-export function invoiceSplit(invoice: ParsedInvoice): { products: number; shipping: number } {
-  const of = (shipping: boolean) => invoice.items.filter((i) => i.shipping === shipping).reduce((n, i) => n + cents(i.extended), 0) / 100;
-  return { products: of(false), shipping: of(true) };
+export type OrderCost = { products: number; shipping: number; tax: number; total: number };
+
+/**
+ * What each order on an invoice cost: its own item lines, and a share of the
+ * invoice's tax in proportion to its taxed lines. Shares are worked in cents
+ * and the last order takes any rounding, so they add up to the invoice.
+ */
+export function orderCosts(invoice: Pick<ParsedInvoice, "orders" | "tax">): OrderCost[] {
+  const tax = cents(invoice.tax ?? 0);
+  const taxedOf = (o: InvoiceOrder) => o.items.filter((i) => i.taxed).reduce((n, i) => n + cents(i.extended), 0);
+  const taxedAll = invoice.orders.reduce((n, o) => n + taxedOf(o), 0);
+  let given = 0;
+  return invoice.orders.map((o, k) => {
+    const products = o.items.filter((i) => !i.shipping).reduce((n, i) => n + cents(i.extended), 0);
+    const shipping = o.items.filter((i) => i.shipping).reduce((n, i) => n + cents(i.extended), 0);
+    const last = k === invoice.orders.length - 1;
+    const share = last ? tax - given : taxedAll > 0 ? Math.round((tax * taxedOf(o)) / taxedAll) : 0;
+    given += share;
+    return { products: products / 100, shipping: shipping / 100, tax: share / 100, total: (products + shipping + share) / 100 };
+  });
 }
 
 /** The month folder an invoice is filed in, such as "2026-11". */

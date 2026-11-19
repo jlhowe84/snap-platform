@@ -4,9 +4,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { allowedMailboxes, createGmailClient, loadServiceAccount, type GmailPart } from "@/lib/gmail/client";
 import { createDriveClient, driveProblem, folderIdFrom, type DriveClient } from "@/lib/drive/client";
 import { createCapturaClient, loadCapturaCredentials } from "@/lib/captura/client";
-import { orderGalleryId } from "@/lib/captura/shape";
+import { orderMoney } from "@/lib/captura/shape";
 import { syncWindows } from "@/lib/support/sync";
-import { monthFolder, parseInvoices, type ParsedInvoice } from "./invoice-parse";
+import { monthFolder, orderCosts, parseInvoices, type ParsedInvoice } from "./invoice-parse";
 import { pdfLines } from "./pdf-text";
 
 // Picks up the lab's invoice emails. A server job, so it uses the service
@@ -18,6 +18,10 @@ import { pdfLines } from "./pdf-text";
 // It only reads Gmail (nothing is sent, labelled or moved), only adds to the
 // one shared Drive folder, and only reads Captura. Running it twice is
 // harmless: an invoice number is stored once and a file name is filed once.
+//
+// Each order on an invoice is then looked up in Captura by its PO number, a
+// few dozen a run, for its gallery (which ties it to a job) and its money
+// (what the customer paid, Captura's fees and the net pay).
 
 export type LabSyncResult = {
   company: string;
@@ -34,7 +38,8 @@ const AT_ONCE = 4;
 const BUDGET_MS = 40_000;
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
 const DEFAULT_FIRST_DAYS = 7;
-const GALLERY_LOOKUPS = 6;
+const ORDER_LOOKUPS = 40;
+const LOOKUPS_AT_ONCE = 5;
 const RECHECK_MS = 7 * 24 * 60 * 60 * 1000;
 
 type Setting = { key: string; value: unknown };
@@ -91,16 +96,11 @@ export function invoiceRow(
   invoice: ParsedInvoice,
   where: { lab: string; mailbox: string; messageId: string; fileName: string; driveFileId: string; driveFolder: string; fallbackDate: string },
 ) {
+  const costs = orderCosts(invoice);
   return {
     lab: where.lab,
     invoice_number: invoice.invoiceNumber,
     invoice_date: invoice.invoiceDate ?? where.fallbackDate,
-    lab_order_number: invoice.labOrderNumber,
-    received_date: invoice.receivedDate,
-    online_order_number: invoice.onlineOrderNumber,
-    captura_order_number: invoice.capturaOrderNumber,
-    reference: invoice.reference,
-    customer_name: invoice.customerName,
     subtotal: invoice.subtotal,
     tax: invoice.tax,
     total: invoice.total,
@@ -113,14 +113,23 @@ export function invoiceRow(
     file_name: where.fileName,
     drive_file_id: where.driveFileId,
     drive_folder: where.driveFolder,
-    items: invoice.items.map((i) => ({
-      description: i.description,
-      org_qty: i.orgQty,
-      each_qty: i.eachQty,
-      unit_price: i.unitPrice,
-      extended: i.extended,
-      taxed: i.taxed,
-      shipping: i.shipping,
+    orders: invoice.orders.map((o, k) => ({
+      lab_order_number: o.labOrderNumber,
+      received_date: o.receivedDate,
+      online_order_number: o.onlineOrderNumber,
+      captura_order_number: o.capturaOrderNumber,
+      reference: o.reference,
+      customer_name: o.customerName,
+      ...costs[k],
+      items: o.items.map((i) => ({
+        description: i.description,
+        org_qty: i.orgQty,
+        each_qty: i.eachQty,
+        unit_price: i.unitPrice,
+        extended: i.extended,
+        taxed: i.taxed,
+        shipping: i.shipping,
+      })),
     })),
   };
 }
@@ -141,34 +150,25 @@ async function knownMessages(admin: Admin, companyId: string, ids: string[]): Pr
 }
 
 /**
- * Ties invoices to jobs. What one invoice of a lab job name knows holds for
- * the rest, so Captura is asked about one order per job name, a few per run.
+ * Reads each new order's Captura order (by the PO number the lab printed),
+ * a few dozen a run, for its gallery and its money, then ties orders to jobs.
+ * An order Captura does not know is tried again after a week.
  */
-async function matchJobs(admin: Admin, companyId: string, deadline: number): Promise<number> {
+async function enrichOrders(admin: Admin, companyId: string, deadline: number): Promise<number> {
   const link = async () => Number((await admin.rpc("lab_invoices_link", { p_company: companyId })).data ?? 0);
-  let matched = await link();
-  if (Date.now() > deadline) return matched;
+  if (Date.now() > deadline) return link();
 
+  const stale = new Date(Date.now() - RECHECK_MS).toISOString();
   const { data: open } = await admin
-    .from("lab_invoices")
-    .select("reference, captura_order_number, gallery_checked_at")
+    .from("lab_invoice_orders")
+    .select("id, captura_order_number")
     .eq("company_id", companyId)
-    .is("job_id", null)
-    .is("captura_gallery_id", null)
-    .not("reference", "is", null)
     .not("captura_order_number", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(300);
-  const stale = Date.now() - RECHECK_MS;
-  const ask = new Map<string, string>();
-  for (const row of open ?? []) {
-    if (row.gallery_checked_at && Date.parse(row.gallery_checked_at) > stale) continue;
-    if (row.reference && row.captura_order_number && /^\d{4,14}$/.test(row.captura_order_number) && !ask.has(row.reference)) {
-      ask.set(row.reference, row.captura_order_number);
-    }
-    if (ask.size >= GALLERY_LOOKUPS) break;
-  }
-  if (ask.size === 0) return matched;
+    .or(`captura_checked_at.is.null,and(captura_found.eq.false,captura_checked_at.lt.${stale})`)
+    .order("captura_checked_at", { ascending: true, nullsFirst: true })
+    .limit(ORDER_LOOKUPS);
+  const todo = (open ?? []).filter((o) => o.captura_order_number && /^\d{4,14}$/.test(o.captura_order_number));
+  if (todo.length === 0) return link();
 
   let captura: ReturnType<typeof createCapturaClient> | null = null;
   try {
@@ -177,26 +177,50 @@ async function matchJobs(admin: Admin, companyId: string, deadline: number): Pro
   } catch {
     captura = null;
   }
-  if (!captura) return matched;
+  if (!captura) return link();
 
-  await Promise.all(
-    [...ask].map(async ([reference, orderNumber]) => {
-      let gallery: string | null = null;
-      try {
-        gallery = orderGalleryId(await captura.getOrder(orderNumber));
-      } catch {
-        // Not found, or Captura did not answer. Tried again in a week.
-      }
-      await admin
-        .from("lab_invoices")
-        .update(gallery ? { captura_gallery_id: Number(gallery), gallery_checked_at: new Date().toISOString() } : { gallery_checked_at: new Date().toISOString() })
-        .eq("company_id", companyId)
-        .eq("reference", reference)
-        .is("captura_gallery_id", null);
-    }),
-  );
-  matched += await link();
-  return matched;
+  // One lookup per Captura order, even when the lab invoiced it twice.
+  const byOrder = new Map<string, string[]>();
+  for (const o of todo) byOrder.set(o.captura_order_number!, [...(byOrder.get(o.captura_order_number!) ?? []), o.id]);
+  const numbers = [...byOrder.keys()];
+  for (let i = 0; i < numbers.length && Date.now() < deadline; i += LOOKUPS_AT_ONCE) {
+    await Promise.all(
+      numbers.slice(i, i + LOOKUPS_AT_ONCE).map(async (number) => {
+        let money: ReturnType<typeof orderMoney> = null;
+        let answered = true;
+        try {
+          money = orderMoney(await captura.getOrder(number), number);
+        } catch (e) {
+          // A missing order is recorded; any other failure is tried next run.
+          answered = e instanceof Error && /\((400|404)\)$/.test(e.message);
+        }
+        if (!answered) return;
+        const now = new Date().toISOString();
+        await admin
+          .from("lab_invoice_orders")
+          .update(
+            money
+              ? {
+                  captura_checked_at: now,
+                  captura_found: true,
+                  ...(money.gallery_id ? { captura_gallery_id: Number(money.gallery_id) } : {}),
+                  order_total: money.total,
+                  order_tax: money.tax,
+                  order_shipping: money.shipping,
+                  order_refunded: money.refunded,
+                  order_fees: money.fees,
+                  order_lab_fees: money.lab_fees,
+                  order_net_pay: money.net_pay,
+                  order_pay_date: money.pay_date,
+                  order_payment_status: money.payment_status,
+                }
+              : { captura_checked_at: now, captura_found: false },
+          )
+          .in("id", byOrder.get(number)!);
+      }),
+    );
+  }
+  return link();
 }
 
 /**
@@ -338,7 +362,7 @@ export async function runLabInvoiceSync(onlyCompanyId?: string): Promise<LabSync
     }
 
     try {
-      const matched = await matchJobs(admin, company.id, deadline + 10_000);
+      const matched = await enrichOrders(admin, company.id, deadline + 10_000);
       const first = results.find((r) => r.company === company.id);
       if (first) first.matched = matched;
     } catch {

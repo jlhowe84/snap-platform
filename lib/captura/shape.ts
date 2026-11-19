@@ -101,19 +101,59 @@ export function shapeOrder(raw: unknown, orderNumber: string, customerEmail: Ema
   };
 }
 
-/** The gallery an order was placed in, when the order names exactly one. */
-export function orderGalleryId(raw: unknown): string | null {
+export type OrderMoney = {
+  gallery_id: string | null;
+  total: number | null;
+  tax: number | null;
+  shipping: number | null;
+  refunded: number | null;
+  /** What Captura kept: its commission and card processing. */
+  fees: number | null;
+  /** Lab charges Captura took out itself (its own lab); none when the lab bills SNAP. */
+  lab_fees: number | null;
+  net_pay: number | null;
+  pay_date: string | null;
+  payment_status: string | null;
+};
+
+const num = (v: unknown): number | null => {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+const plus = (...xs: (number | null)[]) => (xs.every((x) => x === null) ? null : Math.round(xs.reduce<number>((n, x) => n + (x ?? 0) * 100, 0)) / 100);
+
+/**
+ * The money on one Captura order: what the customer paid and what Captura
+ * paid out. The single-order call may wrap several orders of one checkout;
+ * the one whose id is the order number is used, or the only one there is.
+ * No names, addresses or items.
+ */
+export function orderMoney(raw: unknown, orderNumber: string): OrderMoney | null {
   const data = obj(raw);
-  const inner = arr(data.orders).length > 0 ? arr(data.orders) : [data];
-  const ids = new Set<string>();
-  for (const o of inner) {
-    for (const g of arr(obj(o).galleryOrders)) {
-      const row = obj(g);
-      const id = str(row.galleryID) ?? str(row.galleryId) ?? str(obj(row.gallery).id);
-      if (id && /^\d{1,14}$/.test(id)) ids.add(id);
-    }
+  const inner = arr(data.orders).length > 0 ? arr(data.orders).map(obj) : data.id !== undefined || data.total !== undefined ? [data] : [];
+  const order = inner.find((o) => str(o.id) === orderNumber) ?? (inner.length === 1 ? inner[0] : null);
+  if (!order) return null;
+  const galleries = new Set<string>();
+  for (const g of arr(order.galleryOrders)) {
+    const row = obj(g);
+    const id = str(row.galleryID) ?? str(row.galleryId) ?? str(obj(row.gallery).id);
+    if (id && /^\d{1,14}$/.test(id)) galleries.add(id);
   }
-  return ids.size === 1 ? [...ids][0] : null;
+  // On a card order processingFee already equals commission, so it is not added to it.
+  const fees = plus(num(order.processingFee) ?? num(order.commission), num(order.transactionFee), num(order.digitalProductFee));
+  return {
+    gallery_id: galleries.size === 1 ? [...galleries][0] : null,
+    total: num(order.total),
+    tax: num(order.tax),
+    shipping: plus(num(order.shipping), num(order.handling)),
+    refunded: num(order.amountRefunded),
+    fees,
+    lab_fees: plus(num(order.labPrintingFee), num(order.labShippingFee)),
+    net_pay: num(order.netPay) ?? num(order.photogNet),
+    pay_date: day(order.payDate),
+    payment_status: str(order.paymentStatus),
+  };
 }
 
 /** A line a person can read about what was found. */

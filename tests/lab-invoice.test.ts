@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { PDFDocument, StandardFonts } from "pdf-lib";
-import { invoiceSplit, monthFolder, parseInvoices, toLines, type TextItem } from "@/lib/lab/invoice-parse";
+import { monthFolder, orderCosts, parseInvoices, toLines, type TextItem } from "@/lib/lab/invoice-parse";
 
 vi.mock("server-only", () => ({}));
 
@@ -79,24 +79,26 @@ describe("reading a lab invoice", () => {
   it("reads the numbers that tie it to an order", () => {
     expect(invoice.invoiceNumber).toBe("5400001");
     expect(invoice.invoiceDate).toBe("2026-11-19");
-    expect(invoice.labOrderNumber).toBe("2070001");
-    expect(invoice.receivedDate).toBe("2026-11-17");
-    expect(invoice.onlineOrderNumber).toBe("IQ80000001");
+    expect(invoice.orders).toHaveLength(1);
+    const [order] = invoice.orders;
+    expect(order.labOrderNumber).toBe("2070001");
+    expect(order.receivedDate).toBe("2026-11-17");
+    expect(order.onlineOrderNumber).toBe("IQ80000001");
     // The PO number, not the online order number, is the Captura order.
-    expect(invoice.capturaOrderNumber).toBe("70000001");
-    expect(invoice.reference).toBe("2026 Example Soccer Club");
-    expect(invoice.customerName).toBe("Pat Sample");
+    expect(order.capturaOrderNumber).toBe("70000001");
+    expect(order.reference).toBe("2026 Example Soccer Club");
+    expect(order.customerName).toBe("Pat Sample");
   });
 
   it("reads each item line and the totals", () => {
-    expect(invoice.items).toEqual([
+    expect(invoice.orders[0].items).toEqual([
       { description: "School/Sports Package Unit", orgQty: 2, eachQty: 1, unitPrice: 0.82, extended: 1.64, taxed: true, shipping: false },
       { description: "4x5 Photo Magnet", orgQty: 2, eachQty: 1, unitPrice: 2.5, extended: 5, taxed: true, shipping: false },
       { description: 'Shipping Direct-To-Client *NO PAPERWORK INCLUDED"', orgQty: 1, eachQty: 1, unitPrice: 5.5, extended: 5.5, taxed: true, shipping: true },
     ]);
     expect([invoice.subtotal, invoice.tax, invoice.total, invoice.payments, invoice.balance]).toEqual([12.14, 0.73, 12.87, 12.87, 0]);
     expect(invoice.problems).toEqual([]);
-    expect(invoiceSplit(invoice)).toEqual({ products: 6.64, shipping: 5.5 });
+    expect(orderCosts(invoice)).toEqual([{ products: 6.64, shipping: 5.5, tax: 0.73, total: 12.87 }]);
   });
 
   it("never reads the ship-to address", () => {
@@ -107,15 +109,15 @@ describe("reading a lab invoice", () => {
     const [wrapped] = parseInvoices(
       toLines(page({ number: "5400002", reference: ["2026 Example Rams Football and", "Cheer"], items: [["4x5 Photo Magnet", 1, 1, "2.50", "2.50"], SHIPPING], extra: totals("$8.00", "$0.48", "$8.48") })),
     );
-    expect(wrapped.reference).toBe("2026 Example Rams Football and Cheer");
-    expect(wrapped.customerName).toBe("Pat Sample");
-    expect(wrapped.items).toHaveLength(2);
+    expect(wrapped.orders[0].reference).toBe("2026 Example Rams Football and Cheer");
+    expect(wrapped.orders[0].customerName).toBe("Pat Sample");
+    expect(wrapped.orders[0].items).toHaveLength(2);
     expect(wrapped.problems).toEqual([]);
   });
 
   it("keeps a description that ends in numbers whole", () => {
     const [one] = parseInvoices(toLines(page({ number: "5400003", reference: ["2026 Example"], items: [["8x10 Print Set of 2", 3, 2, "1.25", "7.50"]], extra: totals("$7.50", "$0.00", "$7.50") })));
-    expect(one.items[0]).toMatchObject({ description: "8x10 Print Set of 2", orgQty: 3, eachQty: 2, unitPrice: 1.25, extended: 7.5 });
+    expect(one.orders[0].items[0]).toMatchObject({ description: "8x10 Print Set of 2", orgQty: 3, eachQty: 2, unitPrice: 1.25, extended: 7.5 });
   });
 
   it("flags an invoice that does not add up, without dropping it", () => {
@@ -126,7 +128,7 @@ describe("reading a lab invoice", () => {
 
   it("flags a page it cannot make sense of", () => {
     const [bare] = parseInvoices(["INVOICE 5400005", "Something else entirely"]);
-    expect(bare.problems).toContain("No PO number was found.");
+    expect(bare.problems).toContain("No order was found.");
     expect(bare.problems).toContain("No total was found.");
     expect(parseInvoices(["A letter, not an invoice"])).toEqual([]);
   });
@@ -135,7 +137,82 @@ describe("reading a lab invoice", () => {
     const a = toLines(page({ number: "5400006", reference: ["2026 Example A"], items: [["4x5 Photo Magnet", 1, 1, "2.50", "2.50"]], extra: totals("$2.50", "$0.15", "$2.65") }));
     const b = toLines(page({ number: "5400007", reference: ["2026 Example B"], items: [["4x5 Photo Magnet", 2, 1, "2.50", "5.00"]], extra: totals("$5.00", "$0.30", "$5.30") }));
     const both = parseInvoices([...a, ...b]);
-    expect(both.map((i) => [i.invoiceNumber, i.reference, i.total])).toEqual([["5400006", "2026 Example A", 2.65], ["5400007", "2026 Example B", 5.3]]);
+    expect(both.map((i) => [i.invoiceNumber, i.orders[0].reference, i.total])).toEqual([["5400006", "2026 Example A", 2.65], ["5400007", "2026 Example B", 5.3]]);
+  });
+
+  it("reads an invoice that holds several orders across two pages", () => {
+    const lines = [
+      "Page 1 of 2",
+      "INVOICE 5400010",
+      "Bill To: Ship To:",
+      "Example Photo Co 2000001 Pat Sample",
+      "Client No.: 10001 Invoice Date: 11/13/2026",
+      "Order Item Description Org. Each Unit Tax Extended",
+      "2060031 Received: 11/11/2026 Online Order No: IQ80000011; PO No: 70000011;",
+      "Reference: 2026 Example Soccer Club",
+      "For: Pat Sample",
+      "School/Sports Package Unit 2 1 0.82 X 1.64",
+      "Shipping Direct-To-Client *NO PAPERWORK 1 1 5.50 X 5.50",
+      'INCLUDED"',
+      "2060039 Received: 11/11/2026 Online Order No: IQ80000012; PO No: 70000012;",
+      "Reference: 2026 Example Longhorns Football &",
+      "Cheer",
+      "For: Sam Sample",
+      "8-Wallet Prints With Die-Cut 1 1 1.90 X 1.90",
+      "Shipping Direct-To-Client *NO PAPERWORK 1 1 5.50 X 5.50",
+      'INCLUDED"',
+      "List of Payments",
+      "Page 2 of 2",
+      "INVOICE 5400010",
+      "Bill To: Ship To:",
+      "Example Photo Co 2000001 Pat Sample",
+      "1 Main Street 22 Test Lane",
+      "Client No.: 10001 Invoice Date: 11/13/2026",
+      "Order Item Description Org. Each Unit Tax Extended",
+      "11/13/2026 15.39 Card xxxx0000 Auth 100000",
+      "Sub Total $14.54",
+      "Tax $0.85",
+      "Total $15.39",
+      "Payments $15.39",
+      "Balance $0.00",
+    ];
+    const [invoice] = parseInvoices(lines);
+    expect(invoice.problems).toEqual([]);
+    expect(invoice.orders.map((o) => [o.capturaOrderNumber, o.reference, o.customerName, o.items.length])).toEqual([
+      ["70000011", "2026 Example Soccer Club", "Pat Sample", 2],
+      ["70000012", "2026 Example Longhorns Football & Cheer", "Sam Sample", 2],
+    ]);
+    expect(JSON.stringify(invoice)).not.toContain("Test Lane");
+    // The tax is shared by each order's taxed lines and adds up to the invoice.
+    const costs = orderCosts(invoice);
+    expect(costs).toEqual([
+      { products: 1.64, shipping: 5.5, tax: 0.42, total: 7.56 },
+      { products: 1.9, shipping: 5.5, tax: 0.43, total: 7.83 },
+    ]);
+    expect(costs.reduce((n, c) => n + Math.round(c.total * 100), 0)).toBe(1539);
+  });
+
+  it("reads a remake that has no customer line and costs nothing", () => {
+    const [remake] = parseInvoices([
+      "INVOICE 5400011",
+      "Client No.: 10001 Invoice Date: 11/12/2026",
+      "Order Item Description Org. Each Unit Tax Extended",
+      "2063249 Received: 11/12/2026 Online Order No: IQ70000020; PO No: 60000020;",
+      "Reference: 2026 Example Soccer Club",
+      "School/Sports Half-Unit - Remake Full 1 1 0.00 X 0.00",
+      "Shipping Direct-To-Client *NO PAPERWORK 1 1 0.00 X 0.00",
+      'INCLUDED" - Remake Full',
+      "Sub Total $0.00",
+      "Tax $0.00",
+      "Total $0.00",
+    ]);
+    expect(remake.problems).toEqual([]);
+    expect(remake.orders[0]).toMatchObject({ capturaOrderNumber: "60000020", reference: "2026 Example Soccer Club", customerName: null });
+    expect(remake.orders[0].items.map((i) => [i.description, i.shipping])).toEqual([
+      ["School/Sports Half-Unit - Remake Full", false],
+      ['Shipping Direct-To-Client *NO PAPERWORK INCLUDED" - Remake Full', true],
+    ]);
+    expect(orderCosts(remake)).toEqual([{ products: 0, shipping: 0, tax: 0, total: 0 }]);
   });
 
   it("files by the month of the invoice date", () => {
@@ -152,7 +229,8 @@ describe("reading the text of a PDF", () => {
     for (const i of items) sheet.drawText(i.text, { x: i.x, y: i.y, size: 8, font });
     const { pdfLines } = await import("@/lib/lab/pdf-text");
     const [invoice] = parseInvoices(await pdfLines(await doc.save()));
-    expect(invoice).toMatchObject({ invoiceNumber: "5400008", capturaOrderNumber: "70000001", reference: "2026 Example Soccer Club", total: 11.13, problems: [] });
-    expect(invoice.items).toHaveLength(2);
+    expect(invoice).toMatchObject({ invoiceNumber: "5400008", total: 11.13, problems: [] });
+    expect(invoice.orders[0]).toMatchObject({ capturaOrderNumber: "70000001", reference: "2026 Example Soccer Club" });
+    expect(invoice.orders[0].items).toHaveLength(2);
   });
 });

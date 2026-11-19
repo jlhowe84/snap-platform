@@ -33,7 +33,7 @@ export async function checkInvoices(): Promise<LabState> {
 
 const Match = z.object({ reference: z.string().trim().min(1).max(300), job: z.union([z.literal(""), z.uuid()]) });
 
-/** Ties every invoice with this lab job name to a job, or clears the tie. */
+/** Ties every order with this lab job name to a job, or clears the tie. */
 export async function matchReference(_prev: LabState, form: FormData): Promise<LabState> {
   await requireStaff(OFFICE_ROLES);
   const parsed = Match.safeParse({ reference: form.get("reference"), job: form.get("job") ?? "" });
@@ -46,5 +46,5 @@ export async function matchReference(_prev: LabState, form: FormData): Promise<L
   if (error) return { ok: false, message: "The match could not be saved." };
   revalidatePath("/lab");
   revalidatePath("/lab/invoices");
-  return { ok: true, message: parsed.data.job ? `Matched ${data ?? 0} ${data === 1 ? "invoice" : "invoices"}.` : "Match cleared." };
+  return { ok: true, message: parsed.data.job ? `Matched ${data ?? 0} ${data === 1 ? "order" : "orders"}.` : "Match cleared." };
 }

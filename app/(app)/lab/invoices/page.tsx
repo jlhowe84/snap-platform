@@ -10,6 +10,7 @@ import { MatchJob } from "../forms";
 export const metadata: Metadata = { title: "Lab invoices" };
 
 const LIMIT = 100;
+type OrderRow = { reference: string | null; customer_name: string | null; captura_order_number: string | null; job_id: string | null };
 
 export default async function LabInvoicesPage({ searchParams }: PageProps<"/lab/invoices">) {
   await requireStaff(OFFICE_ROLES);
@@ -19,28 +20,42 @@ export default async function LabInvoicesPage({ searchParams }: PageProps<"/lab/
   const check = sp.check === "1";
   const supabase = await createClient();
 
+  // Order facts (job name, customer, PO) live on the invoice's orders, so a
+  // search or a job name first finds the orders, then their invoices.
+  let invoiceIds: string[] | null = null;
+  let matchedJob: string | null = null;
+  if (ref || q) {
+    let orders = supabase.from("lab_invoice_orders").select("invoice_id, job_id").limit(2000);
+    if (ref) orders = ref === "(no job name)" ? orders.is("reference", null) : orders.eq("reference", ref);
+    if (q) {
+      orders = orders.or(
+        [`captura_order_number.eq."${q}"`, `lab_order_number.eq."${q}"`, `online_order_number.ilike."${q}"`, `customer_name.ilike."%${q}%"`, `reference.ilike."%${q}%"`].join(","),
+      );
+    }
+    const { data } = await orders;
+    invoiceIds = [...new Set((data ?? []).map((o) => o.invoice_id))];
+    if (ref) matchedJob = data?.find((o) => o.job_id)?.job_id ?? null;
+  }
+
   let query = supabase
     .from("lab_invoices")
-    .select("id, lab, invoice_number, invoice_date, captura_order_number, reference, customer_name, total, needs_check, job_id", { count: "exact" })
+    .select("id, invoice_number, invoice_date, total, needs_check, lab_invoice_orders(reference, customer_name, captura_order_number, job_id)", { count: "exact" })
     .order("invoice_date", { ascending: false })
     .order("invoice_number", { ascending: false })
     .limit(LIMIT);
-  if (ref) query = ref === "(no job name)" ? query.is("reference", null) : query.eq("reference", ref);
   if (check) query = query.eq("needs_check", true);
-  if (q) {
-    const v = `"${q}"`;
-    const like = `"%${q}%"`;
-    query = query.or(
-      [`invoice_number.eq.${v}`, `captura_order_number.eq.${v}`, `lab_order_number.eq.${v}`, `online_order_number.ilike.${v}`, `customer_name.ilike.${like}`, `reference.ilike.${like}`].join(","),
-    );
+  if (invoiceIds !== null) {
+    const ids = invoiceIds.slice(0, 200);
+    if (q && !ref) query = ids.length ? query.or(`invoice_number.eq."${q}",id.in.(${ids.join(",")})`) : query.eq("invoice_number", q);
+    else query = query.in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
   }
+
   const [{ data: rows, count }, { data: jobs }] = await Promise.all([
     query,
     ref && ref !== "(no job name)"
       ? supabase.from("job_overview").select("id, name, org_name, season, first_date").order("first_date", { ascending: false, nullsFirst: false }).limit(400)
       : Promise.resolve({ data: null }),
   ]);
-  const matchedJob = ref ? (rows?.find((r) => r.job_id)?.job_id ?? null) : null;
 
   return (
     <>
@@ -81,7 +96,7 @@ export default async function LabInvoicesPage({ searchParams }: PageProps<"/lab/
             jobId={matchedJob}
             jobs={jobs.filter((j) => j.id).map((j) => ({ id: j.id!, label: [j.org_name, j.name, j.season].filter(Boolean).join(" · ") }))}
           />
-          <p className="mt-2 text-xs text-muted">Every invoice with this lab job name follows, including ones that arrive later.</p>
+          <p className="mt-2 text-xs text-muted">Every order with this lab job name follows, including ones that arrive later.</p>
         </Card>
       )}
 
@@ -89,25 +104,30 @@ export default async function LabInvoicesPage({ searchParams }: PageProps<"/lab/
         {rows?.length ? (
           <>
             <Table head={["Invoice", "Date", "Customer", "Lab job name", "Order", "Total"]}>
-              {rows.map((r) => (
-                <tr key={r.id} className="border-b border-line last:border-0">
-                  <td className="px-3 py-2">
-                    <Link href={`/lab/invoices/${r.id}`} className="font-medium hover:text-accent">
-                      {r.invoice_number}
-                    </Link>
-                    {r.needs_check && (
-                      <span className="ml-2">
-                        <Pill tone="warn">Check</Pill>
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2">{formatDate(r.invoice_date)}</td>
-                  <td className="px-3 py-2">{r.customer_name ?? ""}</td>
-                  <td className="px-3 py-2">{r.reference ?? ""}</td>
-                  <td className="px-3 py-2">{r.captura_order_number ?? ""}</td>
-                  <td className="px-3 py-2 font-semibold">{usd(r.total)}</td>
-                </tr>
-              ))}
+              {rows.map((r) => {
+                const orders = (r.lab_invoice_orders ?? []) as OrderRow[];
+                const first = orders[0];
+                const more = orders.length > 1 ? ` and ${orders.length - 1} more` : "";
+                return (
+                  <tr key={r.id} className="border-b border-line last:border-0">
+                    <td className="px-3 py-2">
+                      <Link href={`/lab/invoices/${r.id}`} className="font-medium hover:text-accent">
+                        {r.invoice_number}
+                      </Link>
+                      {r.needs_check && (
+                        <span className="ml-2">
+                          <Pill tone="warn">Check</Pill>
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">{formatDate(r.invoice_date)}</td>
+                    <td className="px-3 py-2">{first?.customer_name ?? ""}{first?.customer_name ? more : ""}</td>
+                    <td className="px-3 py-2">{first?.reference ?? ""}{orders.length > 1 ? ` (${orders.length} orders)` : ""}</td>
+                    <td className="px-3 py-2">{first?.captura_order_number ?? ""}{first?.captura_order_number ? more : ""}</td>
+                    <td className="px-3 py-2 font-semibold">{usd(r.total)}</td>
+                  </tr>
+                );
+              })}
             </Table>
             {(count ?? 0) > rows.length && (
               <p className="mt-3 text-xs text-muted">
