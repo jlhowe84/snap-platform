@@ -1426,6 +1426,93 @@ export type Database = {
           },
         ]
       }
+      notice_mutes: {
+        Row: {
+          company_id: string
+          created_at: string
+          kind: string
+          profile_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          kind: string
+          profile_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          kind?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notice_mutes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notice_mutes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notices: {
+        Row: {
+          company_id: string
+          created_at: string
+          detail: string | null
+          href: string | null
+          id: string
+          kind: string
+          profile_id: string
+          read_at: string | null
+          title: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          detail?: string | null
+          href?: string | null
+          id?: string
+          kind: string
+          profile_id: string
+          read_at?: string | null
+          title: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          detail?: string | null
+          href?: string | null
+          id?: string
+          kind?: string
+          profile_id?: string
+          read_at?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notices_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_contacts: {
         Row: {
           company_id: string

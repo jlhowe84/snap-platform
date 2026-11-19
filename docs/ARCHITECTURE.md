@@ -250,6 +250,16 @@ stations in use per day against `capacity.stations_per_date`. Views: everything,
 my tasks only, photo days only. It reads as the signed-in person. Makeup
 sessions and crew shifts join it with their modules.
 
+## Notices
+
+`/notices` is each person's own list. A notice is one row in `notices`,
+written only by triggers through `private.notify()`, which skips the person
+who did the thing, inactive people and any kind they turned off
+(`notice_mutes`). Three kinds exist: a task someone else assigned you, a
+photo day change (owner, admin, office) and a date-at-risk note waiting
+(owner, admin). A person can only mark their own notices read. Delivery is
+in-app only for now.
+
 ## Ask SNAP
 
 `/ask` lets office and support staff ask a question about the business.

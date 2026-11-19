@@ -768,6 +768,50 @@ select t.fails($$select public.change_photo_day((select id from public.photo_day
 reset role;
 select set_config('request.jwt.claim.sub', '', true);
 
+-- Notices: one line for the person it needs, readable only by them.
+select t.login('support');
+select t.count_is($$select count(*) from public.notices where kind = 'date.changed'$$, 0, 'support gets no notice of a date change');
+select t.login('office');
+select t.count_is($$select count(*) from public.notices where kind = 'date.changed' and href = '/jobs/40000000-0000-0000-0000-0000000000b7'$$, 4, 'office is told of each date change');
+select t.count_is($$select count(*) from public.notices where profile_id <> '10000000-0000-0000-0000-000000000003'$$, 0, 'a person reads only their own notices');
+select t.fails($$insert into public.notices (company_id, profile_id, kind, title) values ('a0000000-0000-0000-0000-00000000000a', '10000000-0000-0000-0000-000000000003', 'task.assigned', 'x')$$, 'nobody writes a notice by hand');
+select t.fails($$update public.notices set title = 'changed' where kind = 'date.changed'$$, 'a notice cannot be reworded');
+select t.works($$update public.notices set read_at = now() where kind = 'date.changed'$$, 'a person marks their notices read');
+select t.count_is($$select count(*) from public.notices where read_at is null and kind = 'date.changed'$$, 0, 'read notices stay read');
+
+-- A task from someone else tells the assignee; your own does not.
+select t.works($$insert into public.tasks (company_id, title, assignee_id, due_on) values ('a0000000-0000-0000-0000-00000000000a', 'Send the donation check', '10000000-0000-0000-0000-000000000002', '2030-01-07')$$, 'office gives the admin a task');
+select t.works($$insert into public.tasks (company_id, title, assignee_id) values ('a0000000-0000-0000-0000-00000000000a', 'My own reminder', '10000000-0000-0000-0000-000000000003')$$, 'office makes a task for themselves');
+select t.count_is($$select count(*) from public.notices where kind = 'task.assigned'$$, 0, 'a task you gave yourself makes no notice');
+select t.login('admin');
+select t.count_is($$select count(*) from public.notices where kind = 'task.assigned' and title = 'Send the donation check' and detail = 'Due Mon Jan 07' and href = '/tasks'$$, 1, 'the admin is told of the task');
+select t.count_is($$select count(*) from public.notices where kind = 'date.changed'$$, 3, 'an admin hears of date changes they did not make');
+
+-- Turning a kind off.
+select t.works($$insert into public.notice_mutes (profile_id, company_id, kind) values ('10000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-00000000000a', 'task.assigned')$$, 'a person turns a kind of notice off');
+select t.fails($$insert into public.notice_mutes (profile_id, company_id, kind) values ('10000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-00000000000a', 'task.assigned')$$, 'a person cannot turn notices off for someone else');
+select t.login('office');
+select t.works($$insert into public.tasks (company_id, title, assignee_id) values ('a0000000-0000-0000-0000-00000000000a', 'Deliver the buttons', '10000000-0000-0000-0000-000000000002')$$, 'office gives the admin another task');
+select t.login('admin');
+select t.count_is($$select count(*) from public.notices where kind = 'task.assigned'$$, 1, 'a kind turned off makes no new notice');
+
+-- A date-at-risk note tells owners and admins only.
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+insert into public.agent_actions (company_id, action_type_key, actor_kind, status, draft) values
+  ('a0000000-0000-0000-0000-00000000000a', 'chase.at_risk', 'system', 'proposed', '{"subject": "Your date is at risk", "body": "B"}');
+select t.login('owner');
+select t.count_is($$select count(*) from public.notices where kind = 'queue.at_risk' and detail = 'Your date is at risk' and href = '/queue'$$, 1, 'the owner is told a date-at-risk note is waiting');
+select t.login('office');
+select t.count_is($$select count(*) from public.notices where kind = 'queue.at_risk'$$, 0, 'office is not told of a date-at-risk note');
+select t.login('coord');
+select t.count_is($$select count(*) from public.notices$$, 0, 'a coordinator has no notices');
+select t.fails($$insert into public.notice_mutes (profile_id, company_id, kind) values ((select auth.uid()), 'a0000000-0000-0000-0000-00000000000a', 'task.assigned')$$, 'a coordinator cannot set notice choices');
+select t.login('owner_b');
+select t.count_is($$select count(*) from public.notices$$, 0, 'another company sees none of these notices');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+
 -- Sending an approved draft: server only, once, and never while paused.
 insert into public.agent_actions (id, company_id, action_type_key, actor_kind, status, draft) values
   ('70000000-0000-0000-0000-0000000000c1', 'a0000000-0000-0000-0000-00000000000a', 'chase.request', 'system', 'proposed', '{"to": ["c@example.com"], "subject": "S", "body": "B"}'),

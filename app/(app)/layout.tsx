@@ -1,5 +1,6 @@
 import { requireStaff, hasAnyRole, OFFICE_ROLES, ADMIN_ROLES } from "@/lib/auth";
 import { ROLE_LABEL } from "@/lib/labels";
+import { createClient } from "@/lib/supabase/server";
 import { NavLink } from "./nav-link";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
@@ -7,8 +8,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const office = hasAnyRole(viewer, OFFICE_ROLES);
   const admin = hasAnyRole(viewer, ADMIN_ROLES);
 
+  // Unread notices for the badge. RLS returns only this person's own.
+  const supabase = await createClient();
+  const { count: unread } = await supabase.from("notices").select("id", { count: "exact", head: true }).is("read_at", null);
+
   const nav = [
     { href: "/", label: "Today", show: true },
+    { href: "/notices", label: unread ? `Notices (${unread})` : "Notices", show: true },
     { href: "/tasks", label: "Tasks", show: true },
     { href: "/calendar", label: "Calendar", show: true },
     { href: "/ask", label: "Ask SNAP", show: office || viewer.roles.includes("support") },
