@@ -24,6 +24,14 @@ describe("support replies", () => {
     expect(plain).not.toContain("Bcc");
   });
 
+  it("shows the person's name beside the shared address", () => {
+    const mime = buildMime({ from: "help@example.com", fromName: "John at SNAP! Photo", to: ["pat@example.org"], subject: "Hi", body: "Hello" });
+    expect(mime).toContain('From: "John at SNAP! Photo" <help@example.com>\r\n');
+    const sneaky = buildMime({ from: "help@example.com", fromName: 'Eve" <eve@evil.example>\r\nBcc: x@y.org', to: ["pat@example.org"], subject: "Hi", body: "Hello" });
+    expect(sneaky).toContain('From: "Eve eveevil.exampleBcc xy.org" <help@example.com>\r\n');
+    expect(sneaky).not.toContain("\r\nBcc");
+  });
+
   it("fills the blanks in a saved reply", () => {
     expect(fillSavedReply("Hi {first_name},\nThanks, {my_name}", { customerName: "Pat Parent", myName: "Alisa Smith" })).toBe("Hi Pat,\nThanks, Alisa");
     expect(fillSavedReply("Hi {first_name}", { customerName: "pat@example.org" })).toBe("Hi there");

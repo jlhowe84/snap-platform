@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { allowedMailboxes, createGmailClient, loadServiceAccount } from "@/lib/gmail/client";
 import { guardMail, mailSettingsFrom, MailBlockedError } from "./guard";
 import { buildMime, isPlainAddress, replySubject, toRaw } from "./mime";
+import { firstNameOf } from "@/lib/support/saved";
 
 // A support reply written by a person. It runs on the server with the service
 // role, after the caller has checked the signed-in person may work the
@@ -34,7 +35,7 @@ export async function sendSupportReply(input: {
   if (!body || body.length > MAX_BODY) return { ok: false, message: "Write a reply first (20,000 characters at most)." };
 
   const admin = createAdminClient();
-  const [{ data: conversation }, { data: rows }] = await Promise.all([
+  const [{ data: conversation }, { data: rows }, { data: author }, { data: company }] = await Promise.all([
     admin
       .from("support_conversations")
       .select("id, mailbox, gmail_thread_id, subject, customer_email")
@@ -46,6 +47,8 @@ export async function sendSupportReply(input: {
       .select("key, value")
       .eq("company_id", input.companyId)
       .in("key", ["mail.test_mode", "mail.test_recipient", "mail.mailboxes"]),
+    admin.from("profiles").select("full_name").eq("id", input.authorId).eq("company_id", input.companyId).maybeSingle(),
+    admin.from("companies").select("name").eq("id", input.companyId).maybeSingle(),
   ]);
   if (!conversation) return { ok: false, message: "That conversation was not found." };
   const to = conversation.customer_email?.trim().toLowerCase();
@@ -89,7 +92,7 @@ export async function sendSupportReply(input: {
     }
 
     const sent = await gmail.sendRaw(
-      toRaw(buildMime({ from, to: guarded.to, subject: guarded.subject, body, inReplyTo })),
+      toRaw(buildMime({ from, fromName: senderName(author?.full_name, company?.name), to: guarded.to, subject: guarded.subject, body, inReplyTo })),
       threadId,
     );
 
@@ -125,4 +128,16 @@ export async function sendSupportReply(input: {
           : "The reply could not be sent.";
     return { ok: false, message };
   }
+}
+
+/**
+ * The name a customer sees beside the support address: the person who
+ * answered and the company, like "John at SNAP Photo". The address stays the
+ * shared mailbox, so the customer's next message comes back to the queue.
+ */
+export function senderName(fullName: string | null | undefined, companyName: string | null | undefined): string | null {
+  const first = firstNameOf(fullName);
+  const company = (companyName ?? "").trim();
+  if (first && company) return `${first} at ${company}`;
+  return first || company || null;
 }

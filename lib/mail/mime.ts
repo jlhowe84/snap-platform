@@ -6,6 +6,8 @@ export type PlainMail = {
   to: string[];
   subject: string;
   body: string;
+  /** Shown beside the sender's address, like "John at SNAP Photo". */
+  fromName?: string | null;
   /** The Message-ID this answers, so the reply joins the other person's thread. */
   inReplyTo?: string | null;
 };
@@ -54,8 +56,12 @@ export function buildMime(mail: PlainMail) {
   if (bad !== undefined || mail.to.length === 0) throw new Error("A message needs a sender and at least one plain address.");
   const body = Buffer.from(mail.body.replace(/\r?\n/g, "\r\n"), "utf8").toString("base64").replace(/(.{76})/g, "$1\r\n");
   const answers = cleanMessageId(mail.inReplyTo);
+  // Only letters, digits and plain punctuation survive in a display name, so
+  // it can never carry a second address or a header.
+  const name = (mail.fromName ?? "").replace(/[^\p{L}\p{N} .'&!-]/gu, "").replace(/\s+/g, " ").trim().slice(0, 80);
+  const from = name ? `${/^[\x20-\x7e]*$/.test(name) ? `"${name}"` : encodeHeader(name)} <${mail.from}>` : mail.from;
   return [
-    `From: ${mail.from}`,
+    `From: ${from}`,
     `To: ${mail.to.join(", ")}`,
     `Subject: ${encodeHeader(mail.subject)}`,
     ...(answers ? [`In-Reply-To: ${answers}`, `References: ${answers}`] : []),
