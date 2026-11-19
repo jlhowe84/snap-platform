@@ -424,3 +424,43 @@ by its number.
 A reply that still holds a [bracketed note] or an unfilled {blank} is not
 sent: the Send button is off and `sendReply` refuses it on the server
 (`unfilledNotes` in `lib/support/saved.ts`).
+
+## Lab invoices (Wave B)
+
+The lab emails one invoice per order as a PDF. The platform keeps a record of
+each so lab costs add up by job, season and year, and any invoice can be found
+again.
+
+- **Pickup** (`lib/lab/sync.ts`, run by hand from Lab costs or by
+  `/api/cron/lab-invoices` when `lab.invoices_enabled` is true). It searches
+  the allowed mailboxes for the senders and subject words in
+  `lab.invoice_sources`, reads each PDF attachment, files the PDF in Drive and
+  stores the invoice. It only reads Gmail. Messages already stored or skipped
+  are not opened again, so a run that stops early is picked up by the next.
+- **Reading** (`lib/lab/invoice-parse.ts`, `lib/lab/pdf-text.ts`). By rule
+  from the PDF's own text, with no model. One invoice can hold several
+  orders, each with its own PO number, job name and customer, and can run
+  onto further pages; a remake order has no customer line. The lab's "PO No"
+  is the Captura order number; its "Online Order No" is not. The ship-to
+  address is never read. Each order gets its own lines plus a share of the
+  invoice's tax (`orderCosts`, in cents, adding up to the invoice). An invoice
+  whose lines do not add up is stored with `needs_check`.
+- **Drive** (`lib/drive/client.ts`). The Workspace service account signs in
+  as itself (no delegation), so it sees only what is shared with its own
+  address: the one folder in `lab.invoice_drive_folder`. The client finds or
+  makes a month folder (`2026-11`, by invoice date) and adds the PDF. It never
+  deletes, moves or shares.
+- **Captura** (`enrichOrders` in `lib/lab/sync.ts`, read only). Each order's
+  PO number is looked up, a few dozen a run: its gallery id, and its money
+  (`orderMoney`: total, tax, shipping, Captura's fees, net pay, pay date).
+  An order Captura does not know is tried again after a week. Profit is net
+  pay less what the lab charged for that order. A PO the lab invoiced twice
+  (a remake) counts its net pay once and every lab charge.
+- **Jobs** (`lab_invoices_link`). An order's gallery ties it to the job whose
+  `job_links.captura_gallery_id` matches, and what one order of a lab job
+  name knows holds for that name's other orders. The office can also match a
+  lab job name to a job by hand (`lab_assign_reference`); later orders follow.
+- **Tables**: `lab_invoices`, `lab_invoice_orders`, `lab_invoice_items`, `lab_invoice_skips`
+  (emails that could not be read), `lab_invoice_sync_state`. Office only
+  (owner, admin, office); the server is the only writer.
+  `lab_cost_summary()` adds costs, net pay and profit up as the person asking.

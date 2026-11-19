@@ -1296,6 +1296,330 @@ export type Database = {
           },
         ]
       }
+      lab_invoice_items: {
+        Row: {
+          company_id: string
+          description: string
+          each_qty: number
+          extended: number
+          id: string
+          invoice_id: string
+          order_id: string | null
+          org_qty: number
+          position: number
+          shipping: boolean
+          taxed: boolean
+          unit_price: number
+        }
+        Insert: {
+          company_id: string
+          description: string
+          each_qty?: number
+          extended?: number
+          id?: string
+          invoice_id: string
+          order_id?: string | null
+          org_qty?: number
+          position: number
+          shipping?: boolean
+          taxed?: boolean
+          unit_price?: number
+        }
+        Update: {
+          company_id?: string
+          description?: string
+          each_qty?: number
+          extended?: number
+          id?: string
+          invoice_id?: string
+          order_id?: string | null
+          org_qty?: number
+          position?: number
+          shipping?: boolean
+          taxed?: boolean
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_invoice_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "lab_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_invoice_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "lab_invoice_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_invoice_orders: {
+        Row: {
+          captura_checked_at: string | null
+          captura_found: boolean | null
+          captura_gallery_id: number | null
+          captura_order_number: string | null
+          company_id: string
+          customer_name: string | null
+          id: string
+          invoice_id: string
+          job_id: string | null
+          lab_order_number: string | null
+          online_order_number: string | null
+          order_fees: number | null
+          order_lab_fees: number | null
+          order_net_pay: number | null
+          order_pay_date: string | null
+          order_payment_status: string | null
+          order_refunded: number | null
+          order_shipping: number | null
+          order_tax: number | null
+          order_total: number | null
+          position: number
+          products: number
+          received_date: string | null
+          reference: string | null
+          shipping: number
+          tax: number
+          total: number
+        }
+        Insert: {
+          captura_checked_at?: string | null
+          captura_found?: boolean | null
+          captura_gallery_id?: number | null
+          captura_order_number?: string | null
+          company_id: string
+          customer_name?: string | null
+          id?: string
+          invoice_id: string
+          job_id?: string | null
+          lab_order_number?: string | null
+          online_order_number?: string | null
+          order_fees?: number | null
+          order_lab_fees?: number | null
+          order_net_pay?: number | null
+          order_pay_date?: string | null
+          order_payment_status?: string | null
+          order_refunded?: number | null
+          order_shipping?: number | null
+          order_tax?: number | null
+          order_total?: number | null
+          position: number
+          products?: number
+          received_date?: string | null
+          reference?: string | null
+          shipping?: number
+          tax?: number
+          total?: number
+        }
+        Update: {
+          captura_checked_at?: string | null
+          captura_found?: boolean | null
+          captura_gallery_id?: number | null
+          captura_order_number?: string | null
+          company_id?: string
+          customer_name?: string | null
+          id?: string
+          invoice_id?: string
+          job_id?: string | null
+          lab_order_number?: string | null
+          online_order_number?: string | null
+          order_fees?: number | null
+          order_lab_fees?: number | null
+          order_net_pay?: number | null
+          order_pay_date?: string | null
+          order_payment_status?: string | null
+          order_refunded?: number | null
+          order_shipping?: number | null
+          order_tax?: number | null
+          order_total?: number | null
+          position?: number
+          products?: number
+          received_date?: string | null
+          reference?: string | null
+          shipping?: number
+          tax?: number
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_invoice_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_invoice_orders_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "lab_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_invoice_orders_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_invoice_orders_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_invoice_skips: {
+        Row: {
+          company_id: string
+          created_at: string
+          file_name: string
+          gmail_message_id: string
+          mailbox: string
+          reason: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          file_name?: string
+          gmail_message_id: string
+          mailbox: string
+          reason: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          file_name?: string
+          gmail_message_id?: string
+          mailbox?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_invoice_skips_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_invoice_sync_state: {
+        Row: {
+          company_id: string
+          last_error: string | null
+          last_run_at: string | null
+          last_synced_at: string | null
+          mailbox: string
+        }
+        Insert: {
+          company_id: string
+          last_error?: string | null
+          last_run_at?: string | null
+          last_synced_at?: string | null
+          mailbox: string
+        }
+        Update: {
+          company_id?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          last_synced_at?: string | null
+          mailbox?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_invoice_sync_state_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_invoices: {
+        Row: {
+          balance: number | null
+          check_note: string | null
+          company_id: string
+          created_at: string
+          drive_file_id: string | null
+          drive_folder: string | null
+          file_name: string | null
+          gmail_message_id: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          lab: string
+          mailbox: string | null
+          needs_check: boolean
+          payments: number | null
+          subtotal: number
+          tax: number
+          total: number
+        }
+        Insert: {
+          balance?: number | null
+          check_note?: string | null
+          company_id: string
+          created_at?: string
+          drive_file_id?: string | null
+          drive_folder?: string | null
+          file_name?: string | null
+          gmail_message_id?: string | null
+          id?: string
+          invoice_date: string
+          invoice_number: string
+          lab: string
+          mailbox?: string | null
+          needs_check?: boolean
+          payments?: number | null
+          subtotal?: number
+          tax?: number
+          total?: number
+        }
+        Update: {
+          balance?: number | null
+          check_note?: string | null
+          company_id?: string
+          created_at?: string
+          drive_file_id?: string | null
+          drive_folder?: string | null
+          file_name?: string | null
+          gmail_message_id?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          lab?: string
+          mailbox?: string | null
+          needs_check?: boolean
+          payments?: number | null
+          subtotal?: number
+          tax?: number
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           company_id: string
@@ -3343,6 +3667,37 @@ export type Database = {
         Args: { p_company: string; p_integration: string }
         Returns: string
       }
+      lab_assign_reference: {
+        Args: { p_job: string; p_reference: string }
+        Returns: number
+      }
+      lab_cost_summary: {
+        Args: never
+        Returns: {
+          fees: number
+          invoices: number
+          job_id: string
+          job_name: string
+          needs_check: number
+          net_pay: number
+          order_total: number
+          orders: number
+          priced: number
+          priced_lab_total: number
+          products: number
+          reference: string
+          season: string
+          shipping: number
+          tax: number
+          total: number
+          year: number
+        }[]
+      }
+      lab_invoice_store: {
+        Args: { p_company: string; p_invoice: Json }
+        Returns: boolean
+      }
+      lab_invoices_link: { Args: { p_company: string }; Returns: number }
       open_schedule: { Args: { p_photo_day_id: string }; Returns: string }
       planning_due: {
         Args: { p_job_id: string }

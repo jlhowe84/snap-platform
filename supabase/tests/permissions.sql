@@ -191,6 +191,21 @@ insert into public.support_saved_replies (company_id, title, body) values
 insert into public.support_sync_state (company_id, mailbox, history_id) values
   ('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', '100');
 
+-- Lab invoices. One in company A with one order of two lines, one in B.
+insert into public.lab_invoices (id, company_id, lab, invoice_number, invoice_date, subtotal, tax, total) values
+  ('d0000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', 'Lab', '1001', '2027-04-10', 8.00, 0.48, 8.48),
+  ('d0000000-0000-0000-0000-0000000000b1', 'b0000000-0000-0000-0000-00000000000b', 'Lab', '1001', '2027-04-10', 5.00, 0.30, 5.30);
+insert into public.lab_invoice_orders (id, company_id, invoice_id, position, reference, customer_name, captura_order_number, products, shipping, tax, total) values
+  ('e0000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', 'd0000000-0000-0000-0000-0000000000a1', 1, '2027 League A1', 'Pat Parent', '70000001', 2.50, 5.50, 0.48, 8.48),
+  ('e0000000-0000-0000-0000-0000000000b1', 'b0000000-0000-0000-0000-00000000000b', 'd0000000-0000-0000-0000-0000000000b1', 1, '2027 League B1', 'Some One', '70000002', 5.00, 0, 0.30, 5.30);
+insert into public.lab_invoice_items (company_id, invoice_id, order_id, position, description, extended, shipping) values
+  ('a0000000-0000-0000-0000-00000000000a', 'd0000000-0000-0000-0000-0000000000a1', 'e0000000-0000-0000-0000-0000000000a1', 1, 'Magnet', 2.50, false),
+  ('a0000000-0000-0000-0000-00000000000a', 'd0000000-0000-0000-0000-0000000000a1', 'e0000000-0000-0000-0000-0000000000a1', 2, 'Shipping', 5.50, true);
+insert into public.lab_invoice_skips (company_id, gmail_message_id, mailbox, reason) values
+  ('a0000000-0000-0000-0000-00000000000a', 'msg-skip', 'help@test.invalid', 'No PDF was attached.');
+insert into public.lab_invoice_sync_state (company_id, mailbox) values
+  ('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid');
+
 -- ---------------------------------------------------------------------------
 -- Sign-up and invites
 -- ---------------------------------------------------------------------------
@@ -246,7 +261,12 @@ declare
     array['photo_day_readiness',   '2','2','2','2','0','1','0','1'],
     array['support_conversations', '1','1','1','1','0','0','0','1'],
     array['support_messages',      '1','1','1','1','0','0','0','1'],
-    array['support_saved_replies', '1','1','1','1','0','0','0','0']
+    array['support_saved_replies', '1','1','1','1','0','0','0','0'],
+    array['lab_invoices',          '1','1','1','0','0','0','0','1'],
+    array['lab_invoice_orders',    '1','1','1','0','0','0','0','1'],
+    array['lab_invoice_items',     '2','2','2','0','0','0','0','0'],
+    array['lab_invoice_skips',     '1','1','1','0','0','0','0','0'],
+    array['lab_invoice_sync_state','1','1','1','0','0','0','0','0']
   ];
   who text[] := array['owner','admin','office','support','crew','coord','outsider','owner_b'];
   i int; k int;
@@ -988,6 +1008,43 @@ select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.
 select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-r3', 'Re: Lab Invoice 124', '[{"id":"g-r3","direction":"in","from_address":"parent3@test.invalid","body":"What is this","sent_at":"2027-02-06T15:00:00Z"}]'::jsonb);
 select t.count_is($$select public.support_drop_quiet_rules('a0000000-0000-0000-0000-00000000000a', '[{"from":" Rep@lab.invalid ","subject":"lab invoice"},{"from":"rep@lab.invalid"}]'::jsonb)$$, 1, 'only the matching untouched invoice is cleared');
 select t.count_is($$select count(*) from public.support_conversations where gmail_thread_id in ('thread-r1', 'thread-r2', 'thread-r3')$$, 2, 'other mail from that sender and other senders stay');
+
+-- ---------------------------------------------------------------------------
+-- Lab invoices: the server stores them, the office reads and matches them.
+-- ---------------------------------------------------------------------------
+select t.login('office');
+select t.fails($$insert into public.lab_invoices (company_id, lab, invoice_number, invoice_date) values ('a0000000-0000-0000-0000-00000000000a', 'Lab', '9', '2027-04-10')$$, 'people cannot write an invoice by hand');
+select t.fails($$update public.lab_invoices set total = 0$$, 'people cannot change an invoice');
+select t.fails($$update public.lab_invoice_orders set order_net_pay = 1000$$, 'people cannot change what an order earned');
+select t.fails($$delete from public.lab_invoices$$, 'people cannot delete an invoice');
+select t.fails($$select public.lab_invoice_store('a0000000-0000-0000-0000-00000000000a', '{"lab":"Lab","invoice_number":"9","invoice_date":"2027-04-10"}'::jsonb)$$, 'people cannot store an invoice');
+select t.fails($$select public.lab_invoices_link('a0000000-0000-0000-0000-00000000000a')$$, 'people cannot run the job matching');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+select t.count_is($$select public.lab_invoice_store('a0000000-0000-0000-0000-00000000000a', '{"lab":"Lab","invoice_number":"1002","invoice_date":"2027-04-11","subtotal":"14.54","tax":"0.85","total":"15.39","mailbox":"Help@test.invalid","gmail_message_id":"g-inv-2","orders":[{"captura_order_number":"70000003","reference":"2027 League A1","customer_name":"Sam Sample","products":1.64,"shipping":5.5,"tax":0.42,"total":7.56,"items":[{"description":"Package","org_qty":2,"each_qty":1,"unit_price":0.82,"extended":1.64,"taxed":true},{"description":"Shipping","extended":5.5,"shipping":true}]},{"captura_order_number":"70000001","reference":"2027 League A1","products":1.9,"shipping":5.5,"tax":0.43,"total":7.83,"items":[{"description":"Remake","extended":1.9},{"description":"Shipping","extended":5.5,"shipping":true}]}]}'::jsonb)::int$$, 1, 'the server stores an invoice with two orders');
+select t.count_is($$select public.lab_invoice_store('a0000000-0000-0000-0000-00000000000a', '{"lab":"Lab","invoice_number":"1002","invoice_date":"2027-04-11","total":"99"}'::jsonb)::int$$, 0, 'the same invoice number is not stored twice');
+select t.count_is($$select count(*) from public.lab_invoices i where invoice_number = '1002' and total = 15.39 and mailbox = 'help@test.invalid' and (select count(*) from public.lab_invoice_orders o where o.invoice_id = i.id) = 2$$, 1, 'an invoice keeps each of its orders');
+select t.count_is($$select count(*) from public.lab_invoice_items it join public.lab_invoice_orders o on o.id = it.order_id where o.captura_order_number = '70000003'$$, 2, 'each item line belongs to its order');
+-- Captura answered for both orders of the first invoice's PO and the new one.
+update public.lab_invoice_orders set captura_found = true, captura_checked_at = now(), order_total = 30, order_fees = 3.29, order_net_pay = 26.71 where captura_order_number = '70000001' and company_id = 'a0000000-0000-0000-0000-00000000000a';
+update public.lab_invoice_orders set captura_found = true, captura_checked_at = now(), order_total = 20, order_fees = 2.19, order_net_pay = 17.81, captura_gallery_id = 555001 where captura_order_number = '70000003';
+update public.job_links set captura_gallery_id = 555001 where job_id = '40000000-0000-0000-0000-0000000000a1';
+select t.count_is($$select public.lab_invoices_link('a0000000-0000-0000-0000-00000000000a')$$, 3, 'every order of the lab job name gains the job');
+select t.count_is($$select count(*) from public.lab_invoice_orders where company_id = 'a0000000-0000-0000-0000-00000000000a' and job_id = '40000000-0000-0000-0000-0000000000a1' and captura_gallery_id = 555001$$, 3, 'the gallery and the job are shared across a lab job name');
+select t.count_is($$select count(*) from public.lab_invoice_orders where company_id = 'b0000000-0000-0000-0000-00000000000b' and job_id is not null$$, 0, 'another company''s orders are left alone');
+
+select t.login('support');
+select t.fails($$select public.lab_assign_reference('2027 League A1', null)$$, 'support cannot match invoices to a job');
+select t.count_is($$select count(*) from public.lab_cost_summary()$$, 0, 'support sees no lab costs');
+select t.login('office');
+-- A PO the lab charged for twice counts its earnings once and both charges.
+select t.count_is($$select count(*) from public.lab_cost_summary() where reference = '2027 League A1' and year = 2027 and invoices = 2 and orders = 3 and total = 23.87 and priced = 3 and order_total = 50 and fees = 5.48 and net_pay = 44.52 and priced_lab_total = 23.87 and job_name is not null$$, 1, 'the office sees lab costs and earnings added up by job and year');
+select t.fails($$select public.lab_assign_reference('2027 League A1', '40000000-0000-0000-0000-0000000000b1')$$, 'invoices cannot be matched to another company''s job');
+select t.count_is($$select public.lab_assign_reference('2027 League A1', null)$$, 3, 'the office clears a match');
+select t.count_is($$select public.lab_assign_reference('2027 League A1', '40000000-0000-0000-0000-0000000000a1')$$, 3, 'the office matches a lab job name to a job');
+select t.login('owner_b');
+select t.count_is($$select public.lab_assign_reference('2027 League A1', null)$$, 0, 'another company''s match touches nothing');
+select t.count_is($$select count(*) from public.lab_cost_summary()$$, 1, 'another company sees only its own lab costs');
 
 reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;
