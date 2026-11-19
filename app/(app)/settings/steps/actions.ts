@@ -7,8 +7,9 @@ import { createClient } from "@/lib/supabase/server";
 import { neighbour, readStepForm, stepRow } from "@/lib/playbooks/steps";
 
 // Owner and admin edit the playbook steps. Every write is made as the
-// signed-in person, so RLS has the last word. A step is switched off, never
-// removed: tasks already made from it keep their link.
+// signed-in person, so RLS has the last word. A step that tasks were made
+// from can only be switched off, so those tasks keep their link; a step no
+// task has used can be removed.
 
 export type StepState = { ok: boolean; message: string } | null;
 
@@ -51,6 +52,27 @@ export async function addStep(playbookId: string, _prev: StepState, form: FormDa
   if (error) return { ok: false, message: "The step could not be added." };
   refresh();
   return { ok: true, message: "Added at the end of the list." };
+}
+
+export async function removeStep(stepId: string, _prev: StepState, _form: FormData): Promise<StepState> {
+  await requireStaff(ADMIN_ROLES);
+  if (!z.uuid().safeParse(stepId).success) return { ok: false, message: "That step could not be found." };
+  const supabase = await createClient();
+  const { count, error: countError } = await supabase
+    .from("tasks")
+    .select("id", { count: "exact", head: true })
+    .eq("playbook_step_id", stepId);
+  if (countError) return { ok: false, message: "The step could not be checked. Nothing was removed." };
+  if (count) {
+    return {
+      ok: false,
+      message: `${count} ${count === 1 ? "task was" : "tasks were"} made from this step, so it cannot be removed. Untick "In use" to switch it off.`,
+    };
+  }
+  const { data, error } = await supabase.from("playbook_steps").delete().eq("id", stepId).select("id");
+  if (error || !data?.length) return { ok: false, message: "The step could not be removed." };
+  refresh();
+  return { ok: true, message: "Removed." };
 }
 
 export async function moveStep(stepId: string, direction: "up" | "down") {
