@@ -311,7 +311,7 @@ stays while the person moves between pages and is gone on a full reload.
 ## Support desk (Wave B)
 
 Module 12, the replacement for Hiver. Built so far: the data model, reading
-mail in, and the pages to work a conversation. Replying comes next.
+mail in, the pages to work a conversation, replying and saved replies.
 
 - `support_conversations`: one row per Gmail thread in a mailbox listed in
   `mail.mailboxes` (unique on company, mailbox and thread id). Holds the
@@ -373,3 +373,20 @@ sent, labelled, marked read or moved in Gmail.
 closed) and `/support/[id]` shows one with its mail and notes, and lets staff
 set who has it, where it stands and what it is about. Optional suggestions for
 "about" come from the `support.categories` setting.
+
+Replies leave through `lib/mail/reply.ts`, the second place (with
+`lib/mail/send.ts`) that may call Gmail's send. The recipient is the
+conversation's customer address and passes `lib/mail/guard.ts` like every send.
+
+- Live: the reply goes out from the conversation's own mailbox inside the same
+  Gmail thread, with `In-Reply-To` set to the last mail from the customer, and
+  is stored as an `out` message in the sender's name. The next mail sync meets
+  the same Gmail id and skips it. The sender picks what the conversation
+  becomes (waiting on customer by default).
+- Test mode: the reply goes only to the test recipient, outside the customer's
+  thread, and is stored as a staff note that says so. Reply times and status
+  are left alone, because the customer got nothing.
+
+Saved replies are managed at `/support/replies` by anyone on the support desk
+and dropped into the reply box from a picker. `{first_name}` and `{my_name}`
+are filled in when one is inserted (`lib/support/saved.ts`).
