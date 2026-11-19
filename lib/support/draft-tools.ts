@@ -11,7 +11,7 @@ import { matchGalleries, matchPlayers, orderSummary, pageRows, playerSummary, sh
 // member, so they can see what the draft was built on.
 
 type Captura = ReturnType<typeof createCapturaClient>;
-export type DraftToolContext = { captura: Captura; customerEmail: string | null; found: string[] };
+export type DraftToolContext = { captura: Captura; customerEmail: string[]; found: string[] };
 
 const GALLERY_PAGES = 10; // newest 1,000 galleries
 const PAGE = 100;

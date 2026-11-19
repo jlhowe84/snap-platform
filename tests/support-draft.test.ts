@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { unfilledNotes } from "@/lib/support/saved";
-import { canDraft, cleanDraft, draftSystemPrompt, draftUserPrompt, type DraftMessage } from "@/lib/support/draft-prompt";
+import { canDraft, cleanDraft, customerEmails, draftSystemPrompt, draftUserPrompt, type DraftMessage } from "@/lib/support/draft-prompt";
 
 const msg = (direction: DraftMessage["direction"], body: string, at = "2026-11-19T15:00:00Z"): DraftMessage => ({
   direction,
@@ -66,6 +66,12 @@ describe("drafted support replies", () => {
     expect(prompt).toContain("Fall 2026 (gallery id 77)");
   });
 
+  it("knows the customer by the address in a form as well as the sender", () => {
+    const form = msg("in", "Question: Email Answer: Pat.Parent@Example.org\nQuestion: Player First Name Answer: Sam");
+    expect(customerEmails("forms@example.com", [form, msg("out", "from us@example.com"), msg("note", "x@example.com")])).toEqual(["forms@example.com", "pat.parent@example.org"]);
+    expect(customerEmails(null, [])).toEqual([]);
+  });
+
   it("cleans the draft for the reply box", () => {
     expect(cleanDraft("Hi Pat — thanks.\r\n\r\n\r\n\r\n**Bold** bit\n")).toBe("Hi Pat, thanks.\n\nBold bit");
   });
@@ -74,5 +80,11 @@ describe("drafted support replies", () => {
     expect(unfilledNotes("Hi Pat,\nYour order [check the order status] ships soon. [check the order status]\nThanks, {my_name}")).toEqual(["[check the order status]", "{my_name}"]);
     expect(unfilledNotes("Hi Pat, your order shipped on Friday (tracking 123).")).toEqual([]);
     expect(unfilledNotes("a [] b {} c")).toEqual([]);
+    // A long note over several lines is still a note.
+    const long = `Hi,\n\n[Staff: ${"check this. ".repeat(40)}\nand this.]\n\nThanks`;
+    expect(unfilledNotes(long)).toHaveLength(1);
+    expect(unfilledNotes(long)[0].endsWith("...]")).toBe(true);
+    expect(unfilledNotes("Hi [Staff: unfinished")).toEqual(["a stray [ or ]"]);
+    expect(unfilledNotes("done ] here")).toEqual(["a stray [ or ]"]);
   });
 });

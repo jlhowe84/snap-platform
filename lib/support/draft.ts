@@ -8,7 +8,7 @@ import { costUsd, DEFAULT_MODEL, isPricedModel } from "@/lib/ask/pricing";
 import { createCapturaClient, loadCapturaCredentials } from "@/lib/captura/client";
 import { firstNameOf } from "./saved";
 import { DRAFT_TOOLS, runDraftTool } from "./draft-tools";
-import { canDraft, cleanDraft, DRAFT_QUESTION, draftSystemPrompt, draftUserPrompt, type DraftMessage } from "./draft-prompt";
+import { canDraft, cleanDraft, customerEmails, DRAFT_QUESTION, draftSystemPrompt, draftUserPrompt, type DraftMessage } from "./draft-prompt";
 
 // A drafted reply for one support conversation. It only writes text for the
 // reply box: nothing is sent and nothing is stored on the conversation.
@@ -138,7 +138,7 @@ export async function draftSupportReply(viewer: Viewer & { companyId: string }, 
         break;
       }
       toolCalls += calls.length;
-      const ctx = { captura, customerEmail: c.customer_email, found };
+      const ctx = { captura, customerEmail: customerEmails(c.customer_email, thread), found };
       const results = await Promise.all(calls.map((call) => runDraftTool(call.name, call.input, ctx)));
       chat.push({ role: "assistant", content: response.content });
       chat.push({

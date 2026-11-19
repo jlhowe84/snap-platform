@@ -18,10 +18,18 @@ export function fillSavedReply(body: string, who: { customerName?: string | null
 
 /**
  * Notes left for the person to fill in: anything in [square brackets] (a
- * drafted reply marks a fact it did not have that way) and any saved reply
- * blank still in {curly braces}. A reply holding one is not sent.
+ * drafted reply marks what it did not know that way, sometimes over several
+ * lines), a bracket left open or closed on its own, and any saved reply blank
+ * still in {curly braces}. A reply holding one is not sent.
  */
 export function unfilledNotes(body: string): string[] {
-  const found = body.match(/\[[^\[\]\n]{1,200}\]|\{[a-z_]{2,30}\}/g) ?? [];
+  const short = (text: string) => {
+    const one = text.replace(/\s+/g, " ");
+    return one.length > 60 ? `${one.slice(0, 57)}...]` : one;
+  };
+  const found = (body.match(/\[[^\[\]]*\]|\{[a-z_]{2,30}\}/g) ?? []).filter((n) => n.length > 2).map(short);
+  // A bracket with no partner is still a note someone began.
+  const rest = body.replace(/\[[^\[\]]*\]/g, "");
+  if (/[\[\]]/.test(rest)) found.push("a stray [ or ]");
   return [...new Set(found)].slice(0, 5);
 }

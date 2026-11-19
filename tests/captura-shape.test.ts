@@ -86,6 +86,7 @@ describe("captura facts for a support reply", () => {
     expect(one.players[1].team).toBe("U10 Red");
     expect(one.gallery_link).toBe("https://shop.imagequix.com/g77");
     expect(JSON.stringify(one)).not.toMatch(/images|numImages/);
+    expect(matchPlayers(gallery, "77", "sam parent", ["forms@example.com", "pat@example.org"]).players[0].email_matches_customer).toBe(true);
     expect(matchPlayers(gallery, "77", "jose nunez", null).players[0].access_code).toBe("JN01");
     expect(matchPlayers(gallery, "77", "Nobody", null).players).toEqual([]);
     expect(matchPlayers(gallery, "77", "parent", null, 1)).toMatchObject({ more: 1 });

@@ -16,8 +16,14 @@ const day = (v: unknown): string | null => {
   return s && /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : s;
 };
 
-export function sameEmail(a: string | null | undefined, b: string | null | undefined): boolean {
-  return !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+/** One address or several: a customer can be known by more than one. */
+export type Emails = string | null | undefined | readonly string[];
+
+export function sameEmail(a: string | null | undefined, b: Emails): boolean {
+  if (!a) return false;
+  const mine = a.trim().toLowerCase();
+  const theirs = typeof b === "string" ? [b] : (b ?? []);
+  return theirs.some((x) => x.trim().toLowerCase() === mine);
 }
 
 function personName(p: Raw): string | null {
@@ -46,7 +52,7 @@ export type OrderFacts = {
 };
 
 /** One checkout, without addresses, phone numbers or Captura's fee lines. */
-export function shapeOrder(raw: unknown, orderNumber: string, customerEmail: string | null): OrderFacts {
+export function shapeOrder(raw: unknown, orderNumber: string, customerEmail: Emails): OrderFacts {
   const data = obj(raw);
   const billTo = obj(data.billTo);
   const shipTo = obj(data.shipTo);
@@ -153,7 +159,7 @@ export type PlayerHit = {
   email_matches_customer: boolean;
 };
 
-export type PlayerSearch = { gallery: string | null; gallery_link: string; players: PlayerHit[]; more: number };
+export type PlayerSearch = { gallery: string | null; photo_day: string | null; gallery_link: string; players: PlayerHit[]; more: number };
 
 /**
  * Players in one gallery whose name holds every word searched for. Captura
@@ -161,7 +167,7 @@ export type PlayerSearch = { gallery: string | null; gallery_link: string; playe
  * gallery's image numbers are left out on purpose: they are not a count of a
  * child's photos and are never quoted to a customer.
  */
-export function matchPlayers(rawGallery: unknown, galleryId: string, name: string, customerEmail: string | null, max = 5): PlayerSearch {
+export function matchPlayers(rawGallery: unknown, galleryId: string, name: string, customerEmail: Emails, max = 5): PlayerSearch {
   const gallery = obj(rawGallery);
   const teams = new Map<string, string>();
   for (const g of arr(gallery.groups)) {
@@ -196,6 +202,7 @@ export function matchPlayers(rawGallery: unknown, galleryId: string, name: strin
   }
   return {
     gallery: str(gallery.title),
+    photo_day: day(gallery.eventDate),
     gallery_link: `https://shop.imagequix.com/g${encodeURIComponent(galleryId)}`,
     players: hits.slice(0, max),
     more: Math.max(hits.length - max, 0),

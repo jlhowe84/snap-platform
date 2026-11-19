@@ -49,6 +49,9 @@ describe("support mail parsing", () => {
       ],
     };
     expect(bodyText(payload)).toBe("Plain\nbody");
+    // A website form that puts HTML in its plain-text part.
+    expect(bodyText({ mimeType: "text/plain", body: { data: b64('<table width="100%"><tr><td><p><u>FORM</u></p></td></tr></table>Question: Name Answer: Pat') } })).toBe("FORM\n\nQuestion: Name Answer: Pat");
+    expect(bodyText({ mimeType: "text/plain", body: { data: b64("price < 5 and a > b") } })).toBe("price < 5 and a > b");
   });
 
   it("falls back to the HTML part as text", () => {

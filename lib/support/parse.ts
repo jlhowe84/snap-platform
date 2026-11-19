@@ -75,7 +75,11 @@ export function htmlToText(html: string): string {
 
 export function bodyText(payload: GmailPart | undefined): string {
   const plain = findPart(payload, "text/plain");
-  const text = plain ? decode(plain.body?.data) : htmlToText(decode(findPart(payload, "text/html")?.body?.data));
+  const raw = plain ? decode(plain.body?.data) : "";
+  // Some senders (website forms) put HTML in the plain-text part.
+  const text = plain
+    ? /<(table|div|p|td|br|html|body)[\s>/]/i.test(raw) ? htmlToText(raw) : raw
+    : htmlToText(decode(findPart(payload, "text/html")?.body?.data));
   return text.replace(/\r\n/g, "\n").replace(/\u0000/g, "").trim().slice(0, MAX_BODY);
 }
 
