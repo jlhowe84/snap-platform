@@ -721,6 +721,42 @@ export type Database = {
           },
         ]
       }
+      crew_homes: {
+        Row: {
+          address: string
+          company_id: string
+          crew_member_id: string
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          company_id: string
+          crew_member_id: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          company_id?: string
+          crew_member_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_homes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_homes_crew_member_id_fkey"
+            columns: ["crew_member_id"]
+            isOneToOne: true
+            referencedRelation: "crew_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crew_members: {
         Row: {
           active: boolean

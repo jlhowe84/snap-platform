@@ -39,3 +39,17 @@ export async function removePayRate(crewId: string, rateId: string) {
   await supabase.from("pay_rates").delete().eq("id", z.uuid().parse(rateId));
   revalidatePath(`/crew/${z.uuid().parse(crewId)}`);
 }
+
+// A crew member's home address, for mileage. Owner and admin only.
+export async function saveHome(crewId: string, form: FormData) {
+  const viewer = await requireStaff(ADMIN_ROLES);
+  const crew = z.uuid().parse(crewId);
+  const address = z.string().trim().max(300).parse(form.get("address") ?? "");
+  const supabase = await createClient();
+  if (address.length < 5) {
+    await supabase.from("crew_homes").delete().eq("crew_member_id", crew);
+  } else {
+    await supabase.from("crew_homes").upsert({ crew_member_id: crew, company_id: viewer.companyId!, address }, { onConflict: "crew_member_id" });
+  }
+  revalidatePath(`/crew/${crew}`);
+}

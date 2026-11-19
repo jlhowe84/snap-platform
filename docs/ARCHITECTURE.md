@@ -589,3 +589,14 @@ day-before briefing come with the field view and the clock.
 - Part two (not built): gallery link and order lookups that send only to the
   email or phone on record, rate limited; makeup booking; chat; QR sign and
   flyer.
+
+### Crew pay follow-ups (owner's answers, 2026-11-19)
+
+- Level 1 is the top crew level; offers go to Level 1 first.
+- Crew are paid by the hour, so a new pay rate defaults to hourly.
+- Mileage is a company setting (`pay.mileage_cents_per_mile`), editable in
+  Settings. It is paid from the person's home to the photo day. Home
+  addresses live in `crew_homes`, owner and admin only, never in the activity
+  log. The pay page links driving directions from home to the day; working
+  out the miles automatically needs a maps service and is not built yet.
+- Each kit keeps its camera body (`camera_bodies.kit_id`), set on the Gear page.

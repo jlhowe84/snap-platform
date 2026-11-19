@@ -25,7 +25,7 @@ export function PayForm({ crewId, positions }: { crewId: string; positions: stri
       </label>
       <label className={label}>
         Per
-        <select name="unit" className={field} defaultValue="shift">
+        <select name="unit" className={field} defaultValue="hour">
           <option value="shift">Shift</option>
           <option value="hour">Hour</option>
         </select>

@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill } from "@/components/ui";
 import { formatDate, todayIn } from "@/lib/dates";
 import { POSITION_LABEL } from "@/lib/staffing/plan";
-import { removePayRate } from "../actions";
+import { removePayRate, saveHome } from "../actions";
 import { PayForm } from "./pay-form";
 
 export const metadata: Metadata = { title: "Crew" };
@@ -29,7 +29,7 @@ export default async function CrewMemberPage({ params }: PageProps<"/crew/[id]">
     .maybeSingle();
   if (!c) notFound();
 
-  const [{ data: shifts }, { data: rates }] = await Promise.all([
+  const [{ data: shifts }, { data: rates }, { data: home }] = await Promise.all([
     supabase
       .from("shifts")
       .select("id, position, station, photo_day_id, photo_days!inner(date), jobs(name)")
@@ -37,6 +37,7 @@ export default async function CrewMemberPage({ params }: PageProps<"/crew/[id]">
       .eq("status", "filled")
       .limit(200),
     pay ? supabase.from("pay_rates").select("id, position, amount, unit").eq("crew_member_id", id).order("position") : Promise.resolve({ data: null }),
+    pay ? supabase.from("crew_homes").select("address").eq("crew_member_id", id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   const sorted = [...(shifts ?? [])].sort((a, b) => a.photo_days.date.localeCompare(b.photo_days.date));
   const coming = sorted.filter((s) => s.photo_days.date >= today);
@@ -97,6 +98,22 @@ export default async function CrewMemberPage({ params }: PageProps<"/crew/[id]">
             <p className="mb-4 text-sm text-muted">No pay rates yet. Only the owner and admins see this section.</p>
           )}
           <PayForm crewId={c.id} positions={c.positions} />
+          <form action={saveHome.bind(null, c.id)} className="mt-6 border-t border-line pt-4">
+            <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+              Home address, for mileage
+              <input
+                name="address"
+                defaultValue={home?.address ?? ""}
+                maxLength={300}
+                placeholder="Street, town, state"
+                className="mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm"
+              />
+            </label>
+            <div className="mt-2 flex items-center gap-3">
+              <button className="rounded-lg border border-line px-3 py-1.5 text-sm hover:border-accent">Save address</button>
+              <span className="text-xs text-muted">Only the owner and admins see it. Clear the box to remove it.</span>
+            </div>
+          </form>
         </Card>
       )}
     </>

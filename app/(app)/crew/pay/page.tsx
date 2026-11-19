@@ -125,6 +125,11 @@ export default async function CrewPayPage({ searchParams }: PageProps<"/crew/pay
                         <label className="text-muted">Hours <input name="hours" type="number" step="0.25" min={0} max={24} defaultValue={l.hours ?? ""} className={cell} /></label>
                       )}
                       <label className="text-muted">Miles <input name="miles" type="number" step="0.1" min={0} defaultValue={l.miles} className={cell} /></label>
+                      {l.directions ? (
+                        <a href={l.directions} target="_blank" rel="noreferrer" className="text-accent hover:underline">Route from home</a>
+                      ) : (
+                        <span className="text-xs text-muted">No home address</span>
+                      )}
                       <label className="text-muted">Adjust $ <input name="adjustment" type="number" step="0.01" defaultValue={l.adjustment} className={cell} /></label>
                       <input name="note" defaultValue={l.note ?? ""} placeholder="Note" maxLength={500} className="w-40 rounded-md border border-line bg-surface-2 px-2 py-1 text-sm" />
                       <button className={quiet}>Save</button>

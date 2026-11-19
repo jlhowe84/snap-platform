@@ -224,8 +224,8 @@ insert into public.shifts (id, company_id, job_id, photo_day_id, position, statu
                ('90000000-0000-0000-0000-0000000000b1', '40000000-0000-0000-0000-0000000000b1', 'photographer', 'open', null))
        as v(id, job, pos, st, lvl)
   join public.photo_days d on d.job_id = v.job::uuid;
-insert into public.pay_rates (company_id, crew_member_id, position, amount)
-  select company_id, id, positions[1], 100 from public.crew_members where company_id = 'a0000000-0000-0000-0000-00000000000a';
+insert into public.pay_rates (company_id, crew_member_id, position, amount, unit)
+  select company_id, id, positions[1], 100, 'shift' from public.crew_members where company_id = 'a0000000-0000-0000-0000-00000000000a';
 
 -- Gear. Two kits in company A, a body in kit A, kit A going to job A1's day.
 insert into public.kits (id, company_id, code) values
@@ -239,6 +239,9 @@ insert into public.camera_bodies (company_id, serial, letter, model, kit_id) val
   ('a0000000-0000-0000-0000-00000000000a', '1111111', 'A', 'Test body', '92000000-0000-0000-0000-0000000000a1');
 insert into public.kit_checkouts (company_id, job_id, photo_day_id, kit_id, station)
   select company_id, job_id, id, '92000000-0000-0000-0000-0000000000a1', 1 from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000a1';
+
+insert into public.crew_homes (crew_member_id, company_id, address)
+  select id, company_id, '1 Test Lane, Town' from public.crew_members where full_name = 'Crew A';
 
 -- Public pages. Job A1's page is published; the knowledge base answer is on
 -- the help center.
@@ -317,6 +320,7 @@ declare
     array['kit_checklist_items',   '2','2','2','2','0','0','0','0'],
     array['camera_bodies',         '1','1','1','1','0','0','0','0'],
     array['kit_checkouts',         '1','1','1','1','0','0','0','0'],
+    array['crew_homes',            '1','1','0','0','0','0','0','0'],
     array['day_pages',             '2','2','2','2','0','0','0','0'],
     array['kb_article_versions',   '1','1','1','1','0','0','0','1']
   ];
@@ -1270,5 +1274,16 @@ select t.count_is($$select count(*) from public.day_pages$$, 0, 'a coordinator d
 select t.login('owner_b');
 select t.count_is($$with u as (update public.day_pages set published = false returning 1) select count(*) from u$$, 0, 'another company cannot touch the page');
 reset role;
+
+-- Crew home addresses: owner and admin only.
+select t.login('admin');
+select t.works($$insert into public.crew_homes (crew_member_id, company_id, address) select id, company_id, '2 Test Road, Town' from public.crew_members where full_name = 'Crew A two'$$, 'admin saves a home address');
+select t.fails($$insert into public.crew_homes (crew_member_id, company_id, address) values ('91000000-0000-0000-0000-0000000000b1', 'a0000000-0000-0000-0000-00000000000a', '3 Other Way, Town')$$, 'a home cannot point at another company''s crew');
+select t.login('office');
+select t.fails($$insert into public.crew_homes (crew_member_id, company_id, address) select id, company_id, '4 Test Road, Town' from public.crew_members where full_name = 'Crew A'$$, 'office cannot save a home address');
+select t.login('crew');
+select t.count_is($$select count(*) from public.crew_homes$$, 0, 'crew do not read home addresses');
+reset role;
+select t.count_is($$select count(*) from public.activity_log where table_name = 'crew_homes'$$, 0, 'home addresses never reach the activity log');
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;
 rollback;
