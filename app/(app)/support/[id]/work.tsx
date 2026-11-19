@@ -2,7 +2,7 @@
 
 import { useActionState, useRef, useState, useTransition } from "react";
 import { addNote, draftReply, saveConversation, sendReply, type SupportState } from "../actions";
-import { fillSavedReply } from "@/lib/support/saved";
+import { fillSavedReply, unfilledNotes } from "@/lib/support/saved";
 import { SUPPORT_STATUSES, SUPPORT_STATUS_LABEL, type SupportStatus } from "@/lib/support/labels";
 
 const field = "mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm";
@@ -140,6 +140,8 @@ export function ReplyForm({
     box.current?.focus();
   }
 
+  const notes = unfilledNotes(text);
+
   if (!to) return <p className="text-sm text-muted">This conversation has no address to reply to.</p>;
   return (
     <form action={action} className="space-y-3">
@@ -178,13 +180,18 @@ export function ReplyForm({
       </div>
       <Message state={draftNote} />
       <textarea ref={box} name="body" rows={8} maxLength={20000} required aria-label="Reply" value={text} onChange={(e) => setText(e.target.value)} className={field} />
+      {notes.length > 0 && (
+        <p role="alert" className="rounded-lg border border-risk/40 bg-risk/5 px-3 py-2 text-sm">
+          Fill in or remove before sending: <span className="font-semibold">{notes.join(", ")}</span>
+        </p>
+      )}
       {testMode && (
         <p className="rounded-lg border border-warn/40 bg-warn/5 px-3 py-2 text-sm">
           Test mode is on. Sending goes only to the test address and is kept here as a note. The customer gets nothing.
         </p>
       )}
       <div className="flex flex-wrap items-center gap-3">
-        <button disabled={pending} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110 disabled:opacity-60">
+        <button disabled={pending || notes.length > 0} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110 disabled:opacity-60">
           {pending ? "Sending…" : testMode ? "Send test" : "Send reply"}
         </button>
         {!testMode && (

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { unfilledNotes } from "@/lib/support/saved";
 import { canDraft, cleanDraft, draftSystemPrompt, draftUserPrompt, type DraftMessage } from "@/lib/support/draft-prompt";
 
 const msg = (direction: DraftMessage["direction"], body: string, at = "2026-11-19T15:00:00Z"): DraftMessage => ({
@@ -56,5 +57,11 @@ describe("drafted support replies", () => {
 
   it("cleans the draft for the reply box", () => {
     expect(cleanDraft("Hi Pat — thanks.\r\n\r\n\r\n\r\n**Bold** bit\n")).toBe("Hi Pat, thanks.\n\nBold bit");
+  });
+
+  it("finds notes that must not reach a customer", () => {
+    expect(unfilledNotes("Hi Pat,\nYour order [check the order status] ships soon. [check the order status]\nThanks, {my_name}")).toEqual(["[check the order status]", "{my_name}"]);
+    expect(unfilledNotes("Hi Pat, your order shipped on Friday (tracking 123).")).toEqual([]);
+    expect(unfilledNotes("a [] b {} c")).toEqual([]);
   });
 });

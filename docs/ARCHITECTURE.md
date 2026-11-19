@@ -403,3 +403,7 @@ does not have, and never to promise a refund, a reprint or a date. It spends
 from the Ask SNAP daily cap through `ask_snap_begin` and `ask_snap_finish`;
 the run is logged with a fixed label and without the customer's words or the
 draft.
+
+A reply that still holds a [bracketed note] or an unfilled {blank} is not
+sent: the Send button is off and `sendReply` refuses it on the server
+(`unfilledNotes` in `lib/support/saved.ts`).
