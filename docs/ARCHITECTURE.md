@@ -541,3 +541,28 @@ day-before briefing come with the field view and the clock.
   their shift, a `crew.notify` draft to that person goes into the approval
   queue (`lib/staffing/notices.ts`). It is sent like any other draft, so test
   mode applies.
+
+## Gear and the field view (Wave B, module 8)
+
+- `kits` (A to K at SNAP: ready, needs service, retired), `kit_checklist_items`
+  (the master checklist, by section, some outdoor only), `camera_bodies`
+  (serial, letter, model, optionally the kit it lives in) and `kit_checkouts`
+  (a kit on a photo day, with its station: planned, out, back, and what came
+  back missing or broken). Staff read; owner, admin and office write.
+- A trigger fills the checkout's company and job from the photo day, refuses a
+  kit on two photo days the same date, and stamps who sent it out and checked
+  it in. A kit that comes back with anything missing or an issue is marked
+  needs service. A checkout that went out cannot be deleted.
+- `field_view(photo_day)` (security definer) returns one day as JSON for its
+  booked crew and for staff: times, place and map, rain plan, notes, league
+  contact, crew and roles, kits with their cameras, the schedule by station and
+  the checklist (outdoor items left off for indoor days). Crew phone numbers
+  are shown to staff only.
+- Pages: `/gear` (kits, problems from recent returns, camera bodies, the master
+  checklist), kits on `/staffing/[dayId]` (add by station, send out, check in
+  against the checklist), and `/field/[dayId]` (phone first; prints as the day
+  sheet). Crew open it from their shifts page. Offline caching and the
+  evening-before push are not built yet.
+- SNAP's 11 kits, the 29-line master checklist and 7 camera bodies were loaded
+  from the SNAP OS gear files (February 2026, not re-verified); bodies are not
+  put in kits until someone confirms which is which.

@@ -516,6 +516,60 @@ export type Database = {
           },
         ]
       }
+      camera_bodies: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          id: string
+          kit_id: string | null
+          letter: string | null
+          model: string | null
+          notes: string | null
+          serial: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          id?: string
+          kit_id?: string | null
+          letter?: string | null
+          model?: string | null
+          notes?: string | null
+          serial: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          id?: string
+          kit_id?: string | null
+          letter?: string | null
+          model?: string | null
+          notes?: string | null
+          serial?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "camera_bodies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "camera_bodies_kit_id_fkey"
+            columns: ["kit_id"]
+            isOneToOne: false
+            referencedRelation: "kits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clock_log: {
         Row: {
           action_id: string | null
@@ -1429,6 +1483,212 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kit_checklist_items: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+          outdoor_only: boolean
+          position: number
+          section: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+          outdoor_only?: boolean
+          position?: number
+          section: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          outdoor_only?: boolean
+          position?: number
+          section?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kit_checklist_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kit_checkouts: {
+        Row: {
+          back_at: string | null
+          back_by: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          issues: string | null
+          job_id: string
+          kit_id: string
+          missing: string[]
+          out_at: string | null
+          out_by: string | null
+          photo_day_id: string
+          station: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          back_at?: string | null
+          back_by?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          issues?: string | null
+          job_id: string
+          kit_id: string
+          missing?: string[]
+          out_at?: string | null
+          out_by?: string | null
+          photo_day_id: string
+          station?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          back_at?: string | null
+          back_by?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          issues?: string | null
+          job_id?: string
+          kit_id?: string
+          missing?: string[]
+          out_at?: string | null
+          out_by?: string | null
+          photo_day_id?: string
+          station?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kit_checkouts_back_by_fkey"
+            columns: ["back_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_checkouts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_checkouts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_checkouts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_checkouts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_checkouts_kit_id_fkey"
+            columns: ["kit_id"]
+            isOneToOne: false
+            referencedRelation: "kits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_checkouts_out_by_fkey"
+            columns: ["out_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_checkouts_photo_day_id_fkey"
+            columns: ["photo_day_id"]
+            isOneToOne: false
+            referencedRelation: "photo_day_readiness"
+            referencedColumns: ["photo_day_id"]
+          },
+          {
+            foreignKeyName: "kit_checkouts_photo_day_id_fkey"
+            columns: ["photo_day_id"]
+            isOneToOne: false
+            referencedRelation: "photo_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kits: {
+        Row: {
+          code: string
+          company_id: string
+          created_at: string
+          id: string
+          name: string | null
+          notes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          company_id: string
+          created_at?: string
+          id?: string
+          name?: string | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kits_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -4140,6 +4400,7 @@ export type Database = {
         Args: { p_days?: number; p_hold_id: string }
         Returns: string
       }
+      field_view: { Args: { p_photo_day: string }; Returns: Json }
       hold_date: {
         Args: {
           p_date: string

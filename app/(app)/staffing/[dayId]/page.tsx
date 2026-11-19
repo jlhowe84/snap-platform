@@ -17,6 +17,8 @@ import {
 } from "@/lib/staffing/plan";
 import { assignShift, cancelShift, openNextWave, publishShifts, releaseShift } from "../actions";
 import { AddShifts } from "./add-shifts";
+import { addKitToDay, checkKitIn, removeKitFromDay, sendKitOut } from "../../gear/actions";
+import { CHECKOUT_LABEL, KIT_STATUS_LABEL } from "@/lib/gear/field";
 
 export const metadata: Metadata = { title: "Staffing" };
 
@@ -37,7 +39,7 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
     .maybeSingle();
   if (!day) notFound();
 
-  const [{ data: shifts }, { data: crew }, { data: busy }] = await Promise.all([
+  const [{ data: shifts }, { data: crew }, { data: busy }, { data: kits }, { data: dayKits }, { data: kitsThatDate }, { data: checklist }] = await Promise.all([
     supabase
       .from("shifts")
       .select("id, position, station, start_time, end_time, status, open_level, filled_by, crew_member_id, crew_members(full_name, level), shift_responses(response)")
@@ -47,7 +49,14 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
       .order("created_at"),
     supabase.from("crew_members").select("id, full_name, positions, level, active").eq("active", true).order("full_name"),
     supabase.from("shifts").select("crew_member_id, photo_days!inner(date)").eq("photo_days.date", day.date).eq("status", "filled"),
+    supabase.from("kits").select("id, code, status").neq("status", "retired").order("code"),
+    supabase.from("kit_checkouts").select("id, kit_id, station, status, missing, issues, kits(code)").eq("photo_day_id", dayId).order("station"),
+    supabase.from("kit_checkouts").select("kit_id, photo_days!inner(date)").eq("photo_days.date", day.date).neq("status", "back"),
+    supabase.from("kit_checklist_items").select("name, outdoor_only").eq("active", true).order("position"),
   ]);
+  const takenKits = new Set((kitsThatDate ?? []).map((k) => k.kit_id));
+  const freeKits = (kits ?? []).filter((k) => !takenKits.has(k.id));
+  const checkItems = (checklist ?? []).filter((i) => !i.outdoor_only || day.indoor !== true);
 
   const list = shifts ?? [];
   const sum = staffingSummary(list as { status: ShiftStatus }[]);
@@ -61,6 +70,7 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
         <Link href="/staffing" className="text-muted hover:text-text">Staffing</Link>
       </p>
       <PageHeader eyebrow={formatDate(day.date, { weekday: true })} title={day.jobs.name}>
+        <Link href={`/field/${day.id}`} className={quiet}>Field view</Link>
         <Link href={`/jobs/${day.jobs.id}`} className={quiet}>Open the job</Link>
       </PageHeader>
 
@@ -153,6 +163,64 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
             })}
           </ul>
         )}
+      </Card>
+
+      <Card title="Kits" className="mb-6">
+        {dayKits?.length ? (
+          <ul className="mb-4 divide-y divide-line">
+            {dayKits.map((k) => (
+              <li key={k.id} className="py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">Kit {k.kits?.code}</span>
+                  {k.station != null && <span className="text-sm text-muted">station {k.station}</span>}
+                  <Pill tone={k.status === "out" ? "warn" : k.status === "back" ? "ok" : "info"}>{CHECKOUT_LABEL[k.status] ?? k.status}</Pill>
+                  {k.status === "back" && (k.missing.length > 0 || k.issues) && (
+                    <span className="text-sm text-risk">{[k.missing.length ? `Missing ${k.missing.join(", ")}` : null, k.issues].filter(Boolean).join("; ")}</span>
+                  )}
+                  <span className="ml-auto flex gap-2">
+                    {k.status === "planned" && (
+                      <>
+                        <form action={sendKitOut.bind(null, day.id, k.id)}><button className={quiet}>Send out</button></form>
+                        <form action={removeKitFromDay.bind(null, day.id, k.id)}><button className={quiet}>Remove</button></form>
+                      </>
+                    )}
+                  </span>
+                </div>
+                {k.status === "out" && (
+                  <form action={checkKitIn.bind(null, day.id, k.id)} className="mt-2 rounded-lg border border-line p-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Check in: tick anything that did not come back</p>
+                    <div className="grid gap-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                      {checkItems.map((i) => (
+                        <label key={i.name} className="flex items-center gap-2">
+                          <input type="checkbox" name="missing" value={i.name} /> {i.name}
+                        </label>
+                      ))}
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <input name="issues" maxLength={2000} placeholder="Anything broken or worth knowing" className="min-w-64 flex-1 rounded-md border border-line bg-surface-2 px-2 py-1 text-sm" />
+                      <button className={primary}>Checked in</button>
+                    </div>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mb-4 text-sm text-muted">No kits on this day yet. One kit per station.</p>
+        )}
+        <form action={addKitToDay.bind(null, day.id)} className="flex flex-wrap items-center gap-2">
+          <select name="kit_id" required defaultValue="" aria-label="Kit" className="rounded-lg border border-line bg-surface px-2 py-1 text-sm">
+            <option value="" disabled>Choose a kit…</option>
+            {freeKits.map((k) => (
+              <option key={k.id} value={k.id}>Kit {k.code}{k.status !== "ready" ? ` (${KIT_STATUS_LABEL[k.status]?.toLowerCase()})` : ""}</option>
+            ))}
+          </select>
+          <select name="station" defaultValue="" aria-label="Station" className="rounded-lg border border-line bg-surface px-2 py-1 text-sm">
+            <option value="">No station</option>
+            {Array.from({ length: day.stations }, (_, i) => i + 1).map((n) => <option key={n} value={n}>Station {n}</option>)}
+          </select>
+          <button className={quiet}>Add kit</button>
+        </form>
       </Card>
 
       <Card title="Add shifts">

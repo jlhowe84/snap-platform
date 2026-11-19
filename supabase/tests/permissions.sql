@@ -227,6 +227,19 @@ insert into public.shifts (id, company_id, job_id, photo_day_id, position, statu
 insert into public.pay_rates (company_id, crew_member_id, position, amount)
   select company_id, id, positions[1], 100 from public.crew_members where company_id = 'a0000000-0000-0000-0000-00000000000a';
 
+-- Gear. Two kits in company A, a body in kit A, kit A going to job A1's day.
+insert into public.kits (id, company_id, code) values
+  ('92000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', 'A'),
+  ('92000000-0000-0000-0000-0000000000a2', 'a0000000-0000-0000-0000-00000000000a', 'B'),
+  ('92000000-0000-0000-0000-0000000000b1', 'b0000000-0000-0000-0000-00000000000b', 'A');
+insert into public.kit_checklist_items (company_id, section, name, position, outdoor_only) values
+  ('a0000000-0000-0000-0000-00000000000a', 'Camera', 'Camera body', 1, false),
+  ('a0000000-0000-0000-0000-00000000000a', 'Outdoor', 'Tent', 2, true);
+insert into public.camera_bodies (company_id, serial, letter, model, kit_id) values
+  ('a0000000-0000-0000-0000-00000000000a', '1111111', 'A', 'Test body', '92000000-0000-0000-0000-0000000000a1');
+insert into public.kit_checkouts (company_id, job_id, photo_day_id, kit_id, station)
+  select company_id, job_id, id, '92000000-0000-0000-0000-0000000000a1', 1 from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000a1';
+
 -- ---------------------------------------------------------------------------
 -- Sign-up and invites
 -- ---------------------------------------------------------------------------
@@ -293,6 +306,10 @@ declare
     array['shift_responses',       '0','0','0','0','0','0','0','0'],
     array['pay_rates',             '2','2','0','0','1','0','0','0'],
     array['pay_lines',             '0','0','0','0','0','0','0','0'],
+    array['kits',                  '2','2','2','2','0','0','0','1'],
+    array['kit_checklist_items',   '2','2','2','2','0','0','0','0'],
+    array['camera_bodies',         '1','1','1','1','0','0','0','0'],
+    array['kit_checkouts',         '1','1','1','1','0','0','0','0'],
     array['kb_article_versions',   '1','1','1','1','0','0','0','1']
   ];
   who text[] := array['owner','admin','office','support','crew','coord','outsider','owner_b'];
@@ -1172,6 +1189,42 @@ select t.count_is($$select count(*) from public.pay_lines$$, 0, 'another company
 select t.login('coord');
 select t.count_is($$select count(*) from public.crew_shift_board()$$, 0, 'a coordinator has no shift board');
 select t.fails($$select public.respond_to_shift('90000000-0000-0000-0000-0000000000a4', true)$$, 'a coordinator cannot answer a shift');
+
+-- Gear and the field view.
+select t.login('support');
+select t.fails($$insert into public.kit_checkouts (company_id, job_id, photo_day_id, kit_id) select company_id, job_id, id, '92000000-0000-0000-0000-0000000000a2' from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000a2'$$, 'support cannot send a kit out');
+select t.login('office');
+select t.works($$insert into public.kit_checkouts (company_id, job_id, photo_day_id, kit_id) select company_id, job_id, id, '92000000-0000-0000-0000-0000000000a1' from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000a2'$$, 'office plans a kit for another date');
+select t.fails($$insert into public.kit_checkouts (company_id, job_id, photo_day_id, kit_id) select company_id, job_id, id, '92000000-0000-0000-0000-0000000000b1' from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000a1'$$, 'office cannot send another company''s kit');
+reset role;
+insert into public.photo_days (id, company_id, job_id, date) values ('93000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a2', '2027-04-17');
+select t.login('office');
+select t.fails($$insert into public.kit_checkouts (company_id, job_id, photo_day_id, kit_id) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a2', '93000000-0000-0000-0000-0000000000a1', '92000000-0000-0000-0000-0000000000a1')$$, 'a kit cannot go to two photo days on one date');
+reset role;
+delete from public.photo_days where id = '93000000-0000-0000-0000-0000000000a1';
+select t.login('office');
+select t.works($$update public.kit_checkouts set status = 'out' where job_id = '40000000-0000-0000-0000-0000000000a1'$$, 'office sends a kit out');
+select t.count_is($$select count(*) from public.kit_checkouts where status = 'out' and out_by = '10000000-0000-0000-0000-000000000003' and out_at is not null$$, 1, 'who took it out is recorded');
+select t.works($$update public.kit_checkouts set status = 'back', missing = '{Tent}', issues = 'Flash cracked' where job_id = '40000000-0000-0000-0000-0000000000a1'$$, 'office checks a kit back in');
+select t.count_is($$select count(*) from public.kits where code = 'A' and status = 'needs_service'$$, 1, 'a kit back short or broken needs service');
+select t.count_is($$with d as (delete from public.kit_checkouts where status = 'back' returning 1) select count(*) from d$$, 0, 'a checkout that went out stays on record');
+select t.count_is($$with d as (delete from public.kits where code = 'B' returning 1) select count(*) from d$$, 0, 'office cannot delete a kit');
+select t.login('crew');
+select t.count_is($$select count(*) from public.kits$$, 0, 'crew read no gear tables');
+reset role;
+create temporary table fv_days on commit drop as select id, job_id from public.photo_days where company_id = 'a0000000-0000-0000-0000-00000000000a';
+grant select on fv_days to authenticated;
+select t.login('crew');
+select t.count_is($$select count(*) from fv_days where job_id = '40000000-0000-0000-0000-0000000000a1' and public.field_view(id) is not null$$, 1, 'crew open the field view for the day they work');
+select t.count_is($$select count(*) from fv_days where job_id = '40000000-0000-0000-0000-0000000000a2' and public.field_view(id) is not null$$, 0, 'crew cannot open a day they do not work');
+select t.count_is($$select count(*) from fv_days d, jsonb_array_elements(public.field_view(d.id) -> 'crew') c where d.job_id = '40000000-0000-0000-0000-0000000000a1' and c ->> 'phone' is not null$$, 0, 'crew do not see each other''s phone numbers');
+select t.count_is($$select count(*) from fv_days d where d.job_id = '40000000-0000-0000-0000-0000000000a1' and jsonb_array_length(public.field_view(d.id) -> 'kits') = 1 and jsonb_array_length(public.field_view(d.id) -> 'contacts') = 1$$, 1, 'the field view carries the kits and the league contact');
+select t.login('office');
+select t.count_is($$select count(*) from fv_days where public.field_view(id) is null$$, 0, 'staff open any day''s field view');
+select t.login('coord');
+select t.count_is($$select count(*) from fv_days where public.field_view(id) is not null$$, 0, 'a coordinator has no field view');
+select t.login('owner_b');
+select t.count_is($$select count(*) from fv_days where public.field_view(id) is not null$$, 0, 'another company has no field view of these days');
 
 reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;

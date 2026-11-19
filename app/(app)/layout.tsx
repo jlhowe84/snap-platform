@@ -36,13 +36,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     { href: "/knowledge", label: "Knowledge", show: office || viewer.roles.includes("support") },
     { href: "/staffing", label: "Staffing", show: office },
     { href: "/crew", label: "Crew", show: office },
+    { href: "/gear", label: "Gear", show: office },
     { href: "/lab", label: "Lab costs", show: office },
     { href: "/settings", label: "Settings", show: admin },
   ].filter((n) => n.show);
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="border-b border-line bg-surface md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:border-b-0 md:border-r">
+      <aside className="border-b border-line bg-surface print:hidden md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:border-b-0 md:border-r">
         <div className="flex h-full flex-col gap-6 p-4 md:p-5">
           <div>
             <p className="font-display text-2xl font-bold uppercase tracking-wide">
@@ -70,7 +71,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
       </aside>
       <main className="min-w-0 flex-1 px-4 py-6 md:px-10 md:py-10">{children}</main>
-      {hasAnyRole(viewer, ASK_ROLES) && <AskWidget />}
+      {hasAnyRole(viewer, ASK_ROLES) && <div className="print:hidden"><AskWidget /></div>}
     </div>
   );
 }

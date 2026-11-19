@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill } from "@/components/ui";
@@ -18,6 +19,7 @@ type Row = {
   start_time: string | null;
   end_time: string | null;
   notes: string | null;
+  photo_day_id: string;
   date: string;
   location_name: string | null;
   address: string | null;
@@ -88,7 +90,11 @@ export default async function ShiftsPage() {
         {mine.length ? (
           <ul className="space-y-3">
             {mine.map((s) => (
-              <Shift key={s.shift_id} s={s} />
+              <Shift key={s.shift_id} s={s}>
+                <Link href={`/field/${s.photo_day_id}`} className="mt-3 inline-block rounded-lg border border-line px-3 py-2 text-sm hover:bg-surface-2">
+                  Open the day: crew, kits, schedule and contact
+                </Link>
+              </Shift>
             ))}
           </ul>
         ) : (
