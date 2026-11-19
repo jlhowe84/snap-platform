@@ -26,7 +26,16 @@ function Answer({ text }: { text: string }) {
   return <p className="whitespace-pre-wrap text-sm leading-relaxed">{parts}</p>;
 }
 
-export function AskBox({ examples, disabled }: { examples: string[]; disabled: boolean }) {
+export function AskBox({
+  examples,
+  disabled,
+  compact = false,
+}: {
+  examples: string[];
+  disabled: boolean;
+  /** The pop-up: the conversation scrolls inside the panel and the page under it is left alone. */
+  compact?: boolean;
+}) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [text, setText] = useState("");
   const [pending, start] = useTransition();
@@ -57,12 +66,12 @@ export function AskBox({ examples, disabled }: { examples: string[]; disabled: b
             : turn,
         ),
       );
-      router.refresh(); // the day's total and the recent questions list
+      if (!compact) router.refresh(); // the day's total and the recent questions list
     });
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className={compact ? "flex min-h-0 flex-1 flex-col gap-3" : "flex flex-col gap-4"}>
       {turns.length === 0 && (
         <div className="flex flex-wrap gap-2">
           {examples.map((e) => (
@@ -79,7 +88,7 @@ export function AskBox({ examples, disabled }: { examples: string[]; disabled: b
         </div>
       )}
 
-      <div className="flex flex-col gap-4" aria-live="polite">
+      <div className={compact ? "flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1" : "flex flex-col gap-4"} aria-live="polite">
         {turns.map((t, i) => (
           <div key={i} className="flex flex-col gap-2">
             <p className="self-end rounded-2xl bg-accent/15 px-4 py-2 text-sm">{t.question}</p>
@@ -114,7 +123,7 @@ export function AskBox({ examples, disabled }: { examples: string[]; disabled: b
             rows={2}
             maxLength={2000}
             disabled={disabled}
-            placeholder="Which photo days in the next two weeks are missing a roster?"
+            placeholder={compact ? "Ask about jobs, leagues, tasks or the queue" : "Which photo days in the next two weeks are missing a roster?"}
             className="resize-none rounded-lg border border-line bg-surface px-3 py-2 text-sm text-text disabled:opacity-60"
           />
         </label>

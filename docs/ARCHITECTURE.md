@@ -289,3 +289,9 @@ in-app only for now.
   uses up what is left of the day, or after six model calls.
 - A new company has no `agent.daily_budget_usd` row, so Ask SNAP is off until
   an admin saves a cap in Settings.
+
+Ask SNAP is also a pop-up in the corner of every staff page
+(`app/(app)/ask-widget.tsx`, mounted in the app layout for the same roles).
+It reuses the `/ask` box and server action, so roles, the daily cap and the
+question log are the same. The conversation is kept in the layout, so it
+stays while the person moves between pages and is gone on a full reload.
