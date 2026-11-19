@@ -15,8 +15,9 @@ const arrow = "rounded border border-line px-2 py-1 text-xs hover:border-accent 
 
 // The steps every job follows, as an owner or admin sets them. Staff can read
 // the steps anywhere they show; only this page changes them.
-export default async function StepsSettings() {
+export default async function StepsSettings({ searchParams }: PageProps<"/settings/steps">) {
   await requireStaff(ADMIN_ROLES);
+  const { list: wanted } = await searchParams;
   const supabase = await createClient();
   const [{ data: playbooks }, { data: steps }] = await Promise.all([
     supabase.from("playbooks").select("id, name, kind, notes").eq("active", true).order("kind"),
@@ -26,6 +27,8 @@ export default async function StepsSettings() {
       .order("position")
       .order("created_at"),
   ]);
+  // One list shows at a time; the tabs pick which.
+  const shown = (playbooks ?? []).find((p) => p.id === wanted) ?? playbooks?.[0];
   const stages = [...new Set((steps ?? []).map((s) => s.stage).filter((s): s is string => !!s))];
 
   return (
@@ -42,8 +45,25 @@ export default async function StepsSettings() {
       </p>
 
       {!playbooks?.length && <Empty>No step lists yet.</Empty>}
+      {(playbooks?.length ?? 0) > 1 && (
+        <nav aria-label="Step lists" className="mb-4 flex flex-wrap gap-1 border-b border-line">
+          {(playbooks ?? []).map((p) => (
+            <Link
+              key={p.id}
+              href={`/settings/steps?list=${p.id}`}
+              aria-current={p.id === shown?.id ? "page" : undefined}
+              className={cx(
+                "-mb-px border-b-2 px-4 py-2 text-sm font-medium",
+                p.id === shown?.id ? "border-accent text-accent" : "border-transparent text-muted hover:text-text",
+              )}
+            >
+              {KIND_LABEL[p.kind] ?? p.name}
+            </Link>
+          ))}
+        </nav>
+      )}
       <div className="space-y-8">
-        {(playbooks ?? []).map((p) => {
+        {(shown ? [shown] : []).map((p) => {
           const list = (steps ?? []).filter((s) => s.playbook_id === p.id);
           const inUse = list.filter((s) => s.active).length;
           return (
