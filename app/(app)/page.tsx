@@ -17,6 +17,7 @@ export default async function TodayPage() {
       .from("photo_days")
       .select("id, date, start_time, location_name, city, job_id, jobs(name, organizations(name))")
       .gte("date", today)
+      .eq("status", "scheduled")
       .order("date")
       .order("start_time", { nullsFirst: false })
       .limit(12),

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { decideDraft, runClockNow, type QueueState } from "./actions";
+import { decideDraft, runClockNow, sendNow, type QueueState } from "./actions";
 
 const field = "w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm focus:border-accent focus:outline-none";
 
@@ -71,6 +71,20 @@ export function RunClockButton() {
         {pending ? "Checking…" : "Check what is due today"}
       </button>
       {state && <p className={state.ok ? "text-xs text-ok" : "text-xs text-risk"}>{state.message}</p>}
+    </form>
+  );
+}
+
+export function SendButton({ id, retry }: { id: string; retry: boolean }) {
+  const [state, action, pending] = useActionState<QueueState, FormData>(sendNow, null);
+  if (state?.ok) return <p className="text-xs text-ok">{state.message}</p>;
+  return (
+    <form action={action} className="mt-1">
+      <input type="hidden" name="id" value={id} />
+      <button disabled={pending} className="rounded-lg border border-line px-2 py-1 text-xs hover:bg-surface-2 disabled:opacity-60">
+        {pending ? "Sending…" : retry ? "Try sending again" : "Send now"}
+      </button>
+      {state && !state.ok && <p className="mt-1 text-xs text-risk">{state.message}</p>}
     </form>
   );
 }

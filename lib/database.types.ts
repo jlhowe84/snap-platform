@@ -736,6 +736,98 @@ export type Database = {
           },
         ]
       }
+      date_changes: {
+        Row: {
+          company_id: string
+          created_at: string
+          decided_by: string | null
+          from_date: string
+          id: string
+          job_id: string
+          kind: string
+          notice_id: string | null
+          photo_day_id: string
+          reason: string
+          to_date: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          decided_by?: string | null
+          from_date: string
+          id?: string
+          job_id: string
+          kind: string
+          notice_id?: string | null
+          photo_day_id: string
+          reason: string
+          to_date?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          decided_by?: string | null
+          from_date?: string
+          id?: string
+          job_id?: string
+          kind?: string
+          notice_id?: string | null
+          photo_day_id?: string
+          reason?: string
+          to_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "date_changes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "date_changes_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "date_changes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "date_changes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "date_changes_notice_id_fkey"
+            columns: ["notice_id"]
+            isOneToOne: false
+            referencedRelation: "agent_actions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "date_changes_photo_day_id_fkey"
+            columns: ["photo_day_id"]
+            isOneToOne: false
+            referencedRelation: "photo_day_readiness"
+            referencedColumns: ["photo_day_id"]
+          },
+          {
+            foreignKeyName: "date_changes_photo_day_id_fkey"
+            columns: ["photo_day_id"]
+            isOneToOne: false
+            referencedRelation: "photo_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       date_holds: {
         Row: {
           company_id: string
@@ -1334,6 +1426,93 @@ export type Database = {
           },
         ]
       }
+      notice_mutes: {
+        Row: {
+          company_id: string
+          created_at: string
+          kind: string
+          profile_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          kind: string
+          profile_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          kind?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notice_mutes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notice_mutes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notices: {
+        Row: {
+          company_id: string
+          created_at: string
+          detail: string | null
+          href: string | null
+          id: string
+          kind: string
+          profile_id: string
+          read_at: string | null
+          title: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          detail?: string | null
+          href?: string | null
+          id?: string
+          kind: string
+          profile_id: string
+          read_at?: string | null
+          title: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          detail?: string | null
+          href?: string | null
+          id?: string
+          kind?: string
+          profile_id?: string
+          read_at?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notices_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_contacts: {
         Row: {
           company_id: string
@@ -1551,6 +1730,7 @@ export type Database = {
           start_time: string | null
           state: string | null
           stations: number
+          status: string
           updated_at: string
           zip: string | null
         }
@@ -1573,6 +1753,7 @@ export type Database = {
           start_time?: string | null
           state?: string | null
           stations?: number
+          status?: string
           updated_at?: string
           zip?: string | null
         }
@@ -1595,6 +1776,7 @@ export type Database = {
           start_time?: string | null
           state?: string | null
           stations?: number
+          status?: string
           updated_at?: string
           zip?: string | null
         }
@@ -2814,6 +2996,20 @@ export type Database = {
       }
     }
     Functions: {
+      action_send_begin: {
+        Args: { p_action: string; p_company: string }
+        Returns: Json
+      }
+      action_send_finish: {
+        Args: {
+          p_action: string
+          p_company: string
+          p_error?: string
+          p_ok: boolean
+          p_result?: Json
+        }
+        Returns: Database["public"]["Enums"]["action_status"]
+      }
       agent_is_paused: {
         Args: { p_company: string; p_key: string }
         Returns: boolean
@@ -2835,6 +3031,17 @@ export type Database = {
       }
       ask_snap_status: { Args: never; Returns: Json }
       build_season_board: { Args: { p_season: string }; Returns: number }
+      change_photo_day: {
+        Args: {
+          p_kind: string
+          p_new_date?: string
+          p_notice?: Json
+          p_override?: boolean
+          p_photo_day: string
+          p_reason?: string
+        }
+        Returns: string
+      }
       clock_due: { Args: { p_company: string; p_today: string }; Returns: Json }
       decide_action: {
         Args: {

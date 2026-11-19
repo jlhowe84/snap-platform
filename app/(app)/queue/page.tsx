@@ -3,15 +3,30 @@ import { requireStaff, hasAnyRole, ADMIN_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill } from "@/components/ui";
 import { DRAFT_LABEL, isDraftKind } from "@/lib/clock/drafts";
+import { DATE_NOTICE_KEY, DATE_NOTICE_LABEL } from "@/lib/jobs/date-change";
 import { approveAll } from "./actions";
-import { DraftForm, RunClockButton } from "./forms";
+import { DraftForm, RunClockButton, SendButton } from "./forms";
 
 type Draft = { to?: unknown; subject?: unknown; body?: unknown };
 type Refs = { job_id?: string | null; org_id?: string | null };
 
-const label = (key: string) => (isDraftKind(key) ? DRAFT_LABEL[key] : key);
+const label = (key: string) => (isDraftKind(key) ? DRAFT_LABEL[key] : key === DATE_NOTICE_KEY ? DATE_NOTICE_LABEL : key);
 const when = (iso: string) =>
   new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).format(new Date(iso));
+
+const STATUS_LABEL: Record<string, string> = {
+  approved: "Approved, not sent",
+  edited: "Approved with changes, not sent",
+  rejected: "Rejected",
+  sent: "Sent",
+  failed: "Could not send",
+};
+
+function sentTo(result: unknown) {
+  const r = (result ?? {}) as { sent_to?: unknown; test_mode?: unknown };
+  const to = Array.isArray(r.sent_to) ? r.sent_to.filter((x): x is string => typeof x === "string").join(", ") : "";
+  return r.test_mode ? `Went to the test address${to ? ` (${to})` : ""}` : `Went to ${to}`;
+}
 
 export default async function QueuePage() {
   const viewer = await requireStaff(["owner", "admin", "office", "support"]);
@@ -27,11 +42,11 @@ export default async function QueuePage() {
       .limit(100),
     supabase
       .from("agent_actions")
-      .select("id, action_type_key, status, draft, decided_at, decision_note, profiles!agent_actions_decided_by_fkey(full_name)")
-      .in("status", ["approved", "edited", "rejected"])
+      .select("id, action_type_key, status, draft, result, error, decided_at, decision_note, profiles!agent_actions_decided_by_fkey(full_name)")
+      .in("status", ["approved", "edited", "rejected", "sent", "failed"])
       .order("decided_at", { ascending: false })
       .limit(15),
-    supabase.from("settings").select("key, value").in("key", ["clock.enabled", "mail.test_mode"]),
+    supabase.from("settings").select("key, value").in("key", ["clock.enabled", "mail.test_mode", "mail.test_recipient"]),
   ]);
 
   const list = waiting ?? [];
@@ -47,6 +62,9 @@ export default async function QueuePage() {
   const counts = new Map<string, number>();
   for (const a of list) counts.set(a.action_type_key, (counts.get(a.action_type_key) ?? 0) + 1);
   const clockOn = settings?.find((s) => s.key === "clock.enabled")?.value === true;
+  const testMode = settings?.find((s) => s.key === "mail.test_mode")?.value !== false;
+  const testTo = settings?.find((s) => s.key === "mail.test_recipient")?.value;
+  const hasTestTo = typeof testTo === "string" && testTo.includes("@");
 
   return (
     <>
@@ -54,8 +72,12 @@ export default async function QueuePage() {
         {admin && <RunClockButton />}
       </PageHeader>
       <p className="mb-6 max-w-2xl text-sm text-muted">
-        Drafts wait here until a person approves them. Approving saves the final wording. Nothing is emailed from the
-        platform yet, and when sending arrives every message goes to the test address only.
+        Drafts wait here until a person approves them. Approving saves the final wording and sends the message.
+        {testMode
+          ? hasTestTo
+            ? " Test mode is on: every message goes to the test address only, never to the league."
+            : " Test mode is on and no test address is set yet, so approved drafts wait here unsent."
+          : " Messages go to the addresses on the draft."}
         {!clockOn && " The daily check is off, so drafts appear only when an owner or admin checks what is due."}
       </p>
 
@@ -118,8 +140,8 @@ export default async function QueuePage() {
                 return (
                   <li key={d.id}>
                     <p className="flex flex-wrap items-center gap-2">
-                      <Pill tone={d.status === "rejected" ? "risk" : d.status === "edited" ? "warn" : "ok"}>
-                        {d.status === "edited" ? "Approved with changes" : d.status === "approved" ? "Approved" : "Rejected"}
+                      <Pill tone={d.status === "rejected" || d.status === "failed" ? "risk" : d.status === "sent" ? "ok" : "warn"}>
+                        {STATUS_LABEL[d.status] ?? d.status}
                       </Pill>
                       <span className="text-muted">{label(d.action_type_key)}</span>
                     </p>
@@ -129,6 +151,11 @@ export default async function QueuePage() {
                       {d.decided_at ? `, ${when(d.decided_at)}` : ""}
                       {d.decision_note ? `: ${d.decision_note}` : ""}
                     </p>
+                    {d.status === "sent" && <p className="text-xs text-muted">{sentTo(d.result)}</p>}
+                    {d.status === "failed" && d.error && <p className="text-xs text-risk">{d.error}</p>}
+                    {(d.status === "approved" || d.status === "edited" || d.status === "failed") && (
+                      <SendButton id={d.id} retry={d.status === "failed"} />
+                    )}
                   </li>
                 );
               })}

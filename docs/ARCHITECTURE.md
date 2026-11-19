@@ -62,6 +62,24 @@ pause switch; `agent_actions` records every proposal and run;
 `lib/mail/guard.ts` rewrites every recipient to `mail.test_recipient` while
 `mail.test_mode` is true. Both are company settings, not code.
 
+`lib/mail/send.ts` is the only place a message leaves. It sends an approved
+row of `agent_actions` through Gmail from an allowed mailbox
+(`mail.send_from`, else the first of `mail.mailboxes`):
+
+1. It refuses before touching the action when test mode is on with no test
+   recipient, when no mailbox is allowed, or when no Workspace key is stored.
+2. `action_send_begin()` (service role only) claims the action. It refuses a
+   draft nobody approved, a sent one, one claimed in the last two minutes,
+   and any action type the pause switch covers.
+3. The portal link placeholder becomes a fresh link for the job contact in
+   the To line. The token goes into the email only; the row keeps its hash.
+4. The recipients pass the guard, the message goes out as plain text
+   (`lib/mail/mime.ts`), and `action_send_finish()` records `sent` with the
+   Gmail message id, who it went to and who it was meant for, or `failed`
+   with the reason. A failed send can be tried again.
+
+`mail.test_mode` and `mail.test_recipient` are not editable in the app.
+
 ## Integrations
 
 Credentials are stored in Supabase Vault, mapped per company in
@@ -106,6 +124,28 @@ Coordinators may write only: planning form answers, roster uploads (25 MB
 each), their own teams, schedule slots, and schedule status up to `started`.
 `public.submit_schedule()` submits only when `public.schedule_problems()` finds
 no missing team, overlap or out-of-range station.
+
+## Date changes (Wave A)
+
+Moving, postponing or cancelling a photo day is one action for an owner or
+admin: `change_photo_day()`. A trigger refuses a signed-in edit of
+`photo_days.date` or `photo_days.status` any other way, so no step is skipped.
+The function:
+
+- keeps the first date in `original_date` and records a row in `date_changes`
+  (kind, from, to, reason, who);
+- sets `photo_days.status` (`scheduled`, `postponed`, `cancelled`). Only
+  scheduled days take stations in `date_capacity` or get chased. A reschedule
+  onto a full date is refused unless the override is ticked. A job whose
+  photo days are all cancelled becomes `cancelled`;
+- restarts the chase: old `clock_log` steps keep their rows under a retired
+  key, and chase drafts still waiting for the old date are withdrawn;
+- queues a `dates.notify` draft to the coordinator (`lib/jobs/date-change.ts`)
+  for approval, logs a line on the league timeline, and adds tasks to update
+  Captura and the calendar by hand.
+
+Crew shifts, kits, parent notices and the prepay close date join the cascade
+when those modules exist.
 
 ## Coordinator portal
 
@@ -155,8 +195,8 @@ a signed version never changes, so edits always become a new version.
   type's clean streak. A date-at-risk note is decided by an owner or admin.
 - Drafts are templates (`lib/clock/drafts.ts`). The portal link is a
   placeholder filled at send time, so no live token is stored in a draft.
-- Approving does not send. The mail runner comes later and passes
-  `lib/mail/guard.ts`.
+- Approving sends (see Mail). If the send cannot happen, the approval stands
+  and the queue offers "Send now".
 
 ## Planning form, rosters and the scheduler (Wave A)
 
@@ -201,6 +241,35 @@ sees; the office uses the same pages ("View as staff").
 
 Not built yet: reading a roster into teams (the roster worker), drag to swap,
 a print layout, and automatic TC numbers.
+
+## Calendar
+
+`/calendar` is one month grid (`lib/calendar.ts`): scheduled photo days, held
+dates, the day each hold releases, and open tasks by due date, with photo
+stations in use per day against `capacity.stations_per_date`. Views: everything,
+my tasks only, photo days only. It reads as the signed-in person. Makeup
+sessions and crew shifts join it with their modules.
+
+## Captura setup list
+
+The job page lists the planning playbook's steps tagged `captura` as
+checkboxes (`lib/captura/setup.ts`). Ticking one writes a task on the job
+linked to the step, so it also shows on the task list. Beside the steps are
+the values the office pastes into Captura: the coupon code (`jobs.coupon`),
+the four marketing fields, and the welcome message, filled from the
+`captura.welcome_templates` setting (keys `default` and one per sport, with a
+`{{coupon}}` slot). Nothing here calls Captura. A Notion re-import rewrites
+step tags, so re-tag the steps after one.
+
+## Notices
+
+`/notices` is each person's own list. A notice is one row in `notices`,
+written only by triggers through `private.notify()`, which skips the person
+who did the thing, inactive people and any kind they turned off
+(`notice_mutes`). Three kinds exist: a task someone else assigned you, a
+photo day change (owner, admin, office) and a date-at-risk note waiting
+(owner, admin). A person can only mark their own notices read. Delivery is
+in-app only for now.
 
 ## Ask SNAP
 

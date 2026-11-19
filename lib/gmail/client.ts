@@ -9,8 +9,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // The key lives in Supabase Vault (integration "google_workspace") and is
 // read with the service role. The grant technically reaches every mailbox in
 // the Workspace, so this client refuses any mailbox that is not listed in the
-// company's mail.mailboxes setting. Outgoing mail must still pass
-// lib/mail/guard.ts; this file has no send function yet.
+// company's mail.mailboxes setting. Outgoing mail must pass
+// lib/mail/guard.ts first; lib/mail/send.ts is the only caller of sendRaw.
 
 const ServiceAccountSchema = z.object({
   client_email: z.string().email(),
@@ -94,7 +94,27 @@ export function createGmailClient(
     return (await res.json()) as T;
   }
 
+  async function post<T>(path: string, body: unknown) {
+    const res = await fetchImpl(`${API}/${encodeURIComponent(box)}/${path}`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${await getToken()}`,
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`Gmail POST ${path} failed (${res.status})`);
+    return (await res.json()) as T;
+  }
+
   return {
+    /**
+     * Sends one message from this mailbox. Only lib/mail/send.ts calls this,
+     * after lib/mail/guard.ts has rewritten the recipients. `raw` is the
+     * base64url RFC 822 text.
+     */
+    sendRaw: (raw: string) => post<{ id: string; threadId: string }>("messages/send", { raw }),
     /** Address and message count only; no message content. */
     profile: () => get<{ emailAddress: string; messagesTotal: number; threadsTotal: number }>("profile"),
   };
