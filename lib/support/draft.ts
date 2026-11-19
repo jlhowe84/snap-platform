@@ -48,6 +48,14 @@ export async function draftSupportReply(viewer: Viewer & { companyId: string }, 
   const thread = (messages ?? []) as DraftMessage[];
   if (!canDraft(thread)) return { ok: false, message: "There is no customer message to answer yet." };
 
+  // The knowledge base articles that best match what the customer asked.
+  const lastIn = [...thread].reverse().find((m) => m.direction === "in");
+  const { data: articles } = await supabase.rpc("kb_search", {
+    p_query: `${c.subject ?? ""} ${(lastIn?.body_text ?? "").slice(0, 1500)}`,
+    p_shelves: ["answers", "support"],
+    p_limit: 6,
+  });
+
   const model = typeof modelRow?.value === "string" ? modelRow.value : DEFAULT_MODEL;
   if (!isPricedModel(model)) return { ok: false, message: "Drafting is set to a model with no recorded price, so it cannot keep to its cap. Ask an admin to check the agent.model setting." };
 
@@ -104,6 +112,7 @@ export async function draftSupportReply(viewer: Viewer & { companyId: string }, 
           subject: c.subject,
           messages: thread,
           savedReplies: saved ?? [],
+          articles: (articles ?? []).map((a) => ({ title: a.title, section: a.section, body: a.body })),
           galleries,
         }),
       },

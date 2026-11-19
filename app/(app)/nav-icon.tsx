@@ -58,6 +58,13 @@ const ICONS: Record<string, ReactNode> = {
   "/season": <path d="M4 20V11M10 20V4M16 20v-7M21 20H3" />,
   // Leagues: a shield
   "/leagues": <path d="M12 3l8 3v6c0 4.5-3.3 7.8-8 9-4.7-1.2-8-4.5-8-9V6z" />,
+  // Knowledge: an open book
+  "/knowledge": (
+    <>
+      <path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5c-3.5-.5-6.5 0-8.5 1.5z" />
+      <path d="M12 6.5v13" />
+    </>
+  ),
   // Crew: two people
   "/crew": (
     <>

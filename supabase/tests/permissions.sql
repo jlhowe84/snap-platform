@@ -206,6 +206,11 @@ insert into public.lab_invoice_skips (company_id, gmail_message_id, mailbox, rea
 insert into public.lab_invoice_sync_state (company_id, mailbox) values
   ('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid');
 
+-- Knowledge base. One article in company A, one in B.
+insert into public.kb_articles (id, company_id, shelf, section, title, body) values
+  ('f0000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', 'answers', 'Ordering', 'When will my order arrive?', 'Orders ship from the lab within two weeks.'),
+  ('f0000000-0000-0000-0000-0000000000b1', 'b0000000-0000-0000-0000-00000000000b', 'answers', 'Ordering', 'Shipping', 'Other company answer.');
+
 -- ---------------------------------------------------------------------------
 -- Sign-up and invites
 -- ---------------------------------------------------------------------------
@@ -266,7 +271,9 @@ declare
     array['lab_invoice_orders',    '1','1','1','0','0','0','0','1'],
     array['lab_invoice_items',     '2','2','2','0','0','0','0','0'],
     array['lab_invoice_skips',     '1','1','1','0','0','0','0','0'],
-    array['lab_invoice_sync_state','1','1','1','0','0','0','0','0']
+    array['lab_invoice_sync_state','1','1','1','0','0','0','0','0'],
+    array['kb_articles',           '1','1','1','1','0','0','0','1'],
+    array['kb_article_versions',   '1','1','1','1','0','0','0','1']
   ];
   who text[] := array['owner','admin','office','support','crew','coord','outsider','owner_b'];
   i int; k int;
@@ -1045,6 +1052,32 @@ select t.count_is($$select public.lab_assign_reference('2027 League A1', '400000
 select t.login('owner_b');
 select t.count_is($$select public.lab_assign_reference('2027 League A1', null)$$, 0, 'another company''s match touches nothing');
 select t.count_is($$select count(*) from public.lab_cost_summary()$$, 1, 'another company sees only its own lab costs');
+
+-- Knowledge base.
+select t.login('support');
+select t.count_is($$select count(*) from public.kb_search('when does my order arrive')$$, 1, 'support finds an article by its words');
+select t.count_is($$with u as (update public.kb_articles set body = 'changed' returning 1) select count(*) from u$$, 0, 'support cannot edit an article');
+select t.fails($$insert into public.kb_articles (company_id, title, body) values ('a0000000-0000-0000-0000-00000000000a', 'x', 'y')$$, 'support cannot add an article');
+select t.login('office');
+select t.works($$update public.kb_articles set body = 'Orders ship from the lab within ten business days.', version = 40, created_by = '10000000-0000-0000-0000-000000000004' where id = 'f0000000-0000-0000-0000-0000000000a1'$$, 'office edits an article');
+select t.count_is($$select count(*) from public.kb_articles where id = 'f0000000-0000-0000-0000-0000000000a1' and version = 2 and created_by is null and updated_by = '10000000-0000-0000-0000-000000000003'$$, 1, 'an edit counts the next version and records who');
+select t.count_is($$select count(*) from public.kb_article_versions where article_id = 'f0000000-0000-0000-0000-0000000000a1'$$, 2, 'the earlier wording is kept as a version');
+select t.works($$update public.kb_articles set position = 5 where id = 'f0000000-0000-0000-0000-0000000000a1'$$, 'office reorders an article');
+select t.count_is($$select count(*) from public.kb_article_versions where article_id = 'f0000000-0000-0000-0000-0000000000a1'$$, 2, 'reordering is not a new version');
+select t.works($$insert into public.kb_articles (company_id, shelf, title, body, created_by) values ('a0000000-0000-0000-0000-00000000000a', 'handbook', 'Loading the van', 'Check the list.', '10000000-0000-0000-0000-000000000001')$$, 'office adds an article');
+select t.count_is($$select count(*) from public.kb_articles where title = 'Loading the van' and created_by = '10000000-0000-0000-0000-000000000003'$$, 1, 'a new article is in the writer''s own name');
+select t.fails($$insert into public.kb_articles (company_id, title, body) values ('b0000000-0000-0000-0000-00000000000b', 'x', 'y')$$, 'office cannot add an article to another company');
+select t.works($$update public.kb_articles set company_id = 'b0000000-0000-0000-0000-00000000000b' where id = 'f0000000-0000-0000-0000-0000000000a1'$$, 'moving an article is ignored');
+select t.count_is($$select count(*) from public.kb_articles where id = 'f0000000-0000-0000-0000-0000000000a1' and company_id = 'a0000000-0000-0000-0000-00000000000a'$$, 1, 'the article stays in its company');
+select t.fails($$delete from public.kb_articles where id = 'f0000000-0000-0000-0000-0000000000a1'$$, 'an article is retired, not deleted');
+select t.fails($$insert into public.kb_article_versions (company_id, article_id, version, shelf, title, body, status) values ('a0000000-0000-0000-0000-00000000000a', 'f0000000-0000-0000-0000-0000000000a1', 9, 'answers', 'x', 'y', 'published')$$, 'versions cannot be written by hand');
+select t.fails($$update public.kb_article_versions set body = 'rewritten'$$, 'versions cannot be rewritten');
+select t.works($$update public.kb_articles set status = 'retired' where id = 'f0000000-0000-0000-0000-0000000000a1'$$, 'office retires an article');
+select t.count_is($$select count(*) from public.kb_search('when does my order arrive')$$, 0, 'a retired article is not found');
+select t.login('coord');
+select t.count_is($$select count(*) from public.kb_search('order')$$, 0, 'a coordinator finds nothing in the knowledge base');
+select t.login('owner_b');
+select t.count_is($$select count(*) from public.kb_search('shipping')$$, 1, 'another company finds only its own articles');
 
 reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;

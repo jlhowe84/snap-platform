@@ -464,3 +464,33 @@ again.
   (emails that could not be read), `lab_invoice_sync_state`. Office only
   (owner, admin, office); the server is the only writer.
   `lab_cost_summary()` adds costs, net pay and profit up as the person asking.
+
+## Knowledge base (Wave B)
+
+`kb_articles` holds one article per question or topic on one of three shelves:
+`answers` (what parents ask, in approved wording; the parent help center will
+read this shelf), `support` (voice, handling rules, reply templates, company
+facts, open policy questions) and `handbook` (staff procedures). Status is
+`published`, `draft` or `retired`; nothing is deleted.
+
+- Staff (owner, admin, office, support) read; owner, admin and office write.
+  A before trigger stamps `created_by`, `updated_by` and the version number, and
+  keeps `company_id` fixed. An after trigger (security definer) copies every
+  new version into `kb_article_versions`, which people can read but not write.
+  Reordering (`position`) is not a new version.
+- `search` is a generated, weighted tsvector (title, section, body).
+  `kb_search(query, shelves, limit)` runs as the caller and matches any word
+  of a question, so a support draft finds articles from the customer's words.
+- Pages: `/knowledge` (shelves, sections, search across shelves),
+  `/knowledge/[id]` (the article, editing, earlier versions), `/knowledge/new`,
+  `/knowledge/import`.
+- Import (`lib/kb/import.ts`) reads the customer service document's Markdown by
+  rule: `##` sections, `###` questions to the answers shelf, whole-line bold
+  names (templates) and plain sections to the support shelf. Front matter and
+  anything before the first `##` is left out; an article already present with
+  the same shelf, section and title is skipped.
+- Articles are written in light Markdown and shown through `lib/kb/blocks.ts`
+  and `components/kb-text.tsx`, which build elements from plain data, so no
+  HTML in an article reaches the page. Links are web or mail addresses only.
+- Support drafts (`lib/support/draft.ts`) add up to six matching published
+  articles from the answers and support shelves to the prompt.
