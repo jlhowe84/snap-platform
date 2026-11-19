@@ -292,6 +292,7 @@ declare
     array['shifts',                '5','5','5','5','0','0','0','1'],
     array['shift_responses',       '0','0','0','0','0','0','0','0'],
     array['pay_rates',             '2','2','0','0','1','0','0','0'],
+    array['pay_lines',             '0','0','0','0','0','0','0','0'],
     array['kb_article_versions',   '1','1','1','1','0','0','0','1']
   ];
   who text[] := array['owner','admin','office','support','crew','coord','outsider','owner_b'];
@@ -1125,6 +1126,15 @@ select t.works($$update public.shifts set status = 'filled', filled_by = 'office
 select t.fails($$update public.shifts set status = 'filled', filled_by = 'office', crew_member_id = '91000000-0000-0000-0000-0000000000b1' where id = '90000000-0000-0000-0000-0000000000a4'$$, 'office cannot assign another company''s crew');
 select t.fails($$update public.shifts set status = 'filled' where id = '90000000-0000-0000-0000-0000000000a4'$$, 'a filled shift needs a person');
 select t.fails($$insert into public.pay_rates (company_id, crew_member_id, position, amount) select company_id, id, 'office', 20 from public.crew_members limit 1$$, 'office cannot set pay rates');
+select t.login('office');
+reset role;
+insert into public.action_types (company_id, key, description, kind, autonomy_level)
+  values ('a0000000-0000-0000-0000-00000000000a', 'crew.notify', 'Crew notice', 'propose', 1);
+select t.login('office');
+select t.works($$insert into public.agent_actions (company_id, action_type_key, actor_kind, actor_id, status, draft) values ('a0000000-0000-0000-0000-00000000000a', 'crew.notify', 'person', '10000000-0000-0000-0000-000000000003', 'proposed', '{"to": ["crew@test.invalid"], "subject": "You''re on", "body": "Booked."}')$$, 'office queues a crew notice for approval');
+reset role;
+delete from public.agent_actions where action_type_key = 'crew.notify';
+delete from public.action_types where key = 'crew.notify';
 select t.login('admin');
 select t.works($$insert into public.pay_rates (company_id, crew_member_id, position, amount, unit) select company_id, id, 'office', 20, 'hour' from public.crew_members where full_name = 'Crew A two'$$, 'admin sets a pay rate');
 select t.count_is($$select count(*) from public.activity_log where table_name = 'pay_rates'$$, 0, 'pay never reaches the activity log');
@@ -1136,6 +1146,29 @@ select t.count_is($$select count(*) from public.crew_shift_board()$$, 0, 'a post
 reset role;
 update public.photo_days set status = 'scheduled' where job_id = '40000000-0000-0000-0000-0000000000a1';
 select set_config('app.date_change', '', true);
+-- Pay lines.
+reset role;
+insert into public.settings (company_id, key, value) values ('a0000000-0000-0000-0000-00000000000a', 'pay.mileage_cents_per_mile', '50')
+  on conflict (company_id, key) do update set value = excluded.value;
+select t.login('office');
+select t.fails($$select public.create_pay_lines('2027-01-01', '2027-12-31')$$, 'office cannot add pay');
+select t.login('admin');
+select t.count_is($$select public.create_pay_lines('2027-01-01', '2027-12-31')$$, 2, 'admin adds a pay line for each filled shift');
+select t.count_is($$select public.create_pay_lines('2027-01-01', '2027-12-31')$$, 0, 'and never twice');
+select t.count_is($$select count(*) from public.pay_lines where base = 100 and unit = 'shift' and created_by = '10000000-0000-0000-0000-000000000002'$$, 2, 'each line is priced from the person''s rate');
+select t.works($$update public.pay_lines set miles = 31, mileage = 999 where position = 'photographer'$$, 'admin enters miles');
+select t.count_is($$select count(*) from public.pay_lines where position = 'photographer' and mileage = 15.50 and total = 115.50$$, 1, 'mileage comes from the company rate');
+select t.works($$update public.pay_lines set status = 'paid' where position = 'photographer'$$, 'admin marks a line paid');
+select t.count_is($$select count(*) from public.pay_lines where status = 'paid' and approved_by is not null and paid_at is not null$$, 1, 'payment is stamped');
+select t.count_is($$with u as (update public.pay_lines set adjustment = 5 where status = 'paid' returning 1) select count(*) from u$$, 0, 'a paid line cannot change');
+select t.count_is($$with u as (delete from public.pay_lines where status = 'paid' returning 1) select count(*) from u$$, 0, 'a paid line cannot be removed');
+select t.login('office');
+select t.count_is($$select count(*) from public.pay_lines$$, 0, 'office sees no pay');
+select t.login('crew');
+select t.count_is($$select count(*) from public.pay_lines$$, 1, 'crew see their own pay');
+select t.count_is($$with u as (update public.pay_lines set adjustment = 500 returning 1) select count(*) from u$$, 0, 'crew cannot change their pay');
+select t.login('owner_b');
+select t.count_is($$select count(*) from public.pay_lines$$, 0, 'another company sees no pay');
 select t.login('coord');
 select t.count_is($$select count(*) from public.crew_shift_board()$$, 0, 'a coordinator has no shift board');
 select t.fails($$select public.respond_to_shift('90000000-0000-0000-0000-0000000000a4', true)$$, 'a coordinator cannot answer a shift');

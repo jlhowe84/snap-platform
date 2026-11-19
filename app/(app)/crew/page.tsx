@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireStaff, OFFICE_ROLES } from "@/lib/auth";
+import { requireStaff, hasAnyRole, ADMIN_ROLES, OFFICE_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Empty, PageHeader, Pill } from "@/components/ui";
+import { ButtonLink, Card, Empty, PageHeader, Pill } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Crew" };
 
 export default async function CrewPage() {
-  await requireStaff(OFFICE_ROLES);
+  const viewer = await requireStaff(OFFICE_ROLES);
   const supabase = await createClient();
   const { data: crew, error } = await supabase
     .from("crew_members")
@@ -17,7 +17,9 @@ export default async function CrewPage() {
 
   return (
     <>
-      <PageHeader eyebrow="People" title="Crew" />
+      <PageHeader eyebrow="People" title="Crew">
+        {hasAnyRole(viewer, ADMIN_ROLES) && <ButtonLink href="/crew/pay" variant="ghost">Crew pay</ButtonLink>}
+      </PageHeader>
       <Card>
         {error ? (
           <Empty>Could not load crew: {error.message}</Empty>

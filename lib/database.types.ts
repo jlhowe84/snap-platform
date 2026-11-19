@@ -2171,6 +2171,120 @@ export type Database = {
           },
         ]
       }
+      pay_lines: {
+        Row: {
+          adjustment: number
+          approved_at: string | null
+          approved_by: string | null
+          base: number
+          company_id: string
+          created_at: string
+          created_by: string | null
+          crew_member_id: string
+          description: string | null
+          hours: number | null
+          id: string
+          mileage: number
+          miles: number
+          note: string | null
+          paid_at: string | null
+          position: string | null
+          rate: number | null
+          shift_id: string | null
+          status: string
+          total: number | null
+          unit: string | null
+          updated_at: string
+          work_date: string
+        }
+        Insert: {
+          adjustment?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          base?: number
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          crew_member_id: string
+          description?: string | null
+          hours?: number | null
+          id?: string
+          mileage?: number
+          miles?: number
+          note?: string | null
+          paid_at?: string | null
+          position?: string | null
+          rate?: number | null
+          shift_id?: string | null
+          status?: string
+          total?: number | null
+          unit?: string | null
+          updated_at?: string
+          work_date: string
+        }
+        Update: {
+          adjustment?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          base?: number
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          crew_member_id?: string
+          description?: string | null
+          hours?: number | null
+          id?: string
+          mileage?: number
+          miles?: number
+          note?: string | null
+          paid_at?: string | null
+          position?: string | null
+          rate?: number | null
+          shift_id?: string | null
+          status?: string
+          total?: number | null
+          unit?: string | null
+          updated_at?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pay_lines_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_lines_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_lines_crew_member_id_fkey"
+            columns: ["crew_member_id"]
+            isOneToOne: false
+            referencedRelation: "crew_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_lines_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: true
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pay_rates: {
         Row: {
           amount: number
@@ -3989,6 +4103,10 @@ export type Database = {
         Returns: string
       }
       clock_due: { Args: { p_company: string; p_today: string }; Returns: Json }
+      create_pay_lines: {
+        Args: { p_from: string; p_to: string }
+        Returns: number
+      }
       crew_shift_board: {
         Args: never
         Returns: {

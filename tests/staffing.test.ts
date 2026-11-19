@@ -64,3 +64,36 @@ describe("summary and messages", () => {
     expect(responseMessage("no_longer_open").ok).toBe(false);
   });
 });
+
+import { crewNotice, firstNameOf } from "@/lib/staffing/notices";
+
+describe("crewNotice", () => {
+  const base = {
+    firstName: "Ann",
+    jobName: "League A",
+    date: "2027-04-17",
+    position: "photo_attendant",
+    startTime: "09:00:00",
+    endTime: "13:00:00",
+    place: "Main Park, Springfield",
+    shiftsUrl: "https://example.test/shifts",
+    companyName: "Test Co",
+  };
+  it("tells a person they are booked, with the time, place and link, and no em dashes", () => {
+    const n = crewNotice({ ...base, kind: "added" });
+    expect(n.subject).toBe("You're on for League A, Sat, Apr 17, 2027");
+    expect(n.body).toContain("photo attendant for League A on Sat, Apr 17, 2027, 9:00 AM to 1:00 PM");
+    expect(n.body).toContain("Where: Main Park, Springfield");
+    expect(n.body).toContain("https://example.test/shifts");
+    expect(n.body).not.toContain("—");
+  });
+  it("tells a person they are off a shift", () => {
+    const n = crewNotice({ ...base, kind: "removed", place: null });
+    expect(n.subject).toBe("Change to your shift on Sat, Apr 17, 2027");
+    expect(n.body).toContain("no longer booked as photo attendant");
+  });
+  it("finds a first name", () => {
+    expect(firstNameOf("  Ann  Lee ")).toBe("Ann");
+    expect(firstNameOf(null)).toBeNull();
+  });
+});

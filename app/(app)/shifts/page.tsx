@@ -8,6 +8,8 @@ import { Answer } from "./answer";
 
 export const metadata: Metadata = { title: "My shifts" };
 
+const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+
 type Row = {
   shift_id: string;
   kind: string;
@@ -53,7 +55,11 @@ function Shift({ s, children }: { s: Row; children?: React.ReactNode }) {
 export default async function ShiftsPage() {
   await requireStaff(["crew"]);
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("crew_shift_board");
+  const [{ data, error }, { data: pay }] = await Promise.all([
+    supabase.rpc("crew_shift_board"),
+    // RLS returns only this person's own pay.
+    supabase.from("pay_lines").select("work_date, description, total, status").order("work_date", { ascending: false }).limit(10),
+  ]);
   const rows = (data ?? []) as Row[];
   const offered = rows.filter((r) => r.kind === "offered");
   const mine = rows.filter((r) => r.kind === "mine");
@@ -90,6 +96,23 @@ export default async function ShiftsPage() {
         )}
         <p className="mt-3 text-xs text-muted">Can&apos;t make a shift you took? Call or text the office so they can find someone.</p>
       </Card>
+      {pay && pay.length > 0 && (
+        <Card title="Your pay" className="mt-6">
+          <ul className="divide-y divide-line text-sm">
+            {pay.map((p, i) => (
+              <li key={i} className="flex items-center justify-between gap-3 py-2">
+                <span>
+                  {formatDate(p.work_date)} · {p.description}
+                </span>
+                <span className="flex items-center gap-2">
+                  {money.format(Number(p.total))}
+                  <Pill tone={p.status === "paid" ? "ok" : "muted"}>{p.status === "paid" ? "Paid" : "Coming"}</Pill>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
     </div>
   );
 }

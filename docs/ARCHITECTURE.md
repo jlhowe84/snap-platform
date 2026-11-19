@@ -497,9 +497,9 @@ facts, open policy questions) and `handbook` (staff procedures). Status is
 
 ## Staffing (Wave B, module 7)
 
-Replaces StaffMate's shift picking. Part one covers shifts, offers and pay
-rates; pay per shift with mileage, payroll reports by pay period and crew
-notices (email and text) come next.
+Replaces StaffMate: shift picking, pay rates, pay per shift with mileage, the
+payroll report, and the added or removed notices. Text messages and the
+day-before briefing come with the field view and the clock.
 
 - `shifts`: one row per position needed on a photo day (photographer, poser,
   coordinator, photo attendant), with an optional station and times. Status is
@@ -526,3 +526,18 @@ notices (email and text) come next.
   assign, take off, cancel), `/shifts` (the crew phone page), `/crew/[id]`
   (details, coming shifts, pay rates for owner and admin). Crew with no office
   role land on `/shifts` and see only it and their notices.
+- `pay_lines`: one per filled shift worked (`create_pay_lines(from, to)`,
+  owner and admin only), priced from the person's rate: the rate per shift, or
+  per hour times the shift's length. Miles are entered by hand and paid at
+  `pay.mileage_cents_per_mile` (0 until Josh sets it); a trigger works out the
+  mileage, stamps who approved and when it was paid. Pending, approved, paid;
+  a paid line cannot change or be removed. Crew read their own.
+- `/crew/pay` (owner and admin): a date range that starts as the last
+  `pay.period_days`, totals by person, each line's miles, hours and
+  adjustment, approve and mark paid in bulk, and `/crew/pay/export` (CSV, cells
+  that look like formulas are defused). Payroll is still run where it runs
+  today, from this report.
+- Notices: when the office puts someone on a shift, takes them off or cancels
+  their shift, a `crew.notify` draft to that person goes into the approval
+  queue (`lib/staffing/notices.ts`). It is sent like any other draft, so test
+  mode applies.
