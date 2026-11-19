@@ -10,7 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // read with the service role. The grant technically reaches every mailbox in
 // the Workspace, so this client refuses any mailbox that is not listed in the
 // company's mail.mailboxes setting. Outgoing mail must pass
-// lib/mail/guard.ts first; lib/mail/send.ts is the only caller of sendRaw.
+// lib/mail/guard.ts first; lib/mail/send.ts and lib/mail/reply.ts are the only callers of sendRaw.
 
 const ServiceAccountSchema = z.object({
   client_email: z.string().email(),
@@ -120,11 +120,19 @@ export function createGmailClient(
 
   return {
     /**
-     * Sends one message from this mailbox. Only lib/mail/send.ts calls this,
+     * Sends one message from this mailbox. Only lib/mail/send.ts and lib/mail/reply.ts call this,
      * after lib/mail/guard.ts has rewritten the recipients. `raw` is the
      * base64url RFC 822 text.
      */
-    sendRaw: (raw: string) => post<{ id: string; threadId: string }>("messages/send", { raw }),
+    sendRaw: (raw: string, threadId?: string) =>
+      post<{ id: string; threadId: string }>("messages/send", threadId ? { raw, threadId } : { raw }),
+    /** The Message-ID header of one stored message, for answering it. No content. */
+    messageIdHeader: async (id: string) => {
+      const m = await get<{ payload?: GmailPart }>(
+        `messages/${encodeURIComponent(id)}?format=metadata&metadataHeaders=Message-ID`,
+      );
+      return m.payload?.headers?.find((h) => h.name.toLowerCase() === "message-id")?.value ?? null;
+    },
     /**
      * Thread ids matching a Gmail search, newest first. Spam and trash are
      * left out by Gmail unless asked for, and they are never asked for.

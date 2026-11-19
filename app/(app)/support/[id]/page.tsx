@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill, cx } from "@/components/ui";
 import { SUPPORT_ROLES, SUPPORT_STATUS_LABEL, SUPPORT_STATUS_TONE } from "@/lib/support/labels";
 import { takeConversation } from "../actions";
-import { NoteForm, WorkForm } from "./work";
+import { NoteForm, ReplyForm, WorkForm } from "./work";
 
 export const metadata: Metadata = { title: "Support conversation" };
 
@@ -17,7 +17,7 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
   if (!id.success) notFound();
   const supabase = await createClient();
 
-  const [{ data: c }, { data: messages }, { data: people }, { data: settings }] = await Promise.all([
+  const [{ data: c }, { data: messages }, { data: people }, { data: settings }, { data: saved }] = await Promise.all([
     supabase
       .from("support_conversations")
       .select("id, subject, customer_name, customer_email, status, category, assignee_id, mailbox, organization_id, first_response_at, organizations(name)")
@@ -29,7 +29,8 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
       .eq("conversation_id", id.data)
       .order("sent_at"),
     supabase.from("profiles").select("id, full_name, active, profile_roles(role)").order("full_name"),
-    supabase.from("settings").select("key, value").eq("key", "support.categories"),
+    supabase.from("settings").select("key, value").in("key", ["support.categories", "mail.test_mode"]),
+    supabase.from("support_saved_replies").select("id, title, body").eq("active", true).order("title"),
   ]);
   if (!c) notFound();
 
@@ -37,7 +38,9 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
   const desk = (people ?? [])
     .filter((p) => p.active && (p.profile_roles as { role: string }[]).some((r) => (SUPPORT_ROLES as readonly string[]).includes(r.role)))
     .map((p) => ({ id: p.id, name: p.full_name ?? "Unnamed" }));
-  const listed = settings?.[0]?.value;
+  const listed = settings?.find((r) => r.key === "support.categories")?.value;
+  // Missing means on, the same rule the mail guard uses.
+  const testMode = settings?.find((r) => r.key === "mail.test_mode")?.value !== false;
   const categories = Array.isArray(listed) ? listed.filter((x): x is string => typeof x === "string") : [];
   const league = (c.organizations as { name: string } | null)?.name;
   const when = new Intl.DateTimeFormat("en-US", {
@@ -82,6 +85,9 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
               </article>
             );
           })}
+          <Card title="Reply" action={<Link href="/support/replies" className="text-sm text-muted hover:text-accent">Saved replies</Link>}>
+            <ReplyForm id={c.id} to={c.customer_email} testMode={testMode} saved={saved ?? []} customerName={c.customer_name} myName={viewer.name} />
+          </Card>
           <Card>
             <NoteForm id={c.id} />
           </Card>

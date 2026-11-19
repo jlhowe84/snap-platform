@@ -98,3 +98,72 @@ export async function addNote(id: string, _prev: SupportState, form: FormData): 
   revalidatePath(`/support/${conversationId.data}`);
   return { ok: true, message: "Note added." };
 }
+
+const AFTER = ["waiting_customer", "open", "closed"] as const;
+
+/**
+ * Sends a reply to the customer from the conversation's mailbox. While test
+ * mode is on it goes to the test address only and is kept as a note.
+ */
+export async function sendReply(id: string, _prev: SupportState, form: FormData): Promise<SupportState> {
+  const viewer = await requireStaff(SUPPORT_ROLES);
+  const conversationId = z.uuid().safeParse(id);
+  const body = z.string().trim().min(1).max(20000).safeParse(form.get("body"));
+  const after = z.enum(AFTER).safeParse(form.get("after") ?? "waiting_customer");
+  if (!conversationId.success || !body.success || !after.success) {
+    return { ok: false, message: "Write a reply first (20,000 characters at most)." };
+  }
+  // RLS decides whether this person can see the conversation at all.
+  const supabase = await createClient();
+  const { data: mine } = await supabase.from("support_conversations").select("id").eq("id", conversationId.data).maybeSingle();
+  if (!mine) return { ok: false, message: "That conversation was not found." };
+
+  const { sendSupportReply } = await import("@/lib/mail/reply");
+  const result = await sendSupportReply({
+    companyId: viewer.companyId,
+    authorId: viewer.id,
+    conversationId: conversationId.data,
+    body: body.data,
+  });
+  revalidatePath(`/support/${conversationId.data}`);
+  if (!result.ok) return result;
+  if (result.testMode) {
+    return { ok: true, message: `Test mode is on, so this went only to ${result.sentTo.join(", ")}. The customer did not get it.` };
+  }
+  await supabase.from("support_conversations").update({ status: after.data }).eq("id", conversationId.data);
+  revalidatePath("/support");
+  return { ok: true, message: "Reply sent." };
+}
+
+const Saved = z.object({
+  title: z.string().trim().min(1).max(120),
+  body: z.string().trim().min(1).max(10000),
+  category: z.string().trim().max(60),
+});
+
+export async function saveSavedReply(id: string | null, _prev: SupportState, form: FormData): Promise<SupportState> {
+  const viewer = await requireStaff(SUPPORT_ROLES);
+  const parsed = Saved.safeParse({ title: form.get("title"), body: form.get("body"), category: form.get("category") ?? "" });
+  if (!parsed.success) return { ok: false, message: "A saved reply needs a title and some text." };
+  const row = { title: parsed.data.title, body: parsed.data.body, category: parsed.data.category || null };
+  const supabase = await createClient();
+  if (id) {
+    const replyId = z.uuid().safeParse(id);
+    if (!replyId.success) return { ok: false, message: "That saved reply was not found." };
+    const { data, error } = await supabase.from("support_saved_replies").update(row).eq("id", replyId.data).select("id");
+    if (error || !data?.length) return { ok: false, message: "Could not save. Try again." };
+  } else {
+    const { error } = await supabase.from("support_saved_replies").insert({ ...row, company_id: viewer.companyId, created_by: viewer.id });
+    if (error) return { ok: false, message: "Could not save. Try again." };
+  }
+  revalidatePath("/support/replies");
+  return { ok: true, message: "Saved." };
+}
+
+export async function setSavedReplyActive(id: string, active: boolean) {
+  await requireStaff(SUPPORT_ROLES);
+  const replyId = z.uuid().parse(id);
+  const supabase = await createClient();
+  await supabase.from("support_saved_replies").update({ active }).eq("id", replyId);
+  revalidatePath("/support/replies");
+}
