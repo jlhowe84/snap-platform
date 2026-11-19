@@ -242,6 +242,14 @@ sees; the office uses the same pages ("View as staff").
 Not built yet: reading a roster into teams (the roster worker), drag to swap,
 a print layout, and automatic TC numbers.
 
+## Calendar
+
+`/calendar` is one month grid (`lib/calendar.ts`): scheduled photo days, held
+dates, the day each hold releases, and open tasks by due date, with photo
+stations in use per day against `capacity.stations_per_date`. Views: everything,
+my tasks only, photo days only. It reads as the signed-in person. Makeup
+sessions and crew shifts join it with their modules.
+
 ## Ask SNAP
 
 `/ask` lets office and support staff ask a question about the business.
