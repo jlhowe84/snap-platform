@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
-import { addNote, saveConversation, sendReply, type SupportState } from "../actions";
+import { useActionState, useRef, useState, useTransition } from "react";
+import { addNote, draftReply, saveConversation, sendReply, type SupportState } from "../actions";
 import { fillSavedReply } from "@/lib/support/saved";
 import { SUPPORT_STATUSES, SUPPORT_STATUS_LABEL, type SupportStatus } from "@/lib/support/labels";
 
@@ -96,10 +96,12 @@ export function ReplyForm({
   saved,
   customerName,
   myName,
+  canDraft,
 }: {
   id: string;
   to: string | null;
   testMode: boolean;
+  canDraft: boolean;
   saved: { id: string; title: string; body: string }[];
   customerName: string | null;
   myName: string;
@@ -112,6 +114,23 @@ export function ReplyForm({
     return result;
   }, null);
   const box = useRef<HTMLTextAreaElement>(null);
+  const [drafting, startDraft] = useTransition();
+  const [draftNote, setDraftNote] = useState<SupportState>(null);
+
+  function draft() {
+    setDraftNote(null);
+    startDraft(async () => {
+      const result = await draftReply(id);
+      if (!result.ok) {
+        setDraftNote(result);
+        return;
+      }
+      // What the person already typed is kept above the draft.
+      setText((now) => (now.trim() ? `${now.replace(/\s+$/, "")}\n\n${result.draft}` : result.draft));
+      setDraftNote({ ok: true, message: "Draft added. Read it, fix anything in [brackets], then send." });
+      box.current?.focus();
+    });
+  }
 
   function insert(savedId: string) {
     const reply = saved.find((r) => r.id === savedId);
@@ -128,6 +147,17 @@ export function ReplyForm({
         <p className={label}>
           Reply to <span className="normal-case tracking-normal text-text">{to}</span>
         </p>
+        <div className="flex flex-wrap items-center gap-2">
+        {canDraft && (
+          <button
+            type="button"
+            onClick={draft}
+            disabled={drafting}
+            className="rounded-lg border border-line px-3 py-1.5 text-sm font-semibold hover:border-accent hover:text-accent disabled:opacity-60"
+          >
+            {drafting ? "Drafting…" : "Draft a reply"}
+          </button>
+        )}
         {saved.length > 0 && (
           <select
             aria-label="Insert a saved reply"
@@ -144,7 +174,9 @@ export function ReplyForm({
             ))}
           </select>
         )}
+        </div>
       </div>
+      <Message state={draftNote} />
       <textarea ref={box} name="body" rows={8} maxLength={20000} required aria-label="Reply" value={text} onChange={(e) => setText(e.target.value)} className={field} />
       {testMode && (
         <p className="rounded-lg border border-warn/40 bg-warn/5 px-3 py-2 text-sm">

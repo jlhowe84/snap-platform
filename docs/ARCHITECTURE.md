@@ -390,3 +390,16 @@ conversation's customer address and passes `lib/mail/guard.ts` like every send.
 Saved replies are managed at `/support/replies` by anyone on the support desk
 and dropped into the reply box from a picker. `{first_name}` and `{my_name}`
 are filled in when one is inserted (`lib/support/saved.ts`).
+
+### Drafted replies
+
+"Draft a reply" on a conversation asks the model for a suggested answer and
+puts it in the reply box (`lib/support/draft.ts`, prompts in
+`lib/support/draft-prompt.ts`). It never sends and stores nothing on the
+conversation. It runs as the signed-in person, so RLS decides what it can
+read, and it is shown only the conversation, the matched league's name and the
+active saved replies. It is told to leave a note in [brackets] for any fact it
+does not have, and never to promise a refund, a reprint or a date. It spends
+from the Ask SNAP daily cap through `ask_snap_begin` and `ask_snap_finish`;
+the run is logged with a fixed label and without the customer's words or the
+draft.

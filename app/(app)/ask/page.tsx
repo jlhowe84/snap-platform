@@ -103,7 +103,7 @@ export default async function AskPage() {
                         </span>
                       </summary>
                       <p className="mt-2 whitespace-pre-wrap text-sm text-muted">
-                        {answer ?? (r.status === "running" ? "Still being answered." : `No answer was given${r.error ? ` (${r.error})` : ""}.`)}
+                        {answer ?? (r.status === "running" ? "Still being answered." : r.status === "succeeded" ? "A reply was drafted in the support desk. Drafts are not kept here." : `No answer was given${r.error ? ` (${r.error})` : ""}.`)}
                       </p>
                     </details>
                   </li>

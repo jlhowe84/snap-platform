@@ -11,6 +11,9 @@ import { NoteForm, ReplyForm, WorkForm } from "./work";
 
 export const metadata: Metadata = { title: "Support conversation" };
 
+// Drafting a reply waits on the model; give the server action room to finish.
+export const maxDuration = 60;
+
 export default async function ConversationPage({ params }: PageProps<"/support/[id]">) {
   const viewer = await requireStaff(SUPPORT_ROLES);
   const id = z.uuid().safeParse((await params).id);
@@ -86,7 +89,7 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
             );
           })}
           <Card title="Reply" action={<Link href="/support/replies" className="text-sm text-muted hover:text-accent">Saved replies</Link>}>
-            <ReplyForm id={c.id} to={c.customer_email} testMode={testMode} saved={saved ?? []} customerName={c.customer_name} myName={viewer.name} />
+            <ReplyForm id={c.id} to={c.customer_email} testMode={testMode} saved={saved ?? []} customerName={c.customer_name} myName={viewer.name} canDraft={(messages ?? []).some((m) => m.direction === "in")} />
           </Card>
           <Card>
             <NoteForm id={c.id} />

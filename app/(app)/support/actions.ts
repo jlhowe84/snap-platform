@@ -135,6 +135,17 @@ export async function sendReply(id: string, _prev: SupportState, form: FormData)
   return { ok: true, message: "Reply sent." };
 }
 
+export type DraftState = { ok: true; draft: string } | { ok: false; message: string };
+
+/** Writes a suggested reply for the reply box. Nothing is sent or saved. */
+export async function draftReply(id: string): Promise<DraftState> {
+  const viewer = await requireStaff(SUPPORT_ROLES);
+  const conversationId = z.uuid().safeParse(id);
+  if (!conversationId.success) return { ok: false, message: "That conversation was not found." };
+  const { draftSupportReply } = await import("@/lib/support/draft");
+  return draftSupportReply(viewer, conversationId.data);
+}
+
 const Saved = z.object({
   title: z.string().trim().min(1).max(120),
   body: z.string().trim().min(1).max(10000),
