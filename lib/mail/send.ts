@@ -7,6 +7,7 @@ import { PORTAL_LINK } from "@/lib/clock/drafts";
 import { newPortalToken, portalLinkExpiry } from "@/lib/portal/token";
 import { guardMail, mailSettingsFrom, MailBlockedError } from "./guard";
 import { buildMime, isPlainAddress, toRaw } from "./mime";
+import { fieldHasAddress } from "@/lib/mail/addresses";
 
 // The one place an approved draft becomes an email. It runs on the server
 // with the service role, after the caller has checked the signed-in person.
@@ -142,10 +143,9 @@ async function mintPortalLink(
     admin.from("job_contacts").select("contacts(id, email)").eq("job_id", jobId),
     admin.from("photo_days").select("date").eq("job_id", jobId).order("date", { ascending: false }).limit(1),
   ]);
-  const wanted = new Set(intended.map((a) => a.toLowerCase()));
   const contact = (people ?? [])
     .map((p) => p.contacts as { id: string; email: string | null } | null)
-    .find((c) => c?.email && wanted.has(c.email.toLowerCase()));
+    .find((c) => fieldHasAddress(c?.email, intended));
   if (!contact) {
     throw new SendProblem("The portal link needs one of the job's contacts in the To line, and none is there.");
   }

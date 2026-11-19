@@ -6,6 +6,7 @@ import { todayIn } from "@/lib/dates";
 import { planningDates } from "@/lib/planning/dates";
 import { seasonForDate } from "@/lib/season";
 import { buildDraft, firstName, isDraftKind, type DraftFacts } from "./drafts";
+import { addressesOf } from "@/lib/mail/addresses";
 
 // The daily clock. A server job with no signed-in person, so it uses the
 // service role. The database decides what is due (public.clock_due); this
@@ -82,7 +83,7 @@ export async function runClock(onlyCompanyId?: string): Promise<ClockResult[]> {
         companyName: company.name,
         leagueName: (job?.organizations as { name: string } | null)?.name ?? job?.name ?? "your league",
         contactFirstName: firstName(contacts[0]?.full_name),
-        to: contacts.map((c) => c.email),
+        to: addressesOf(contacts),
         season: seasonForDate(photoDay),
         photoDay,
         holdExpires: item.expires_on ?? null,
