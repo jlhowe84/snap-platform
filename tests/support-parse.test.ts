@@ -79,6 +79,14 @@ describe("support mail parsing", () => {
     expect(answered.subject).toBe("Where is my order");
   });
 
+  it("leaves out a sender only when the subject matches", () => {
+    const rules = [{ from: "rep@lab.example", subject: "where is" }];
+    const invoice = msg("m1", "Rep <rep@lab.example>", 1000);
+    expect(parseThread({ id: "t1", messages: [invoice] }, [], rules).messages).toEqual([]);
+    const other = [{ from: "rep@lab.example", subject: "lab invoice" }];
+    expect(parseThread({ id: "t1", messages: [invoice] }, [], other).messages).toHaveLength(1);
+  });
+
   it("drops drafts, spam and trash", () => {
     const thread = parseThread(
       { id: "t1", messages: [msg("m1", "a@x.org", 1000, { labelIds: ["DRAFT"] }), msg("m2", "a@x.org", 2000, { labelIds: ["SPAM"] })] },
@@ -93,15 +101,19 @@ describe("support sync planning", () => {
   const day = 24 * 60 * 60 * 1000;
 
   it("reads settings with safe defaults", () => {
-    expect(syncSettings([])).toEqual({ enabled: false, firstDays: 7, ownAddresses: [], quietSenders: [] });
+    expect(syncSettings([])).toEqual({ enabled: false, firstDays: 7, ownAddresses: [], quietSenders: [], quietRules: [] });
     expect(
       syncSettings([
         { key: "support.sync_enabled", value: true },
         { key: "support.first_sync_days", value: 500 },
         { key: "support.own_addresses", value: ["a@x.org", 3] },
         { key: "support.quiet_senders", value: [" No-Reply@Orders.example ", "nope", 4] },
+        { key: "support.quiet_rules", value: [{ from: "Rep@Lab.example", subject: " Lab Invoice " }, { from: "rep@lab.example" }, { from: "x", subject: "abc" }] },
       ]),
-    ).toEqual({ enabled: true, firstDays: 7, ownAddresses: ["a@x.org"], quietSenders: ["no-reply@orders.example"] });
+    ).toEqual({
+      enabled: true, firstDays: 7, ownAddresses: ["a@x.org"], quietSenders: ["no-reply@orders.example"],
+      quietRules: [{ from: "rep@lab.example", subject: "lab invoice" }],
+    });
   });
 
   it("starts a first run the set number of days back, a day at a time", () => {

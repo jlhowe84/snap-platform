@@ -81,11 +81,20 @@ export function bodyText(payload: GmailPart | undefined): string {
 
 const SKIP_LABELS = new Set(["DRAFT", "SPAM", "TRASH"]);
 
-function parseMessage(m: GmailMessage, own: Set<string>, quiet: Set<string>): ParsedMessage | null {
+/** A sender whose mail is left out, always or only when the subject holds some text. */
+export type QuietRule = { from: string; subject?: string };
+
+function isQuiet(address: string | null, subject: string, rules: QuietRule[]): boolean {
+  if (!address) return false;
+  const s = subject.toLowerCase();
+  return rules.some((r) => r.from === address && (!r.subject || s.includes(r.subject)));
+}
+
+function parseMessage(m: GmailMessage, own: Set<string>, quiet: QuietRule[]): ParsedMessage | null {
   if (m.labelIds?.some((l) => SKIP_LABELS.has(l))) return null;
   const from = parseAddress(header(m.payload, "From"));
   // Automatic notices (order receipts and the like) are not support mail.
-  if (from.address && quiet.has(from.address)) return null;
+  if (isQuiet(from.address, header(m.payload, "Subject"), quiet)) return null;
   const ms = Number(m.internalDate);
   if (!m.id || !Number.isFinite(ms) || ms <= 0) return null;
   return {
@@ -104,12 +113,14 @@ function parseMessage(m: GmailMessage, own: Set<string>, quiet: Set<string>): Pa
 /**
  * `ownAddresses` are the company's own sending addresses (the mailbox itself
  * and any others in settings). Drafts, spam and trash are dropped, and so is
- * mail from `quietSenders`: automatic notices that only matter once a person
+ * mail matching `quietRules`: automatic notices that only matter once a person
  * answers one, at which point the answer comes in as its own message.
  */
-export function parseThread(thread: GmailThread, ownAddresses: Iterable<string>, quietSenders: Iterable<string> = []): ParsedThread {
+export function parseThread(thread: GmailThread, ownAddresses: Iterable<string>, quietRules: Iterable<string | QuietRule> = []): ParsedThread {
   const own = new Set([...ownAddresses].map((a) => a.toLowerCase()));
-  const quiet = new Set([...quietSenders].map((a) => a.trim().toLowerCase()));
+  const quiet = [...quietRules]
+    .map((r) => (typeof r === "string" ? { from: r } : r))
+    .map((r) => ({ from: r.from.trim().toLowerCase(), subject: r.subject?.trim().toLowerCase() || undefined }));
   const messages = (thread.messages ?? [])
     .map((m) => parseMessage(m, own, quiet))
     .filter((m): m is ParsedMessage => m !== null)

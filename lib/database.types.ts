@@ -3406,6 +3406,10 @@ export type Database = {
         Args: { p_company: string; p_senders: string[] }
         Returns: number
       }
+      support_drop_quiet_rules: {
+        Args: { p_company: string; p_rules: Json }
+        Returns: number
+      }
       support_ingest: {
         Args: {
           p_company: string

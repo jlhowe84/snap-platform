@@ -971,6 +971,17 @@ select t.count_is($$select public.support_drop_quiet('a0000000-0000-0000-0000-00
 select t.count_is($$select count(*) from public.support_conversations where gmail_thread_id in ('thread-q1', 'thread-q2', 'thread-q3', 'thread-in', 'thread-a1')$$, 4, 'answered and worked conversations stay');
 select t.count_is($$select public.support_drop_quiet('a0000000-0000-0000-0000-00000000000a', '{}'::text[])$$, 0, 'an empty list clears nothing');
 
+-- Quiet rules: a sender is cleared only where the subject matches.
+select t.login('owner');
+select t.fails($$select public.support_drop_quiet_rules('a0000000-0000-0000-0000-00000000000a', '[]'::jsonb)$$, 'people cannot clear the queue by rule');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-r1', 'Lab Invoice 123', '[{"id":"g-r1","direction":"in","from_address":"rep@lab.invalid","body":"Invoice","sent_at":"2027-02-06T15:00:00Z"}]'::jsonb);
+select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-r2', 'Question about your order', '[{"id":"g-r2","direction":"in","from_address":"rep@lab.invalid","body":"Call me","sent_at":"2027-02-06T15:00:00Z"}]'::jsonb);
+select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-r3', 'Re: Lab Invoice 124', '[{"id":"g-r3","direction":"in","from_address":"parent3@test.invalid","body":"What is this","sent_at":"2027-02-06T15:00:00Z"}]'::jsonb);
+select t.count_is($$select public.support_drop_quiet_rules('a0000000-0000-0000-0000-00000000000a', '[{"from":" Rep@lab.invalid ","subject":"lab invoice"},{"from":"rep@lab.invalid"}]'::jsonb)$$, 1, 'only the matching untouched invoice is cleared');
+select t.count_is($$select count(*) from public.support_conversations where gmail_thread_id in ('thread-r1', 'thread-r2', 'thread-r3')$$, 2, 'other mail from that sender and other senders stay');
+
 reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;
 rollback;

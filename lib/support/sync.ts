@@ -39,12 +39,25 @@ export function syncSettings(rows: Setting[]) {
   const days = get("support.first_sync_days");
   const own = get("support.own_addresses");
   const quiet = get("support.quiet_senders");
+  const rules = get("support.quiet_rules");
   return {
     enabled: get("support.sync_enabled") === true,
     firstDays: typeof days === "number" && days >= 1 && days <= 90 ? Math.floor(days) : DEFAULT_FIRST_DAYS,
     ownAddresses: Array.isArray(own) ? own.filter((x): x is string => typeof x === "string") : [],
     quietSenders: Array.isArray(quiet)
       ? quiet.filter((x): x is string => typeof x === "string" && x.includes("@")).map((x) => x.trim().toLowerCase())
+      : [],
+    // A sender left out only when the subject holds some text, for an address
+    // that also writes real mail (a lab's invoices, say).
+    quietRules: Array.isArray(rules)
+      ? rules
+          .filter(
+            (x): x is { from: string; subject: string } =>
+              !!x && typeof x === "object" && typeof (x as { from?: unknown }).from === "string" &&
+              (x as { from: string }).from.includes("@") && typeof (x as { subject?: unknown }).subject === "string" &&
+              (x as { subject: string }).subject.trim().length >= 3,
+          )
+          .map((x) => ({ from: x.from.trim().toLowerCase(), subject: x.subject.trim().toLowerCase() }))
       : [],
   };
 }
@@ -88,7 +101,7 @@ export async function runSupportSync(onlyCompanyId?: string): Promise<SyncResult
       .from("settings")
       .select("key, value")
       .eq("company_id", company.id)
-      .in("key", ["mail.mailboxes", "support.sync_enabled", "support.first_sync_days", "support.own_addresses", "support.quiet_senders"]);
+      .in("key", ["mail.mailboxes", "support.sync_enabled", "support.first_sync_days", "support.own_addresses", "support.quiet_senders", "support.quiet_rules"]);
     const settings = syncSettings(rows ?? []);
     if (!onlyCompanyId && !settings.enabled) continue;
     const boxes = allowedMailboxes(rows ?? []);
@@ -121,6 +134,9 @@ export async function runSupportSync(onlyCompanyId?: string): Promise<SyncResult
         if (settings.quietSenders.length > 0) {
           await admin.rpc("support_drop_quiet", { p_company: company.id, p_senders: settings.quietSenders });
         }
+        if (settings.quietRules.length > 0) {
+          await admin.rpc("support_drop_quiet_rules", { p_company: company.id, p_rules: settings.quietRules });
+        }
         const own = [...boxes, ...settings.ownAddresses];
         const started = Date.now();
 
@@ -140,7 +156,7 @@ export async function runSupportSync(onlyCompanyId?: string): Promise<SyncResult
           for (let i = 0; i < ids.length; i += AT_ONCE) {
             await Promise.all(
               ids.slice(i, i + AT_ONCE).map(async (id) => {
-                const thread = parseThread(await gmail.getThread(id), own, settings.quietSenders);
+                const thread = parseThread(await gmail.getThread(id), own, [...settings.quietSenders, ...settings.quietRules]);
                 result.threads += 1;
                 if (thread.messages.length === 0) return;
                 const { data, error: ingestError } = await admin.rpc("support_ingest", {

@@ -353,6 +353,10 @@ sent, labelled, marked read or moved in Gmail.
   answers. Each run also clears untouched conversations made only of such
   mail (`public.support_drop_quiet()`), which covers ones stored before the
   sender was listed.
+- `support.quiet_rules` does the same for an address that also writes real
+  mail: an array of `{ from, subject }`, where the mail is left out only when
+  its subject holds that text (`public.support_drop_quiet_rules()` clears the
+  ones already stored).
 - A thread with no mail from outside is not a conversation, so the platform's
   own sends stay out of the queue until someone answers them.
 - The sender is matched to a league when their address belongs to a contact
