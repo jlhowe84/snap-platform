@@ -307,3 +307,33 @@ Ask SNAP is also a pop-up in the corner of every staff page
 It reuses the `/ask` box and server action, so roles, the daily cap and the
 question log are the same. The conversation is kept in the layout, so it
 stays while the person moves between pages and is gone on a full reload.
+
+## Support desk (Wave B)
+
+Module 12, the replacement for Hiver. This is the data model; mail sync and
+the pages come in later pull requests.
+
+- `support_conversations`: one row per Gmail thread in a mailbox listed in
+  `mail.mailboxes` (unique on company, mailbox and thread id). Holds the
+  subject, the customer, status (`new`, `open`, `waiting_customer`,
+  `waiting_lab`, `closed`), category, assignee, and an optional league and job.
+- `support_messages`: each mail in (`in`) or out (`out`), plus internal notes
+  (`note`). Text only, no attachments yet.
+- `support_saved_replies`: reusable answers. Switched off with `active`, never
+  removed, so no delete is granted.
+- `support_sync_state`: where the mail sync left off per mailbox. Server only.
+
+Conversations hold parents' names and addresses, so every policy is staff only
+(`private.is_staff()`: owner, admin, office, support). Coordinators and crew
+see nothing.
+
+- People may change only the assignee, status, category, league and job of a
+  conversation (`private.guard_support_conversation()`). Mail fields and
+  timestamps are written by the server sync alone.
+- People may add only notes, in their own name. Mail rows come from the sync
+  and from the send path.
+- `private.support_message_added()` keeps the conversation's times current,
+  stamps the first response, reopens a closed or waiting conversation when the
+  customer writes again, and moves `new` to `open` on the first reply.
+- Conversations and messages are not copied into the change log, so customer
+  text stays in one place. Saved replies are logged.

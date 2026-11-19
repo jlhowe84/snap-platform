@@ -2609,6 +2609,271 @@ export type Database = {
           },
         ]
       }
+      support_conversations: {
+        Row: {
+          assignee_id: string | null
+          category: string | null
+          closed_at: string | null
+          closed_by: string | null
+          company_id: string
+          created_at: string
+          customer_email: string | null
+          customer_name: string | null
+          first_message_at: string | null
+          first_response_at: string | null
+          gmail_thread_id: string | null
+          id: string
+          job_id: string | null
+          last_inbound_at: string | null
+          last_message_at: string | null
+          mailbox: string
+          organization_id: string | null
+          status: Database["public"]["Enums"]["support_status"]
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          category?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          company_id: string
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          first_message_at?: string | null
+          first_response_at?: string | null
+          gmail_thread_id?: string | null
+          id?: string
+          job_id?: string | null
+          last_inbound_at?: string | null
+          last_message_at?: string | null
+          mailbox: string
+          organization_id?: string | null
+          status?: Database["public"]["Enums"]["support_status"]
+          subject?: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_id?: string | null
+          category?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          company_id?: string
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          first_message_at?: string | null
+          first_response_at?: string | null
+          gmail_thread_id?: string | null
+          id?: string
+          job_id?: string | null
+          last_inbound_at?: string | null
+          last_message_at?: string | null
+          mailbox?: string
+          organization_id?: string | null
+          status?: Database["public"]["Enums"]["support_status"]
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_conversations_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_conversations_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_conversations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_conversations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_conversations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_conversations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_messages: {
+        Row: {
+          author_id: string | null
+          body_text: string
+          cc_addresses: string[]
+          company_id: string
+          conversation_id: string
+          created_at: string
+          direction: string
+          from_address: string | null
+          from_name: string | null
+          gmail_message_id: string | null
+          id: string
+          sent_at: string
+          to_addresses: string[]
+        }
+        Insert: {
+          author_id?: string | null
+          body_text?: string
+          cc_addresses?: string[]
+          company_id: string
+          conversation_id: string
+          created_at?: string
+          direction: string
+          from_address?: string | null
+          from_name?: string | null
+          gmail_message_id?: string | null
+          id?: string
+          sent_at?: string
+          to_addresses?: string[]
+        }
+        Update: {
+          author_id?: string | null
+          body_text?: string
+          cc_addresses?: string[]
+          company_id?: string
+          conversation_id?: string
+          created_at?: string
+          direction?: string
+          from_address?: string | null
+          from_name?: string | null
+          gmail_message_id?: string | null
+          id?: string
+          sent_at?: string
+          to_addresses?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "support_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_saved_replies: {
+        Row: {
+          active: boolean
+          body: string
+          category: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          body: string
+          category?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          body?: string
+          category?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_saved_replies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_saved_replies_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_sync_state: {
+        Row: {
+          company_id: string
+          history_id: string | null
+          last_error: string | null
+          last_synced_at: string | null
+          mailbox: string
+        }
+        Insert: {
+          company_id: string
+          history_id?: string | null
+          last_error?: string | null
+          last_synced_at?: string | null
+          mailbox: string
+        }
+        Update: {
+          company_id?: string
+          history_id?: string | null
+          last_error?: string | null
+          last_synced_at?: string | null
+          mailbox?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_sync_state_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assignee_id: string | null
@@ -3190,6 +3455,12 @@ export type Database = {
         | "gallery_prep"
         | "qa_marketing"
         | "complete"
+      support_status:
+        | "new"
+        | "open"
+        | "waiting_customer"
+        | "waiting_lab"
+        | "closed"
       task_status: "todo" | "in_progress" | "waiting" | "done" | "cancelled"
     }
     CompositeTypes: {
@@ -3367,6 +3638,13 @@ export const Constants = {
         "gallery_prep",
         "qa_marketing",
         "complete",
+      ],
+      support_status: [
+        "new",
+        "open",
+        "waiting_customer",
+        "waiting_lab",
+        "closed",
       ],
       task_status: ["todo", "in_progress", "waiting", "done", "cancelled"],
     },
