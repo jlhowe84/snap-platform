@@ -6,6 +6,7 @@ import { Card, Empty, PageHeader, Pill, cx } from "@/components/ui";
 import { CAPTURA_TAG } from "@/lib/captura/setup";
 import { timingLabel } from "@/lib/playbooks/steps";
 import { moveStep } from "./actions";
+import { RemoveStep } from "./remove-step";
 import { StepForm } from "./step-form";
 
 export const metadata: Metadata = { title: "Planning steps" };
@@ -41,7 +42,8 @@ export default async function StepsSettings({ searchParams }: PageProps<"/settin
       <PageHeader eyebrow="Admin" title="Planning steps" />
       <p className="mb-6 max-w-2xl text-sm text-muted">
         The steps each job follows. Change the wording, the timing, who does it and the order. Switch a step off to stop
-        using it; nothing is removed, so tasks already made from it stay as they are. Changes apply from now on.
+        using it; tasks already made from it stay as they are. A step no task has used yet can be removed. Changes
+        apply from now on.
       </p>
 
       {!playbooks?.length && <Empty>No step lists yet.</Empty>}
@@ -109,6 +111,7 @@ export default async function StepsSettings({ searchParams }: PageProps<"/settin
                                 active: s.active,
                               }}
                             />
+                            <RemoveStep stepId={s.id} name={s.name} />
                           </div>
                         </details>
                       </div>

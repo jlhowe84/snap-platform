@@ -255,7 +255,8 @@ sessions and crew shifts join it with their modules.
 `/settings/steps` (owner and admin) edits `playbook_steps`: name, stage, who
 does it, days before or after the first photo day, notes, the `captura` tag
 and whether the step is in use. Steps are reordered by renumbering the list
-and switched off, never removed, so tasks keep their `playbook_step_id`.
+and switched off so tasks keep their `playbook_step_id`. A step can be removed
+only while no task links to it (`removeStep` counts first; two clicks).
 Helpers are in `lib/playbooks/steps.ts`. Steps edited here that came from
 Notion would be overwritten by a Notion re-import (`private.import_notion`
 upserts by `notion_page_id`), so do not re-import templates after cutover of
