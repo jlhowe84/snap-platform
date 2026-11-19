@@ -942,6 +942,22 @@ insert into public.support_messages (company_id, conversation_id, direction, gma
 select t.count_is($$select count(*) from public.support_conversations where id = 'c0000000-0000-0000-0000-0000000000a1' and status = 'open' and closed_at is null and closed_by is null and last_inbound_at = '2027-01-06 14:00+00'$$, 1, 'new mail from the customer reopens a closed conversation');
 select t.fails($$insert into public.support_messages (company_id, conversation_id, direction, gmail_message_id, body_text) values ('a0000000-0000-0000-0000-00000000000a', 'c0000000-0000-0000-0000-0000000000a1', 'in', 'msg-a3', 'again')$$, 'the same mail cannot be stored twice');
 
+-- Mail in: only the server stores a thread, once, and a thread with no mail
+-- from outside stays out of the queue.
+select t.login('owner');
+select t.fails($$select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-x', 'Hi', '[]'::jsonb)$$, 'people cannot store mail');
+select t.fails($$select public.support_sync_mark('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid')$$, 'people cannot move the sync point');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+select t.count_is($$select count(*) from (select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-out', 'Your photo day', '[{"id":"g-out-1","direction":"out","from_address":"help@test.invalid","to":["c@test.invalid"],"body":"Details","sent_at":"2027-02-01T15:00:00Z"}]'::jsonb) as r) q where r->>'conversation_id' is null$$, 1, 'a thread with only our own mail is not a conversation');
+select t.count_is($$select (public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'Help@test.invalid', 'thread-in', '  Picture day question ', '[{"id":"g-in-2","direction":"out","from_address":"help@test.invalid","to":["c@test.invalid"],"body":"Reply","sent_at":"2027-02-02T16:00:00Z"},{"id":"g-in-1","direction":"in","from_address":"C@test.invalid","from_name":"Contact A1","to":["Help@test.invalid"],"body":"When is it?","sent_at":"2027-02-02T15:00:00Z"}]'::jsonb)->>'added')::int$$, 2, 'the server stores a thread with its messages');
+select t.count_is($$select count(*) from public.support_conversations where gmail_thread_id = 'thread-in' and mailbox = 'help@test.invalid' and subject = 'Picture day question' and customer_email = 'c@test.invalid' and organization_id = '20000000-0000-0000-0000-0000000000a1' and status = 'open' and first_response_at = '2027-02-02 16:00+00' and first_message_at = '2027-02-02 15:00+00'$$, 1, 'the conversation knows its customer, league and times');
+select t.count_is($$select (public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-in', 'Picture day question', '[{"id":"g-in-1","direction":"in","from_address":"c@test.invalid","body":"When is it?","sent_at":"2027-02-02T15:00:00Z"},{"id":"g-in-3","direction":"in","from_address":"c@test.invalid","body":"Thanks","sent_at":"2027-02-03T15:00:00Z"}]'::jsonb)->>'added')::int$$, 1, 'reading a thread again adds only the new mail');
+select t.count_is($$select count(*) from public.support_conversations where gmail_thread_id in ('thread-in', 'thread-out')$$, 1, 'a thread is one conversation');
+select t.works($$select public.support_sync_mark('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', '2027-02-03 00:00+00')$$, 'the server records the sync point');
+select t.works($$select public.support_sync_mark('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', null, 'Gmail GET failed (500)')$$, 'the server records a failed run');
+select t.count_is($$select count(*) from public.support_sync_state where mailbox = 'help@test.invalid' and last_synced_at = '2027-02-03 00:00+00' and last_error is not null$$, 1, 'a failed run keeps the last good point');
+
 reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;
 rollback;

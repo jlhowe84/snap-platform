@@ -3402,6 +3402,25 @@ export type Database = {
         Returns: string
       }
       submit_schedule: { Args: { p_schedule_id: string }; Returns: string }
+      support_ingest: {
+        Args: {
+          p_company: string
+          p_mailbox: string
+          p_messages: Json
+          p_subject: string
+          p_thread_id: string
+        }
+        Returns: Json
+      }
+      support_sync_mark: {
+        Args: {
+          p_company: string
+          p_error?: string
+          p_mailbox: string
+          p_through?: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       action_kind: "read" | "draft" | "propose" | "never"
