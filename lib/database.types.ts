@@ -986,6 +986,80 @@ export type Database = {
           },
         ]
       }
+      day_pages: {
+        Row: {
+          company_id: string
+          created_at: string
+          job_id: string
+          note: string | null
+          published: boolean
+          published_at: string | null
+          show_team_times: boolean
+          slug: string
+          updated_at: string
+          updated_by: string | null
+          what_to_bring: string | null
+          what_to_wear: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          job_id: string
+          note?: string | null
+          published?: boolean
+          published_at?: string | null
+          show_team_times?: boolean
+          slug: string
+          updated_at?: string
+          updated_by?: string | null
+          what_to_bring?: string | null
+          what_to_wear?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          job_id?: string
+          note?: string | null
+          published?: boolean
+          published_at?: string | null
+          show_team_times?: boolean
+          slug?: string
+          updated_at?: string
+          updated_by?: string | null
+          what_to_bring?: string | null
+          what_to_wear?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "day_pages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_pages_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "job_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_pages_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_pages_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integration_status: {
         Row: {
           company_id: string
@@ -1421,6 +1495,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          on_help_center: boolean
           position: number
           search: unknown
           section: string | null
@@ -1437,6 +1512,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          on_help_center?: boolean
           position?: number
           search?: unknown
           section?: string | null
@@ -1453,6 +1529,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          on_help_center?: boolean
           position?: number
           search?: unknown
           section?: string | null
@@ -4490,6 +4567,17 @@ export type Database = {
           job_id: string
           link_id: string
           profile_id: string
+        }[]
+      }
+      public_company: { Args: { p_company_slug: string }; Returns: Json }
+      public_day_page: { Args: { p_slug: string }; Returns: Json }
+      public_help_articles: {
+        Args: { p_company_slug: string; p_query?: string }
+        Returns: {
+          body: string
+          id: string
+          section: string
+          title: string
         }[]
       }
       release_hold: {

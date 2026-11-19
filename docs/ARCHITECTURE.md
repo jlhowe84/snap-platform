@@ -566,3 +566,26 @@ day-before briefing come with the field view and the clock.
 - SNAP's 11 kits, the 29-line master checklist and 7 camera bodies were loaded
   from the SNAP OS gear files (February 2026, not re-verified); bodies are not
   put in kits until someone confirms which is which.
+
+## Parent photo day page and help center (Wave B, module 13, part one)
+
+- `day_pages` holds one public page per job: an unguessable slug (name words
+  plus five random characters), a published flag, what to wear and bring, a
+  note, and whether to show team times. Office staff make and publish it from
+  the job page. Nothing is public until it is published.
+- Visitors are not signed in. `/day/[slug]` reads `public.public_day_page()`
+  and `/help/[company]` reads `public.public_help_articles()` and
+  `public.public_company()`, all security definer and granted to `anon`. The
+  tables stay closed to `anon`.
+- The day page carries dates, times, place, day status, the shop link and
+  coupon, and, once the schedule is submitted, team names, divisions and
+  times. Never players, coaches, contacts, notes or rosters (a permission test
+  checks this).
+- The help center lists published answers-shelf articles with
+  `kb_articles.on_help_center` set. Office staff turn each one on from the
+  article page. An answer with a staff slot like `[GALLERY LINK]` cannot go on,
+  and comes off if an edit adds one or moves it off the answers shelf.
+- Both pages use the light `.outward` theme (`components/public-shell.tsx`).
+- Part two (not built): gallery link and order lookups that send only to the
+  email or phone on record, rate limited; makeup booking; chat; QR sign and
+  flyer.

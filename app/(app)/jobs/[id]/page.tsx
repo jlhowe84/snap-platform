@@ -17,6 +17,8 @@ import { ChangeDateForm } from "./change-date-form";
 import { PortalLinkForm } from "./portal-link-form";
 import { StandardRosterUpload } from "./standard-roster";
 import { revokePortalLink } from "./portal-actions";
+import { DayPageForm } from "./day-page-form";
+import { headers } from "next/headers";
 
 const READY: Record<string, string> = {
   not_sent: "not sent", sent: "sent", submitted: "submitted",
@@ -67,6 +69,13 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     .select("id, kind, from_date, to_date, reason, created_at, profiles!date_changes_decided_by_fkey(full_name)")
     .eq("job_id", id)
     .order("created_at", { ascending: false });
+  const { data: dayPage } = await supabase
+    .from("day_pages")
+    .select("slug, published, published_at, show_team_times, what_to_wear, what_to_bring, note")
+    .eq("job_id", id)
+    .maybeSingle();
+  const h = await headers();
+  const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
   const [{ data: holds }, { data: signatures }, { data: portalLinks }] = await Promise.all([
     supabase.from("date_holds").select("photo_day_id, status, expires_on").eq("job_id", id),
     supabase.from("agreement_signatures").select("id, signer_name, signed_at").eq("job_id", id).order("signed_at", { ascending: false }),
@@ -467,6 +476,24 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                 })}
               </ul>
             ) : null}
+          </Card>
+
+          <Card
+            title="Parent photo day page"
+            action={dayPage?.published ? <a href={`/day/${dayPage.slug}`} target="_blank" rel="noreferrer" className="text-sm text-accent hover:underline">Open</a> : undefined}
+          >
+            {dayPage ? (
+              <p className="mb-3 break-all text-sm">
+                {dayPage.published ? <Pill tone="ok">Live</Pill> : <Pill>Off</Pill>}{" "}
+                <span className="text-muted">{origin}/day/{dayPage.slug}</span>
+              </p>
+            ) : (
+              <p className="mb-3 text-sm text-muted">
+                One public page per job for parents: dates, place, what to wear and bring, the prepay link and coupon, and team times once the
+                schedule is in. Never player names.
+              </p>
+            )}
+            {office && <DayPageForm jobId={id} page={dayPage ?? null} />}
           </Card>
 
           <Card title="Links">

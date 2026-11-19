@@ -47,3 +47,22 @@ body {
   background: var(--accent);
   color: var(--accent-ink);
 }
+
+/* The outward door: pages parents and the public open. Light, same accent. */
+.outward {
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --surface-2: #f0eee9;
+  --line: #e2dfd7;
+  --text: #17181b;
+  --muted: #5d6169;
+  --accent: #d9601c;
+  --accent-ink: #ffffff;
+  --ok: #1f8a5b;
+  --warn: #9a6a00;
+  --risk: #c23b38;
+  --info: #2f6fd1;
+  color-scheme: light;
+  background: var(--bg);
+  color: var(--text);
+}

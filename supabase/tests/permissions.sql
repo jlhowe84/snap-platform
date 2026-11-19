@@ -240,6 +240,13 @@ insert into public.camera_bodies (company_id, serial, letter, model, kit_id) val
 insert into public.kit_checkouts (company_id, job_id, photo_day_id, kit_id, station)
   select company_id, job_id, id, '92000000-0000-0000-0000-0000000000a1', 1 from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000a1';
 
+-- Public pages. Job A1's page is published; the knowledge base answer is on
+-- the help center.
+insert into public.day_pages (job_id, company_id, slug, published, what_to_wear) values
+  ('40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', 'job-a1-x7k2p', true, 'Full uniform'),
+  ('40000000-0000-0000-0000-0000000000a2', 'a0000000-0000-0000-0000-00000000000a', 'job-a2-q9m4z', false, null);
+update public.kb_articles set on_help_center = true;
+
 -- ---------------------------------------------------------------------------
 -- Sign-up and invites
 -- ---------------------------------------------------------------------------
@@ -310,6 +317,7 @@ declare
     array['kit_checklist_items',   '2','2','2','2','0','0','0','0'],
     array['camera_bodies',         '1','1','1','1','0','0','0','0'],
     array['kit_checkouts',         '1','1','1','1','0','0','0','0'],
+    array['day_pages',             '2','2','2','2','0','0','0','0'],
     array['kb_article_versions',   '1','1','1','1','0','0','0','1']
   ];
   who text[] := array['owner','admin','office','support','crew','coord','outsider','owner_b'];
@@ -1226,6 +1234,41 @@ select t.count_is($$select count(*) from fv_days where public.field_view(id) is 
 select t.login('owner_b');
 select t.count_is($$select count(*) from fv_days where public.field_view(id) is not null$$, 0, 'another company has no field view of these days');
 
+-- ---------------------------------------------------------------------------
+-- The public photo day page and the help center.
+-- ---------------------------------------------------------------------------
+reset role;
+update public.kb_articles set status = 'published' where id = 'f0000000-0000-0000-0000-0000000000a1';
+select t.login('anon');
+select t.fails($$select count(*) from public.day_pages$$, 'anon cannot read the page table');
+select t.count_is($$select count(*) where public.public_day_page('job-a1-x7k2p') ->> 'what_to_wear' = 'Full uniform'$$, 1, 'anyone with the link opens a published page');
+select t.count_is($$select count(*) where public.public_day_page('job-a2-q9m4z') is null$$, 1, 'an unpublished page shows nothing');
+select t.count_is($$select count(*) where public.public_day_page('nope-nope') is null$$, 1, 'an unknown link shows nothing');
+select t.count_is($$select count(*) from jsonb_array_elements(public.public_day_page('job-a1-x7k2p') -> 'days') d where d -> 'teams' = 'null'::jsonb$$, 1, 'team times stay hidden until the schedule is submitted');
+select t.count_is($$select count(*) where public.public_day_page('job-a1-x7k2p')::text ~* '(coach|contact|email|phone|notes|roster)'$$, 0, 'the page carries no coaches, contacts, notes or rosters');
+select t.count_is($$select count(*) from public.public_help_articles('test-a')$$, 1, 'the help center lists answers marked for it');
+select t.count_is($$select count(*) from public.public_help_articles('test-a', 'arrive order')$$, 1, 'the help center search finds the answer');
+select t.count_is($$select count(*) from public.public_help_articles('test-a', 'zebra')$$, 0, 'a search with no match finds nothing');
+select t.count_is($$select count(*) from public.public_help_articles('nobody')$$, 0, 'an unknown company has no help center');
+select t.count_is($$select count(*) where public.public_company('test-a') ->> 'name' = 'Test Company A'$$, 1, 'the help center header has the company name');
+reset role;
+update public.schedules set status = 'submitted' where id = '80000000-0000-0000-0000-0000000000a1';
+update public.kb_articles set on_help_center = false where id = 'f0000000-0000-0000-0000-0000000000a1';
+select t.login('anon');
+select t.count_is($$select count(*) from jsonb_array_elements(public.public_day_page('job-a1-x7k2p') -> 'days') d, jsonb_array_elements(d -> 'teams') tm where tm ->> 'team' = 'Tigers' and tm ->> 'time' = '09:00:00'$$, 1, 'a submitted schedule shows team names and times');
+select t.count_is($$select count(*) from public.public_help_articles('test-a')$$, 0, 'an answer taken off the help center disappears');
+select t.login('support');
+select t.fails($$insert into public.day_pages (job_id, company_id, slug) values ('40000000-0000-0000-0000-0000000000a2', 'a0000000-0000-0000-0000-00000000000a', 'job-a2-other')$$, 'support cannot make a public page');
+select t.count_is($$with u as (update public.day_pages set published = true returning 1) select count(*) from u$$, 0, 'support cannot publish a page');
+select t.login('office');
+select t.works($$update public.day_pages set published = true where job_id = '40000000-0000-0000-0000-0000000000a2'$$, 'office publishes a page');
+select t.count_is($$select count(*) from public.day_pages where job_id = '40000000-0000-0000-0000-0000000000a2' and published_at is not null and updated_by = '10000000-0000-0000-0000-000000000003'$$, 1, 'publishing is stamped with when and who');
+select t.fails($$insert into public.day_pages (job_id, company_id, slug) values ('40000000-0000-0000-0000-0000000000b1', 'a0000000-0000-0000-0000-00000000000a', 'job-b1-steal')$$, 'a page cannot point at another company''s job');
+select t.fails($$insert into public.day_pages (job_id, company_id, slug) values ('40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', 'Bad Slug!')$$, 'a page slug is lowercase words and dashes');
+select t.login('coord');
+select t.count_is($$select count(*) from public.day_pages$$, 0, 'a coordinator does not manage the public page');
+select t.login('owner_b');
+select t.count_is($$with u as (update public.day_pages set published = false returning 1) select count(*) from u$$, 0, 'another company cannot touch the page');
 reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;
 rollback;
