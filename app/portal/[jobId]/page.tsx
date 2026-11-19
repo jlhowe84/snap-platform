@@ -17,7 +17,7 @@ export default async function PortalJob({ params }: PageProps<"/portal/[jobId]">
   if (!job) notFound();
 
   const [{ data: days }, { data: holds }, { data: signatures }, { data: readiness }, { data: due }] = await Promise.all([
-    supabase.from("photo_days").select("id, date, start_time, end_time, location_name, city, state").eq("job_id", jobId).order("date"),
+    supabase.from("photo_days").select("id, date, original_date, status, start_time, end_time, location_name, city, state").eq("job_id", jobId).order("date"),
     supabase.from("date_holds").select("photo_day_id, status, expires_on").eq("job_id", jobId),
     supabase.from("agreement_signatures").select("id, signer_name, signed_at").eq("job_id", jobId).order("signed_at", { ascending: false }).limit(1),
     supabase.from("photo_day_readiness").select("*").eq("job_id", jobId),
@@ -97,8 +97,17 @@ export default async function PortalJob({ params }: PageProps<"/portal/[jobId]">
                     {[d.location_name, d.city, d.state].filter(Boolean).join(", ") || "Location to confirm"}
                   </p>
                 </div>
-                {hold?.status === "held" && <Pill tone="warn">Held until {formatDate(hold.expires_on)}</Pill>}
-                {hold?.status === "confirmed" && <Pill tone="ok">Confirmed</Pill>}
+                {d.status === "postponed" ? (
+                  <Pill tone="warn">Postponed, new date to come</Pill>
+                ) : d.status === "cancelled" ? (
+                  <Pill tone="risk">Cancelled</Pill>
+                ) : (
+                  <>
+                    {d.original_date && d.original_date !== d.date && <Pill tone="warn">Moved from {formatDate(d.original_date)}</Pill>}
+                    {hold?.status === "held" && <Pill tone="warn">Held until {formatDate(hold.expires_on)}</Pill>}
+                    {hold?.status === "confirmed" && <Pill tone="ok">Confirmed</Pill>}
+                  </>
+                )}
               </li>
             );
           })}

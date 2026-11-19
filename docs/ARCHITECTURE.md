@@ -125,6 +125,28 @@ each), their own teams, schedule slots, and schedule status up to `started`.
 `public.submit_schedule()` submits only when `public.schedule_problems()` finds
 no missing team, overlap or out-of-range station.
 
+## Date changes (Wave A)
+
+Moving, postponing or cancelling a photo day is one action for an owner or
+admin: `change_photo_day()`. A trigger refuses a signed-in edit of
+`photo_days.date` or `photo_days.status` any other way, so no step is skipped.
+The function:
+
+- keeps the first date in `original_date` and records a row in `date_changes`
+  (kind, from, to, reason, who);
+- sets `photo_days.status` (`scheduled`, `postponed`, `cancelled`). Only
+  scheduled days take stations in `date_capacity` or get chased. A reschedule
+  onto a full date is refused unless the override is ticked. A job whose
+  photo days are all cancelled becomes `cancelled`;
+- restarts the chase: old `clock_log` steps keep their rows under a retired
+  key, and chase drafts still waiting for the old date are withdrawn;
+- queues a `dates.notify` draft to the coordinator (`lib/jobs/date-change.ts`)
+  for approval, logs a line on the league timeline, and adds tasks to update
+  Captura and the calendar by hand.
+
+Crew shifts, kits, parent notices and the prepay close date join the cascade
+when those modules exist.
+
 ## Coordinator portal
 
 League coordinators never sign up or keep a password. The office makes a

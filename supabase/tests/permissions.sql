@@ -706,6 +706,68 @@ select t.count_is($$select count(*) from public.clock_log where job_id = '400000
 insert into public.settings (company_id, key, value) values ('a0000000-0000-0000-0000-00000000000a', 'chase.include_imported', 'true'::jsonb);
 select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', '2030-03-09')) e where e ->> 'kind' = 'chase.request' and e ->> 'job_id' = '40000000-0000-0000-0000-0000000000b7'$$, 1, 'with the setting on, an imported job is chased');
 
+-- The date change cascade: one action, owner or admin only.
+insert into public.clock_log (company_id, key, kind, job_id, outcome, run_on)
+values ('a0000000-0000-0000-0000-00000000000a', 'chase:40000000-0000-0000-0000-0000000000b7:request', 'chase.request', '40000000-0000-0000-0000-0000000000b7', 'queued', '2030-03-09');
+insert into public.agent_actions (id, company_id, action_type_key, actor_kind, status, draft, record_refs) values
+  ('70000000-0000-0000-0000-0000000000d1', 'a0000000-0000-0000-0000-00000000000a', 'chase.request', 'system', 'proposed', '{"subject": "S", "body": "B"}', '{"job_id": "40000000-0000-0000-0000-0000000000b7"}');
+
+select t.login('office');
+select t.fails($$select public.change_photo_day((select id from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000b7'), 'reschedule', '2030-05-11', 'Field closed')$$, 'office cannot move a photo day');
+select t.fails($$update public.photo_days set date = '2030-05-11' where job_id = '40000000-0000-0000-0000-0000000000b7'$$, 'a date cannot be moved by editing the photo day');
+select t.works($$update public.photo_days set notes = 'Park behind the gym' where job_id = '40000000-0000-0000-0000-0000000000b7'$$, 'office can still edit other photo day details');
+
+select t.login('owner');
+select t.fails($$update public.photo_days set status = 'cancelled' where job_id = '40000000-0000-0000-0000-0000000000b7'$$, 'even the owner cannot cancel by editing the photo day');
+select t.fails($$select public.change_photo_day((select id from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000b7'), 'reschedule', '2030-05-11', '  ')$$, 'a date change needs a reason');
+select t.fails($$select public.change_photo_day((select id from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000b7'), 'reschedule', null, 'Rain')$$, 'a reschedule needs a new date');
+select t.fails($$select public.change_photo_day((select id from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000b7'), 'reschedule', '2030-05-04', 'Rain')$$, 'a reschedule to the same date is refused');
+select t.works($$select public.change_photo_day((select id from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000b7'), 'reschedule', '2030-05-11', 'Field closed')$$, 'the owner moves a photo day');
+select t.count_is($$select count(*) from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000b7' and date = '2030-05-11' and original_date = '2030-05-04' and status = 'scheduled'$$, 1, 'the new date is set and the original date is kept');
+select t.count_is($$select count(*) from public.date_changes where job_id = '40000000-0000-0000-0000-0000000000b7' and kind = 'reschedule' and from_date = '2030-05-04' and to_date = '2030-05-11' and reason = 'Field closed' and notice_id is null$$, 1, 'the change is recorded with its reason');
+select t.count_is($$select count(*) from public.date_capacity where date = '2030-05-04'$$, 0, 'the old date frees its stations');
+select t.count_is($$select stations_used from public.date_capacity where date = '2030-05-11'$$, 2, 'the new date takes them');
+select t.count_is($$select count(*) from public.clock_log where job_id = '40000000-0000-0000-0000-0000000000b7' and key = 'chase:40000000-0000-0000-0000-0000000000b7:request'$$, 0, 'the chase clock restarts');
+select t.count_is($$select count(*) from public.clock_log where job_id = '40000000-0000-0000-0000-0000000000b7' and key like '%:before:%'$$, 1, 'the old chase step keeps its row');
+select t.count_is($$select count(*) from public.agent_actions where id = '70000000-0000-0000-0000-0000000000d1' and status = 'rejected' and decision_note like 'Withdrawn%'$$, 1, 'a chase draft written for the old date is withdrawn');
+select t.count_is($$select count(*) from public.tasks where job_id = '40000000-0000-0000-0000-0000000000b7' and (title like 'Update Captura:%' or title like 'Update the calendar:%')$$, 2, 'tasks are left for Captura and the calendar');
+select t.count_is($$select count(*) from public.touchpoints where job_id = '40000000-0000-0000-0000-0000000000b7' and summary like 'Photo day moved from Sat May 04, 2030 to Sat May 11, 2030: Field closed'$$, 1, 'the league timeline shows the move');
+
+-- A full date refuses the move unless the owner overrides.
+insert into public.settings (company_id, key, value) values ('a0000000-0000-0000-0000-00000000000a', 'capacity.stations_per_date', '3'::jsonb)
+on conflict (company_id, key) do update set value = excluded.value;
+select t.fails($$select public.change_photo_day((select id from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000b7'), 'reschedule', '2027-04-17', 'Try a full date')$$, 'a full date refuses the move');
+update public.settings set value = '10'::jsonb where company_id = 'a0000000-0000-0000-0000-00000000000a' and key = 'capacity.stations_per_date';
+
+select t.works($$select public.change_photo_day((select id from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000b7'), 'postpone', null, 'Rain')$$, 'the owner postpones a photo day');
+select t.count_is($$select count(*) from public.date_capacity where date = '2030-05-11'$$, 0, 'a postponed day frees its stations');
+select t.fails($$select public.change_photo_day((select id from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000b7'), 'postpone', null, 'Rain again')$$, 'a postponed day cannot be postponed twice');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', '2030-04-20')) e where e ->> 'job_id' = '40000000-0000-0000-0000-0000000000b7'$$, 0, 'a postponed day gets no chase');
+
+select t.login('admin');
+select t.works($$select public.change_photo_day((select id from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000b7'), 'reschedule', '2030-05-18', 'Rain date', '{"to": ["c@example.com"], "subject": "New date", "body": "We moved."}')$$, 'an admin sets the new date with a notice');
+select t.count_is($$select count(*) from public.agent_actions a join public.date_changes c on c.notice_id = a.id where c.job_id = '40000000-0000-0000-0000-0000000000b7' and a.action_type_key = 'dates.notify' and a.status = 'proposed' and a.draft ->> 'subject' = 'New date'$$, 1, 'the coordinator notice waits in the approval queue');
+select t.count_is($$select count(*) from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000b7' and date = '2030-05-18' and original_date = '2030-05-04' and status = 'scheduled'$$, 1, 'the first date stays the original after a second move');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+select t.count_is($$select count(*) from jsonb_array_elements(public.clock_due('a0000000-0000-0000-0000-00000000000a', '2030-03-23')) e where e ->> 'kind' = 'chase.request' and e ->> 'job_id' = '40000000-0000-0000-0000-0000000000b7'$$, 1, 'the chase starts again from the new date');
+
+select t.login('support');
+select t.count_is($$select count(*) from public.date_changes where job_id = '40000000-0000-0000-0000-0000000000b7'$$, 3, 'staff read the date changes');
+select t.login('coord');
+select t.count_is($$select count(*) from public.date_changes$$, 0, 'a coordinator cannot read the date changes');
+select t.login('owner_b');
+select t.fails($$select public.change_photo_day((select id from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000b7'), 'cancel', null, 'Not mine')$$, 'another company cannot change this photo day');
+
+select t.login('owner');
+select t.works($$select public.change_photo_day((select id from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000b7'), 'cancel', null, 'League folded')$$, 'the owner cancels a photo day');
+select t.count_is($$select count(*) from public.jobs where id = '40000000-0000-0000-0000-0000000000b7' and status = 'cancelled'$$, 1, 'a job with every photo day cancelled is cancelled');
+select t.fails($$select public.change_photo_day((select id from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000b7'), 'reschedule', '2030-06-01', 'Back on')$$, 'a cancelled photo day cannot be moved');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+
 -- Sending an approved draft: server only, once, and never while paused.
 insert into public.agent_actions (id, company_id, action_type_key, actor_kind, status, draft) values
   ('70000000-0000-0000-0000-0000000000c1', 'a0000000-0000-0000-0000-00000000000a', 'chase.request', 'system', 'proposed', '{"to": ["c@example.com"], "subject": "S", "body": "B"}'),

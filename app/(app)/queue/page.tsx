@@ -3,13 +3,14 @@ import { requireStaff, hasAnyRole, ADMIN_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill } from "@/components/ui";
 import { DRAFT_LABEL, isDraftKind } from "@/lib/clock/drafts";
+import { DATE_NOTICE_KEY, DATE_NOTICE_LABEL } from "@/lib/jobs/date-change";
 import { approveAll } from "./actions";
 import { DraftForm, RunClockButton, SendButton } from "./forms";
 
 type Draft = { to?: unknown; subject?: unknown; body?: unknown };
 type Refs = { job_id?: string | null; org_id?: string | null };
 
-const label = (key: string) => (isDraftKind(key) ? DRAFT_LABEL[key] : key);
+const label = (key: string) => (isDraftKind(key) ? DRAFT_LABEL[key] : key === DATE_NOTICE_KEY ? DATE_NOTICE_LABEL : key);
 const when = (iso: string) =>
   new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).format(new Date(iso));
 

@@ -87,7 +87,7 @@ const TOOLS = {
     run: async ({ job_id }, { supabase }) => {
       const [job, days, ready, holds, schedules, roster, teams, tasks, form, signed, links] = await Promise.all([
         supabase.from("jobs").select("id, name, status, production_stage, program, job_type, sports, venue, sale_mode, delivery_method, lab, expected_teams, expected_subjects, team_photo_type, notes, org_id, organizations(name)").eq("id", job_id).maybeSingle(),
-        supabase.from("photo_days").select("id, date, original_date, start_time, end_time, label, location_name, city, state, indoor, stations, notes").eq("job_id", job_id).order("date"),
+        supabase.from("photo_days").select("id, date, original_date, status, start_time, end_time, label, location_name, city, state, indoor, stations, notes").eq("job_id", job_id).order("date"),
         supabase.from("photo_day_readiness").select("photo_day_id, date, agreement_signed, planning_form, roster, schedule, captura_gallery").eq("job_id", job_id),
         supabase.from("date_holds").select("photo_day_id, status, held_on, expires_on, confirmed_at, released_at, released_reason").eq("job_id", job_id),
         supabase.from("schedules").select("photo_day_id, status, stations, submitted_at").eq("job_id", job_id),
@@ -165,7 +165,7 @@ const TOOLS = {
     ),
     run: async (i, { supabase }) => {
       const [days, ready, capacity] = await Promise.all([
-        supabase.from("photo_days").select("id, date, start_time, end_time, label, location_name, city, stations, job_id, jobs(name, status, organizations(name))").gte("date", i.date_from).lte("date", i.date_to).order("date").limit(120),
+        supabase.from("photo_days").select("id, date, status, start_time, end_time, label, location_name, city, stations, job_id, jobs(name, status, organizations(name))").gte("date", i.date_from).lte("date", i.date_to).order("date").limit(120),
         supabase.from("photo_day_readiness").select("photo_day_id, agreement_signed, planning_form, roster, schedule, captura_gallery").gte("date", i.date_from).lte("date", i.date_to).limit(120),
         supabase.from("date_capacity").select("date, jobs, stations_used, stations_held").gte("date", i.date_from).lte("date", i.date_to).order("date").limit(120),
       ]);
