@@ -47,6 +47,13 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M3 13h5.5l1 2.5h5l1-2.5H21" />
     </>
   ),
+  // Support: an envelope
+  "/support": (
+    <>
+      <rect x="3" y="5.5" width="18" height="13" rx="2" />
+      <path d="M3.5 7l8.5 6.5L20.5 7" />
+    </>
+  ),
   // Season: bars on a chart
   "/season": <path d="M4 20V11M10 20V4M16 20v-7M21 20H3" />,
   // Leagues: a shield

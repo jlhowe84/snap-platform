@@ -26,6 +26,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     { href: "/ask", label: "Ask SNAP", show: office || viewer.roles.includes("support") },
     { href: "/jobs", label: "Jobs", show: true },
     { href: "/queue", label: "Queue", show: office || viewer.roles.includes("support") },
+    { href: "/support", label: "Support", show: office || viewer.roles.includes("support") },
     { href: "/season", label: "Season", show: office || viewer.roles.includes("support") },
     { href: "/leagues", label: "Leagues", show: office || viewer.roles.includes("support") },
     { href: "/crew", label: "Crew", show: office },

@@ -310,8 +310,8 @@ stays while the person moves between pages and is gone on a full reload.
 
 ## Support desk (Wave B)
 
-Module 12, the replacement for Hiver. This is the data model; mail sync and
-the pages come in later pull requests.
+Module 12, the replacement for Hiver. Built so far: the data model, reading
+mail in, and the pages to work a conversation. Replying comes next.
 
 - `support_conversations`: one row per Gmail thread in a mailbox listed in
   `mail.mailboxes` (unique on company, mailbox and thread id). Holds the
@@ -337,3 +337,30 @@ see nothing.
   customer writes again, and moves `new` to `open` on the first reply.
 - Conversations and messages are not copied into the change log, so customer
   text stays in one place. Saved replies are logged.
+
+Mail comes in through `lib/support/sync.ts`, a server job. It reads each
+mailbox in `mail.mailboxes` a day at a time, oldest first, and hands every
+thread to `public.support_ingest()` (service role only), which stores the
+thread and only the messages it does not have yet. It is read only: nothing is
+sent, labelled, marked read or moved in Gmail.
+
+- `lib/support/parse.ts` turns a Gmail thread into rows: plain text (HTML is
+  reduced to text, never rendered), drafts, spam and trash dropped, and mail
+  from the company's own addresses (`mail.mailboxes` plus
+  `support.own_addresses`) marked `out`.
+- A thread with no mail from outside is not a conversation, so the platform's
+  own sends stay out of the queue until someone answers them.
+- The sender is matched to a league when their address belongs to a contact
+  of exactly one league.
+- The first run goes back `support.first_sync_days` (7 when not set). Each
+  finished day is recorded in `support_sync_state`, so a run that stops early
+  is picked up by the next one.
+- Two ways to run it: "Check for new mail" on `/support` (any support desk
+  role, their own company), and `/api/cron/support-sync` every ten minutes,
+  which needs `CRON_SECRET` and only touches companies whose
+  `support.sync_enabled` setting is true.
+
+`/support` lists conversations (needs a reply, mine, unassigned, waiting,
+closed) and `/support/[id]` shows one with its mail and notes, and lets staff
+set who has it, where it stands and what it is about. Optional suggestions for
+"about" come from the `support.categories` setting.
