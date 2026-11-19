@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { SUPPORT_ROLES, isSupportStatus } from "@/lib/support/labels";
+import { unfilledNotes } from "@/lib/support/saved";
 
 // The support desk. People work a conversation (who has it, where it stands,
 // what it is about) and add notes. RLS and a database guard keep the mail
@@ -113,6 +114,11 @@ export async function sendReply(id: string, _prev: SupportState, form: FormData)
   if (!conversationId.success || !body.success || !after.success) {
     return { ok: false, message: "Write a reply first (20,000 characters at most)." };
   }
+  // A note left for the person to fill in must never reach a customer.
+  const notes = unfilledNotes(body.data);
+  if (notes.length > 0) {
+    return { ok: false, message: `Not sent. Fill in or remove ${notes.join(", ")} first.` };
+  }
   // RLS decides whether this person can see the conversation at all.
   const supabase = await createClient();
   const { data: mine } = await supabase.from("support_conversations").select("id").eq("id", conversationId.data).maybeSingle();
@@ -133,6 +139,17 @@ export async function sendReply(id: string, _prev: SupportState, form: FormData)
   await supabase.from("support_conversations").update({ status: after.data }).eq("id", conversationId.data);
   revalidatePath("/support");
   return { ok: true, message: "Reply sent." };
+}
+
+export type DraftState = { ok: true; draft: string; found: string[] } | { ok: false; message: string };
+
+/** Writes a suggested reply for the reply box. Nothing is sent or saved. */
+export async function draftReply(id: string): Promise<DraftState> {
+  const viewer = await requireStaff(SUPPORT_ROLES);
+  const conversationId = z.uuid().safeParse(id);
+  if (!conversationId.success) return { ok: false, message: "That conversation was not found." };
+  const { draftSupportReply } = await import("@/lib/support/draft");
+  return draftSupportReply(viewer, conversationId.data);
 }
 
 const Saved = z.object({

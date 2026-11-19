@@ -11,6 +11,9 @@ import { NoteForm, ReplyForm, WorkForm } from "./work";
 
 export const metadata: Metadata = { title: "Support conversation" };
 
+// Drafting a reply waits on the model; give the server action room to finish.
+export const maxDuration = 60;
+
 export default async function ConversationPage({ params }: PageProps<"/support/[id]">) {
   const viewer = await requireStaff(SUPPORT_ROLES);
   const id = z.uuid().safeParse((await params).id);
@@ -58,35 +61,43 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
-          {(messages ?? []).map((m) => {
+          {(messages ?? []).map((m, i, all) => {
             const note = m.direction === "note";
             const ours = m.direction === "out";
             const who = note
               ? `${(m.author_id && nameOf.get(m.author_id)) ?? "Staff"} · note`
               : (m.from_name ?? m.from_address ?? (ours ? "SNAP" : "Customer"));
+            const body = m.body_text || "(no text)";
             return (
-              <article
+              // Each message folds away. The newest two start open so a long
+              // thread opens on what needs an answer.
+              <details
                 key={m.id}
+                open={i >= all.length - 2}
                 className={cx(
-                  "rounded-xl border p-4",
+                  "group rounded-xl border",
                   note ? "border-warn/40 bg-warn/5" : ours ? "border-accent/40 bg-surface" : "border-line bg-surface",
                 )}
               >
-                <header className="mb-2 flex flex-wrap items-baseline justify-between gap-2 text-xs text-muted">
-                  <span className="text-sm font-medium text-text">
-                    {who}
-                    {!note && m.from_name && m.from_address ? <span className="font-normal text-muted"> · {m.from_address}</span> : null}
+                <summary className="cursor-pointer list-none p-4 [&::-webkit-details-marker]:hidden">
+                  <span className="flex flex-wrap items-baseline justify-between gap-2 text-xs text-muted">
+                    <span className="text-sm font-medium text-text">
+                      <span aria-hidden className="mr-2 inline-block text-muted transition-transform group-open:rotate-90">›</span>
+                      {who}
+                      {!note && m.from_name && m.from_address ? <span className="font-normal text-muted"> · {m.from_address}</span> : null}
+                    </span>
+                    <span>
+                      {note ? "Staff only" : ours ? "Sent" : "Received"} · {when.format(new Date(m.sent_at))}
+                    </span>
                   </span>
-                  <span>
-                    {note ? "Staff only" : ours ? "Sent" : "Received"} · {when.format(new Date(m.sent_at))}
-                  </span>
-                </header>
-                <p className="whitespace-pre-wrap break-words text-sm">{m.body_text || "(no text)"}</p>
-              </article>
+                  <span className="mt-1 block truncate pl-5 text-sm text-muted group-open:hidden">{body.replace(/\s+/g, " ").slice(0, 160)}</span>
+                </summary>
+                <p className="whitespace-pre-wrap break-words px-4 pb-4 text-sm">{body}</p>
+              </details>
             );
           })}
           <Card title="Reply" action={<Link href="/support/replies" className="text-sm text-muted hover:text-accent">Saved replies</Link>}>
-            <ReplyForm id={c.id} to={c.customer_email} testMode={testMode} saved={saved ?? []} customerName={c.customer_name} myName={viewer.name} />
+            <ReplyForm id={c.id} to={c.customer_email} testMode={testMode} saved={saved ?? []} customerName={c.customer_name} myName={viewer.name} canDraft={(messages ?? []).some((m) => m.direction === "in")} />
           </Card>
           <Card>
             <NoteForm id={c.id} />

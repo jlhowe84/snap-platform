@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
-import { addNote, saveConversation, sendReply, type SupportState } from "../actions";
-import { fillSavedReply } from "@/lib/support/saved";
+import { useActionState, useRef, useState, useTransition } from "react";
+import { addNote, draftReply, saveConversation, sendReply, type SupportState } from "../actions";
+import { fillSavedReply, unfilledNotes } from "@/lib/support/saved";
 import { SUPPORT_STATUSES, SUPPORT_STATUS_LABEL, type SupportStatus } from "@/lib/support/labels";
 
 const field = "mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm";
@@ -96,10 +96,12 @@ export function ReplyForm({
   saved,
   customerName,
   myName,
+  canDraft,
 }: {
   id: string;
   to: string | null;
   testMode: boolean;
+  canDraft: boolean;
   saved: { id: string; title: string; body: string }[];
   customerName: string | null;
   myName: string;
@@ -112,6 +114,26 @@ export function ReplyForm({
     return result;
   }, null);
   const box = useRef<HTMLTextAreaElement>(null);
+  const [drafting, startDraft] = useTransition();
+  const [draftNote, setDraftNote] = useState<SupportState>(null);
+  const [found, setFound] = useState<string[]>([]);
+
+  function draft() {
+    setDraftNote(null);
+    setFound([]);
+    startDraft(async () => {
+      const result = await draftReply(id);
+      if (!result.ok) {
+        setDraftNote(result);
+        return;
+      }
+      // What the person already typed is kept above the draft.
+      setText((now) => (now.trim() ? `${now.replace(/\s+$/, "")}\n\n${result.draft}` : result.draft));
+      setFound(result.found);
+      setDraftNote({ ok: true, message: "Draft added. Read it, fix anything in [brackets], then send." });
+      box.current?.focus();
+    });
+  }
 
   function insert(savedId: string) {
     const reply = saved.find((r) => r.id === savedId);
@@ -121,6 +143,8 @@ export function ReplyForm({
     box.current?.focus();
   }
 
+  const notes = unfilledNotes(text);
+
   if (!to) return <p className="text-sm text-muted">This conversation has no address to reply to.</p>;
   return (
     <form action={action} className="space-y-3">
@@ -128,6 +152,17 @@ export function ReplyForm({
         <p className={label}>
           Reply to <span className="normal-case tracking-normal text-text">{to}</span>
         </p>
+        <div className="flex flex-wrap items-center gap-2">
+        {canDraft && (
+          <button
+            type="button"
+            onClick={draft}
+            disabled={drafting}
+            className="rounded-lg border border-line px-3 py-1.5 text-sm font-semibold hover:border-accent hover:text-accent disabled:opacity-60"
+          >
+            {drafting ? "Drafting…" : "Draft a reply"}
+          </button>
+        )}
         {saved.length > 0 && (
           <select
             aria-label="Insert a saved reply"
@@ -144,15 +179,32 @@ export function ReplyForm({
             ))}
           </select>
         )}
+        </div>
       </div>
+      <Message state={draftNote} />
+      {found.length > 0 && (
+        <div className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Looked up in Captura for this draft</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-muted">
+            {found.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <textarea ref={box} name="body" rows={8} maxLength={20000} required aria-label="Reply" value={text} onChange={(e) => setText(e.target.value)} className={field} />
+      {notes.length > 0 && (
+        <p role="alert" className="rounded-lg border border-risk/40 bg-risk/5 px-3 py-2 text-sm">
+          Fill in or remove before sending: <span className="font-semibold">{notes.join(", ")}</span>
+        </p>
+      )}
       {testMode && (
         <p className="rounded-lg border border-warn/40 bg-warn/5 px-3 py-2 text-sm">
           Test mode is on. Sending goes only to the test address and is kept here as a note. The customer gets nothing.
         </p>
       )}
       <div className="flex flex-wrap items-center gap-3">
-        <button disabled={pending} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110 disabled:opacity-60">
+        <button disabled={pending || notes.length > 0} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110 disabled:opacity-60">
           {pending ? "Sending…" : testMode ? "Send test" : "Send reply"}
         </button>
         {!testMode && (

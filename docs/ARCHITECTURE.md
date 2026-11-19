@@ -390,3 +390,37 @@ conversation's customer address and passes `lib/mail/guard.ts` like every send.
 Saved replies are managed at `/support/replies` by anyone on the support desk
 and dropped into the reply box from a picker. `{first_name}` and `{my_name}`
 are filled in when one is inserted (`lib/support/saved.ts`).
+
+A website form is sent from the site's address with the person's address as
+Reply-To. `parseThread` reads the Reply-To person as the writer (unless it is
+one of our own addresses), so the conversation's customer and the address a
+reply goes to are the person's. Reading a thread again corrects an inbound
+message's writer and text and, when the opening message now names someone
+else, the conversation's customer (`support_ingest`).
+
+### Drafted replies
+
+"Draft a reply" on a conversation asks the model for a suggested answer and
+puts it in the reply box (`lib/support/draft.ts`, prompts in
+`lib/support/draft-prompt.ts`). It never sends and stores nothing on the
+conversation. It runs as the signed-in person, so RLS decides what it can
+read, and it is shown only the conversation, the matched league's name and the
+active saved replies. It is told to leave a note in [brackets] for any fact it
+does not have, and never to promise a refund, a reprint or a date. It spends
+from the Ask SNAP daily cap through `ask_snap_begin` and `ask_snap_finish`;
+the run is logged with a fixed label and without the customer's words or the
+draft.
+
+When Captura is connected the draft may make up to three rounds of read-only
+lookups (`lib/support/draft-tools.ts`): one order by the number the customer
+gave, galleries by title, and a player in one gallery by name (access code and
+personal link). `lib/captura/shape.ts` passes on only what a reply needs: no
+addresses, phone numbers, fee lines or image counts. Each result says whether
+the email on the order or player matches the customer's; when it does not, the
+draft carries a [bracketed note] asking staff to confirm. The reply box lists
+what was looked up. Captura has no search by email, so an order is only found
+by its number.
+
+A reply that still holds a [bracketed note] or an unfilled {blank} is not
+sent: the Send button is off and `sendReply` refuses it on the server
+(`unfilledNotes` in `lib/support/saved.ts`).

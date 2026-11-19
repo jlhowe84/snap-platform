@@ -75,7 +75,11 @@ export function htmlToText(html: string): string {
 
 export function bodyText(payload: GmailPart | undefined): string {
   const plain = findPart(payload, "text/plain");
-  const text = plain ? decode(plain.body?.data) : htmlToText(decode(findPart(payload, "text/html")?.body?.data));
+  const raw = plain ? decode(plain.body?.data) : "";
+  // Some senders (website forms) put HTML in the plain-text part.
+  const text = plain
+    ? /<(table|div|p|td|br|html|body)[\s>/]/i.test(raw) ? htmlToText(raw) : raw
+    : htmlToText(decode(findPart(payload, "text/html")?.body?.data));
   return text.replace(/\r\n/g, "\n").replace(/\u0000/g, "").trim().slice(0, MAX_BODY);
 }
 
@@ -92,9 +96,13 @@ function isQuiet(address: string | null, subject: string, rules: QuietRule[]): b
 
 function parseMessage(m: GmailMessage, own: Set<string>, quiet: QuietRule[]): ParsedMessage | null {
   if (m.labelIds?.some((l) => SKIP_LABELS.has(l))) return null;
-  const from = parseAddress(header(m.payload, "From"));
+  const sentBy = parseAddress(header(m.payload, "From"));
   // Automatic notices (order receipts and the like) are not support mail.
-  if (isQuiet(from.address, header(m.payload, "Subject"), quiet)) return null;
+  if (isQuiet(sentBy.address, header(m.payload, "Subject"), quiet)) return null;
+  // A website form is sent from the site's address (often one of our own)
+  // with the person's address as Reply-To. The person is who wrote.
+  const replyTo = parseAddress(header(m.payload, "Reply-To"));
+  const from = replyTo.address && replyTo.address !== sentBy.address && !own.has(replyTo.address) ? replyTo : sentBy;
   const ms = Number(m.internalDate);
   if (!m.id || !Number.isFinite(ms) || ms <= 0) return null;
   return {
