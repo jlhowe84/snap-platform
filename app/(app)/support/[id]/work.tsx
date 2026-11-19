@@ -116,9 +116,11 @@ export function ReplyForm({
   const box = useRef<HTMLTextAreaElement>(null);
   const [drafting, startDraft] = useTransition();
   const [draftNote, setDraftNote] = useState<SupportState>(null);
+  const [found, setFound] = useState<string[]>([]);
 
   function draft() {
     setDraftNote(null);
+    setFound([]);
     startDraft(async () => {
       const result = await draftReply(id);
       if (!result.ok) {
@@ -127,6 +129,7 @@ export function ReplyForm({
       }
       // What the person already typed is kept above the draft.
       setText((now) => (now.trim() ? `${now.replace(/\s+$/, "")}\n\n${result.draft}` : result.draft));
+      setFound(result.found);
       setDraftNote({ ok: true, message: "Draft added. Read it, fix anything in [brackets], then send." });
       box.current?.focus();
     });
@@ -179,6 +182,16 @@ export function ReplyForm({
         </div>
       </div>
       <Message state={draftNote} />
+      {found.length > 0 && (
+        <div className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Looked up in Captura for this draft</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5 text-muted">
+            {found.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <textarea ref={box} name="body" rows={8} maxLength={20000} required aria-label="Reply" value={text} onChange={(e) => setText(e.target.value)} className={field} />
       {notes.length > 0 && (
         <p role="alert" className="rounded-lg border border-risk/40 bg-risk/5 px-3 py-2 text-sm">

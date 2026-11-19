@@ -404,6 +404,16 @@ from the Ask SNAP daily cap through `ask_snap_begin` and `ask_snap_finish`;
 the run is logged with a fixed label and without the customer's words or the
 draft.
 
+When Captura is connected the draft may make up to three rounds of read-only
+lookups (`lib/support/draft-tools.ts`): one order by the number the customer
+gave, galleries by title, and a player in one gallery by name (access code and
+personal link). `lib/captura/shape.ts` passes on only what a reply needs: no
+addresses, phone numbers, fee lines or image counts. Each result says whether
+the email on the order or player matches the customer's; when it does not, the
+draft carries a [bracketed note] asking staff to confirm. The reply box lists
+what was looked up. Captura has no search by email, so an order is only found
+by its number.
+
 A reply that still holds a [bracketed note] or an unfilled {blank} is not
 sent: the Send button is off and `sendReply` refuses it on the server
 (`unfilledNotes` in `lib/support/saved.ts`).

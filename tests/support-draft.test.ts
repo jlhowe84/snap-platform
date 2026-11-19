@@ -55,6 +55,17 @@ describe("drafted support replies", () => {
     expect(system).not.toContain("—");
   });
 
+  it("adds lookup rules and the league's galleries only when Captura is on", () => {
+    const off = draftSystemPrompt({ companyName: "Example Photo", agentFirstName: "Alisa" });
+    const on = draftSystemPrompt({ companyName: "Example Photo", agentFirstName: "Alisa", lookups: true });
+    expect(off).not.toContain("Captura");
+    expect(on).toContain("look things up in Captura");
+    expect(on).toContain("under a different email");
+    expect(on).toContain("Never say how many photos");
+    const prompt = draftUserPrompt({ companyName: null, agentFirstName: "", customerName: null, league: "Example League", subject: "Code", messages: [msg("in", "Code?")], savedReplies: [], galleries: [{ id: "77", title: "Fall 2026" }] });
+    expect(prompt).toContain("Fall 2026 (gallery id 77)");
+  });
+
   it("cleans the draft for the reply box", () => {
     expect(cleanDraft("Hi Pat — thanks.\r\n\r\n\r\n\r\n**Bold** bit\n")).toBe("Hi Pat, thanks.\n\nBold bit");
   });

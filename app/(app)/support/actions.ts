@@ -141,7 +141,7 @@ export async function sendReply(id: string, _prev: SupportState, form: FormData)
   return { ok: true, message: "Reply sent." };
 }
 
-export type DraftState = { ok: true; draft: string } | { ok: false; message: string };
+export type DraftState = { ok: true; draft: string; found: string[] } | { ok: false; message: string };
 
 /** Writes a suggested reply for the reply box. Nothing is sent or saved. */
 export async function draftReply(id: string): Promise<DraftState> {
