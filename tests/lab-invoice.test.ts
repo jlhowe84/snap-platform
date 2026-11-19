@@ -192,6 +192,29 @@ describe("reading a lab invoice", () => {
     expect(costs.reduce((n, c) => n + Math.round(c.total * 100), 0)).toBe(1539);
   });
 
+  it("keeps a job name whole when the page breaks right after it", () => {
+    const [invoice] = parseInvoices([
+      "Page 1 of 2",
+      "INVOICE 5400012",
+      "Client No.: 10001 Ordered By: Invoice Date: 10/10/2026",
+      "Order Item Description Org. Each Unit Tax Extended",
+      "2060050 Received: 10/9/2026 Online Order No: IQ80000050; PO No: 70000050;",
+      "Reference: 2026 Example Eagles Football and Cheer",
+      "Page 2 of 2",
+      "INVOICE 5400012",
+      "Client No.: 10001 Ordered By: Invoice Date: 10/10/2026",
+      "Order Item Description Org. Each Unit Tax Extended",
+      "For: Pat Sample",
+      "8-Wallet Prints With Die-Cut 1 1 1.90 X 1.90",
+      "Sub Total $1.90",
+      "Tax $0.11",
+      "Total $2.01",
+    ]);
+    expect(invoice.problems).toEqual([]);
+    expect(invoice.invoiceDate).toBe("2026-10-10");
+    expect(invoice.orders[0].reference).toBe("2026 Example Eagles Football and Cheer");
+  });
+
   it("reads a remake that has no customer line and costs nothing", () => {
     const [remake] = parseInvoices([
       "INVOICE 5400011",

@@ -233,8 +233,11 @@ export function parseInvoices(lines: string[]): ParsedInvoice[] {
     }
     if (skipping) {
       if (COLUMNS.test(line)) skipping = false;
-      // The first page's heading holds the invoice date; keep that line.
-      if (/Invoice Date:/.test(line)) chunks[chunks.length - 1]?.lines.push(line);
+      // The first page's heading holds the invoice date; keep that line once.
+      // A later page repeats it, and kept again it would run into a job name
+      // that wraps across the page break.
+      const chunk = chunks[chunks.length - 1];
+      if (chunk && /Invoice Date:/.test(line) && !chunk.lines.some((l) => /Invoice Date:/.test(l))) chunk.lines.push(line);
       continue;
     }
     chunks[chunks.length - 1]?.lines.push(line);
