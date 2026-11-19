@@ -3402,6 +3402,10 @@ export type Database = {
         Returns: string
       }
       submit_schedule: { Args: { p_schedule_id: string }; Returns: string }
+      support_drop_quiet: {
+        Args: { p_company: string; p_senders: string[] }
+        Returns: number
+      }
       support_ingest: {
         Args: {
           p_company: string

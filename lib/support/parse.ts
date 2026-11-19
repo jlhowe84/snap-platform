@@ -81,9 +81,11 @@ export function bodyText(payload: GmailPart | undefined): string {
 
 const SKIP_LABELS = new Set(["DRAFT", "SPAM", "TRASH"]);
 
-function parseMessage(m: GmailMessage, own: Set<string>): ParsedMessage | null {
+function parseMessage(m: GmailMessage, own: Set<string>, quiet: Set<string>): ParsedMessage | null {
   if (m.labelIds?.some((l) => SKIP_LABELS.has(l))) return null;
   const from = parseAddress(header(m.payload, "From"));
+  // Automatic notices (order receipts and the like) are not support mail.
+  if (from.address && quiet.has(from.address)) return null;
   const ms = Number(m.internalDate);
   if (!m.id || !Number.isFinite(ms) || ms <= 0) return null;
   return {
@@ -101,12 +103,15 @@ function parseMessage(m: GmailMessage, own: Set<string>): ParsedMessage | null {
 
 /**
  * `ownAddresses` are the company's own sending addresses (the mailbox itself
- * and any others in settings). Drafts, spam and trash are dropped.
+ * and any others in settings). Drafts, spam and trash are dropped, and so is
+ * mail from `quietSenders`: automatic notices that only matter once a person
+ * answers one, at which point the answer comes in as its own message.
  */
-export function parseThread(thread: GmailThread, ownAddresses: Iterable<string>): ParsedThread {
+export function parseThread(thread: GmailThread, ownAddresses: Iterable<string>, quietSenders: Iterable<string> = []): ParsedThread {
   const own = new Set([...ownAddresses].map((a) => a.toLowerCase()));
+  const quiet = new Set([...quietSenders].map((a) => a.trim().toLowerCase()));
   const messages = (thread.messages ?? [])
-    .map((m) => parseMessage(m, own))
+    .map((m) => parseMessage(m, own, quiet))
     .filter((m): m is ParsedMessage => m !== null)
     .sort((a, b) => a.sent_at.localeCompare(b.sent_at));
   const first = (thread.messages ?? [])[0];

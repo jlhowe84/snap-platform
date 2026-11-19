@@ -958,6 +958,19 @@ select t.works($$select public.support_sync_mark('a0000000-0000-0000-0000-000000
 select t.works($$select public.support_sync_mark('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', null, 'Gmail GET failed (500)')$$, 'the server records a failed run');
 select t.count_is($$select count(*) from public.support_sync_state where mailbox = 'help@test.invalid' and last_synced_at = '2027-02-03 00:00+00' and last_error is not null$$, 1, 'a failed run keeps the last good point');
 
+-- Quiet senders: untouched conversations made only of automatic notices go.
+select t.login('owner');
+select t.fails($$select public.support_drop_quiet('a0000000-0000-0000-0000-00000000000a', array['no-reply@orders.invalid'])$$, 'people cannot clear the queue');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-q1', 'Order received', '[{"id":"g-q1","direction":"in","from_address":"no-reply@orders.invalid","body":"Receipt","sent_at":"2027-02-05T15:00:00Z"}]'::jsonb);
+select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-q2', 'Order received', '[{"id":"g-q2","direction":"in","from_address":"no-reply@orders.invalid","body":"Receipt","sent_at":"2027-02-05T15:00:00Z"},{"id":"g-q3","direction":"in","from_address":"parent2@test.invalid","body":"Wrong pose","sent_at":"2027-02-05T16:00:00Z"}]'::jsonb);
+select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-q3', 'Order received', '[{"id":"g-q4","direction":"in","from_address":"no-reply@orders.invalid","body":"Receipt","sent_at":"2027-02-05T15:00:00Z"}]'::jsonb);
+update public.support_conversations set status = 'open' where gmail_thread_id = 'thread-q3';
+select t.count_is($$select public.support_drop_quiet('a0000000-0000-0000-0000-00000000000a', array[' No-Reply@orders.invalid '])$$, 1, 'only the untouched notice is cleared');
+select t.count_is($$select count(*) from public.support_conversations where gmail_thread_id in ('thread-q1', 'thread-q2', 'thread-q3', 'thread-in', 'thread-a1')$$, 4, 'answered and worked conversations stay');
+select t.count_is($$select public.support_drop_quiet('a0000000-0000-0000-0000-00000000000a', '{}'::text[])$$, 0, 'an empty list clears nothing');
+
 reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;
 rollback;

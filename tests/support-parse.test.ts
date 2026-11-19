@@ -69,6 +69,16 @@ describe("support mail parsing", () => {
     expect(hasInbound(thread)).toBe(true);
   });
 
+  it("leaves out automatic notices until a person answers", () => {
+    const quiet = ["no-reply@orders.example"];
+    const receipt = msg("m1", "Orders <No-Reply@orders.example>", 1000);
+    const alone = parseThread({ id: "t1", messages: [receipt] }, ["help@example.com"], quiet);
+    expect(alone.messages).toEqual([]);
+    const answered = parseThread({ id: "t1", messages: [receipt, msg("m2", "Pat <pat@example.org>", 2000)] }, ["help@example.com"], quiet);
+    expect(answered.messages.map((m) => m.id)).toEqual(["m2"]);
+    expect(answered.subject).toBe("Where is my order");
+  });
+
   it("drops drafts, spam and trash", () => {
     const thread = parseThread(
       { id: "t1", messages: [msg("m1", "a@x.org", 1000, { labelIds: ["DRAFT"] }), msg("m2", "a@x.org", 2000, { labelIds: ["SPAM"] })] },
@@ -83,14 +93,15 @@ describe("support sync planning", () => {
   const day = 24 * 60 * 60 * 1000;
 
   it("reads settings with safe defaults", () => {
-    expect(syncSettings([])).toEqual({ enabled: false, firstDays: 7, ownAddresses: [] });
+    expect(syncSettings([])).toEqual({ enabled: false, firstDays: 7, ownAddresses: [], quietSenders: [] });
     expect(
       syncSettings([
         { key: "support.sync_enabled", value: true },
         { key: "support.first_sync_days", value: 500 },
         { key: "support.own_addresses", value: ["a@x.org", 3] },
+        { key: "support.quiet_senders", value: [" No-Reply@Orders.example ", "nope", 4] },
       ]),
-    ).toEqual({ enabled: true, firstDays: 7, ownAddresses: ["a@x.org"] });
+    ).toEqual({ enabled: true, firstDays: 7, ownAddresses: ["a@x.org"], quietSenders: ["no-reply@orders.example"] });
   });
 
   it("starts a first run the set number of days back, a day at a time", () => {

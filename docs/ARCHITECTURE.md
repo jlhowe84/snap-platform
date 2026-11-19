@@ -348,6 +348,11 @@ sent, labelled, marked read or moved in Gmail.
   reduced to text, never rendered), drafts, spam and trash dropped, and mail
   from the company's own addresses (`mail.mailboxes` plus
   `support.own_addresses`) marked `out`.
+- Mail from an address in `support.quiet_senders` (automatic notices such as
+  an order receipt) is left out, so its thread appears only once a person
+  answers. Each run also clears untouched conversations made only of such
+  mail (`public.support_drop_quiet()`), which covers ones stored before the
+  sender was listed.
 - A thread with no mail from outside is not a conversation, so the platform's
   own sends stay out of the queue until someone answers them.
 - The sender is matched to a league when their address belongs to a contact

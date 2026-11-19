@@ -38,10 +38,14 @@ export function syncSettings(rows: Setting[]) {
   const get = (key: string) => rows.find((r) => r.key === key)?.value;
   const days = get("support.first_sync_days");
   const own = get("support.own_addresses");
+  const quiet = get("support.quiet_senders");
   return {
     enabled: get("support.sync_enabled") === true,
     firstDays: typeof days === "number" && days >= 1 && days <= 90 ? Math.floor(days) : DEFAULT_FIRST_DAYS,
     ownAddresses: Array.isArray(own) ? own.filter((x): x is string => typeof x === "string") : [],
+    quietSenders: Array.isArray(quiet)
+      ? quiet.filter((x): x is string => typeof x === "string" && x.includes("@")).map((x) => x.trim().toLowerCase())
+      : [],
   };
 }
 
@@ -84,7 +88,7 @@ export async function runSupportSync(onlyCompanyId?: string): Promise<SyncResult
       .from("settings")
       .select("key, value")
       .eq("company_id", company.id)
-      .in("key", ["mail.mailboxes", "support.sync_enabled", "support.first_sync_days", "support.own_addresses"]);
+      .in("key", ["mail.mailboxes", "support.sync_enabled", "support.first_sync_days", "support.own_addresses", "support.quiet_senders"]);
     const settings = syncSettings(rows ?? []);
     if (!onlyCompanyId && !settings.enabled) continue;
     const boxes = allowedMailboxes(rows ?? []);
@@ -112,6 +116,11 @@ export async function runSupportSync(onlyCompanyId?: string): Promise<SyncResult
           .eq("mailbox", mailbox)
           .maybeSingle();
         const gmail = createGmailClient(sa, mailbox, boxes);
+        // Conversations stored before a sender was listed as quiet, and that
+        // nobody has touched, leave the queue.
+        if (settings.quietSenders.length > 0) {
+          await admin.rpc("support_drop_quiet", { p_company: company.id, p_senders: settings.quietSenders });
+        }
         const own = [...boxes, ...settings.ownAddresses];
         const started = Date.now();
 
@@ -131,7 +140,7 @@ export async function runSupportSync(onlyCompanyId?: string): Promise<SyncResult
           for (let i = 0; i < ids.length; i += AT_ONCE) {
             await Promise.all(
               ids.slice(i, i + AT_ONCE).map(async (id) => {
-                const thread = parseThread(await gmail.getThread(id), own);
+                const thread = parseThread(await gmail.getThread(id), own, settings.quietSenders);
                 result.threads += 1;
                 if (thread.messages.length === 0) return;
                 const { data, error: ingestError } = await admin.rpc("support_ingest", {
