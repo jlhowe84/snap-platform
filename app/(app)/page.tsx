@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { requireStaff, hasAnyRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -9,6 +10,8 @@ import { setTaskStatus } from "./tasks/actions";
 
 export default async function TodayPage() {
   const viewer = await requireStaff();
+  // Crew with no office role live on their shifts page.
+  if (!hasAnyRole(viewer, ["owner", "admin", "office", "support"])) redirect("/shifts");
   const supabase = await createClient();
   const today = todayIn(viewer.timeZone);
 

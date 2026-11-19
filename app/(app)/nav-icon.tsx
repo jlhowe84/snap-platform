@@ -65,6 +65,20 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M12 6.5v13" />
     </>
   ),
+  // Staffing: a clipboard
+  "/staffing": (
+    <>
+      <rect x="5" y="4.5" width="14" height="16.5" rx="2" />
+      <path d="M9 3h6v3H9zM8.5 11h7M8.5 15h5" />
+    </>
+  ),
+  // My shifts: a clock
+  "/shifts": (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </>
+  ),
   // Crew: two people
   "/crew": (
     <>

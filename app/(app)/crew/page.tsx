@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requireStaff, OFFICE_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill } from "@/components/ui";
@@ -28,7 +29,7 @@ export default async function CrewPage() {
               <li key={c.id} className="grid gap-1 px-2 py-3 md:grid-cols-[1.5fr_2fr_1fr] md:items-center">
                 <div>
                   <p className="font-medium">
-                    {c.full_name} {!c.active && <Pill>Inactive</Pill>}
+                    <Link href={`/crew/${c.id}`} className="hover:text-accent">{c.full_name}</Link> {!c.active && <Pill>Inactive</Pill>}
                   </p>
                   <p className="text-sm text-muted">{[c.city, c.state].filter(Boolean).join(", ")}</p>
                 </div>

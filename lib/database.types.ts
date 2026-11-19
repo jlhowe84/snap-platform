@@ -2171,6 +2171,67 @@ export type Database = {
           },
         ]
       }
+      pay_rates: {
+        Row: {
+          amount: number
+          company_id: string
+          created_at: string
+          crew_member_id: string
+          id: string
+          notes: string | null
+          position: string
+          unit: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          amount: number
+          company_id: string
+          created_at?: string
+          crew_member_id: string
+          id?: string
+          notes?: string | null
+          position: string
+          unit?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          created_at?: string
+          crew_member_id?: string
+          id?: string
+          notes?: string | null
+          position?: string
+          unit?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pay_rates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_rates_crew_member_id_fkey"
+            columns: ["crew_member_id"]
+            isOneToOne: false
+            referencedRelation: "crew_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_rates_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       photo_days: {
         Row: {
           address: string | null
@@ -3029,6 +3090,165 @@ export type Database = {
           },
         ]
       }
+      shift_responses: {
+        Row: {
+          company_id: string
+          crew_member_id: string
+          responded_at: string
+          response: string
+          shift_id: string
+        }
+        Insert: {
+          company_id: string
+          crew_member_id: string
+          responded_at?: string
+          response: string
+          shift_id: string
+        }
+        Update: {
+          company_id?: string
+          crew_member_id?: string
+          responded_at?: string
+          response?: string
+          shift_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_responses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_responses_crew_member_id_fkey"
+            columns: ["crew_member_id"]
+            isOneToOne: false
+            referencedRelation: "crew_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_responses_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shifts: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          crew_member_id: string | null
+          end_time: string | null
+          filled_at: string | null
+          filled_by: string | null
+          id: string
+          job_id: string
+          notes: string | null
+          open_level: number | null
+          photo_day_id: string
+          position: string
+          published_at: string | null
+          start_time: string | null
+          station: number | null
+          status: Database["public"]["Enums"]["shift_status"]
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          crew_member_id?: string | null
+          end_time?: string | null
+          filled_at?: string | null
+          filled_by?: string | null
+          id?: string
+          job_id: string
+          notes?: string | null
+          open_level?: number | null
+          photo_day_id: string
+          position: string
+          published_at?: string | null
+          start_time?: string | null
+          station?: number | null
+          status?: Database["public"]["Enums"]["shift_status"]
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          crew_member_id?: string | null
+          end_time?: string | null
+          filled_at?: string | null
+          filled_by?: string | null
+          id?: string
+          job_id?: string
+          notes?: string | null
+          open_level?: number | null
+          photo_day_id?: string
+          position?: string
+          published_at?: string | null
+          start_time?: string | null
+          station?: number | null
+          status?: Database["public"]["Enums"]["shift_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shifts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_crew_member_id_fkey"
+            columns: ["crew_member_id"]
+            isOneToOne: false
+            referencedRelation: "crew_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_photo_day_id_fkey"
+            columns: ["photo_day_id"]
+            isOneToOne: false
+            referencedRelation: "photo_day_readiness"
+            referencedColumns: ["photo_day_id"]
+          },
+          {
+            foreignKeyName: "shifts_photo_day_id_fkey"
+            columns: ["photo_day_id"]
+            isOneToOne: false
+            referencedRelation: "photo_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_invites: {
         Row: {
           company_id: string
@@ -3769,6 +3989,26 @@ export type Database = {
         Returns: string
       }
       clock_due: { Args: { p_company: string; p_today: string }; Returns: Json }
+      crew_shift_board: {
+        Args: never
+        Returns: {
+          address: string
+          city: string
+          date: string
+          end_time: string
+          indoor: boolean
+          job_name: string
+          kind: string
+          location_name: string
+          notes: string
+          photo_day_id: string
+          position: string
+          shift_id: string
+          start_time: string
+          state: string
+          station: number
+        }[]
+      }
       decide_action: {
         Args: {
           p_action_id: string
@@ -3881,6 +4121,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      respond_to_shift: {
+        Args: { p_accept: boolean; p_shift_id: string }
+        Returns: string
+      }
       save_planning_form: {
         Args: { p_answers: Json; p_job_id: string; p_submit: boolean }
         Returns: string
@@ -3991,6 +4235,7 @@ export type Database = {
         | "gallery_prep"
         | "qa_marketing"
         | "complete"
+      shift_status: "draft" | "open" | "filled" | "cancelled"
       support_status:
         | "new"
         | "open"
@@ -4177,6 +4422,7 @@ export const Constants = {
         "qa_marketing",
         "complete",
       ],
+      shift_status: ["draft", "open", "filled", "cancelled"],
       support_status: [
         "new",
         "open",

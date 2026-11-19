@@ -211,6 +211,22 @@ insert into public.kb_articles (id, company_id, shelf, section, title, body) val
   ('f0000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', 'answers', 'Ordering', 'When will my order arrive?', 'Orders ship from the lab within two weeks.'),
   ('f0000000-0000-0000-0000-0000000000b1', 'b0000000-0000-0000-0000-00000000000b', 'answers', 'Ordering', 'Shipping', 'Other company answer.');
 
+-- Staffing. Five shifts in company A (one only for Level 1, one a draft), one in B.
+insert into public.crew_members (id, company_id, full_name, positions, level) values
+  ('91000000-0000-0000-0000-0000000000b1', 'b0000000-0000-0000-0000-00000000000b', 'Crew B', '{photographer}', 1);
+insert into public.shifts (id, company_id, job_id, photo_day_id, position, status, open_level, start_time, end_time)
+  select v.id::uuid, d.company_id, d.job_id, d.id, v.pos, v.st::public.shift_status, v.lvl, '09:00', '13:00'
+  from (values ('90000000-0000-0000-0000-0000000000a1', '40000000-0000-0000-0000-0000000000a1', 'photographer', 'open', 1),
+               ('90000000-0000-0000-0000-0000000000a2', '40000000-0000-0000-0000-0000000000a1', 'photographer', 'open', null),
+               ('90000000-0000-0000-0000-0000000000a3', '40000000-0000-0000-0000-0000000000a1', 'poser', 'open', null),
+               ('90000000-0000-0000-0000-0000000000a4', '40000000-0000-0000-0000-0000000000a1', 'photographer', 'draft', null),
+               ('90000000-0000-0000-0000-0000000000a5', '40000000-0000-0000-0000-0000000000a2', 'photographer', 'open', null),
+               ('90000000-0000-0000-0000-0000000000b1', '40000000-0000-0000-0000-0000000000b1', 'photographer', 'open', null))
+       as v(id, job, pos, st, lvl)
+  join public.photo_days d on d.job_id = v.job::uuid;
+insert into public.pay_rates (company_id, crew_member_id, position, amount)
+  select company_id, id, positions[1], 100 from public.crew_members where company_id = 'a0000000-0000-0000-0000-00000000000a';
+
 -- ---------------------------------------------------------------------------
 -- Sign-up and invites
 -- ---------------------------------------------------------------------------
@@ -236,7 +252,7 @@ declare
     array['job_links',             '1','1','1','1','0','1','0','0'],
     array['job_contacts',          '1','1','1','1','0','1','0','0'],
     array['job_coordinators',      '1','1','1','1','0','1','0','0'],
-    array['crew_members',          '2','2','2','2','1','0','0','0'],
+    array['crew_members',          '2','2','2','2','1','0','0','1'],
     array['playbooks',             '1','1','1','1','0','0','0','0'],
     array['playbook_steps',        '1','1','1','1','0','0','0','0'],
     array['tasks',                 '1','1','1','1','0','0','0','0'],
@@ -273,6 +289,9 @@ declare
     array['lab_invoice_skips',     '1','1','1','0','0','0','0','0'],
     array['lab_invoice_sync_state','1','1','1','0','0','0','0','0'],
     array['kb_articles',           '1','1','1','1','0','0','0','1'],
+    array['shifts',                '5','5','5','5','0','0','0','1'],
+    array['shift_responses',       '0','0','0','0','0','0','0','0'],
+    array['pay_rates',             '2','2','0','0','1','0','0','0'],
     array['kb_article_versions',   '1','1','1','1','0','0','0','1']
   ];
   who text[] := array['owner','admin','office','support','crew','coord','outsider','owner_b'];
@@ -1078,6 +1097,48 @@ select t.login('coord');
 select t.count_is($$select count(*) from public.kb_search('order')$$, 0, 'a coordinator finds nothing in the knowledge base');
 select t.login('owner_b');
 select t.count_is($$select count(*) from public.kb_search('shipping')$$, 1, 'another company finds only its own articles');
+
+-- Staffing.
+select t.login('crew');
+select t.count_is($$select count(*) from public.crew_shift_board()$$, 2, 'crew see only the open shifts for their position and Level');
+select t.count_is($$with u as (update public.shifts set status = 'filled', crew_member_id = (select id from public.crew_members limit 1) returning 1) select count(*) from u$$, 0, 'crew cannot fill a shift by hand');
+select t.fails($$insert into public.shift_responses (shift_id, crew_member_id, company_id, response) values ('90000000-0000-0000-0000-0000000000a2', (select id from public.crew_members limit 1), 'a0000000-0000-0000-0000-00000000000a', 'accepted')$$, 'crew cannot write an answer by hand');
+select t.count_is($$select count(*) from public.respond_to_shift('90000000-0000-0000-0000-0000000000a1', true) r where r = 'no_longer_open'$$, 1, 'crew cannot take a shift before their Level''s wave');
+select t.count_is($$select count(*) from public.respond_to_shift('90000000-0000-0000-0000-0000000000a2', true) r where r = 'accepted'$$, 1, 'crew accept an open shift');
+select t.count_is($$select count(*) from public.shifts where status = 'filled' and filled_by = 'crew' and filled_at is not null$$, 1, 'the accepted shift is theirs and stamped');
+select t.count_is($$select count(*) from public.respond_to_shift('90000000-0000-0000-0000-0000000000a5', false) r where r = 'declined'$$, 1, 'crew decline a shift');
+select t.count_is($$select count(*) from public.crew_shift_board() where kind = 'mine'$$, 1, 'their shift is on their board');
+select t.count_is($$select count(*) from public.crew_shift_board() where kind = 'offered'$$, 0, 'a declined shift leaves their board');
+select t.count_is($$select count(*) from public.shift_responses$$, 2, 'crew read their own answers');
+select t.count_is($$select count(*) from public.pay_rates$$, 1, 'crew read their own pay rate');
+select t.login('crew');
+select t.fails($$select public.respond_to_shift('90000000-0000-0000-0000-0000000000b1', true)$$, 'crew cannot answer another company''s shift');
+select t.login('office');
+select t.works($$update public.shifts set open_level = 2 where id = '90000000-0000-0000-0000-0000000000a1'$$, 'office opens the next wave');
+select t.login('crew');
+select t.count_is($$select count(*) from public.respond_to_shift('90000000-0000-0000-0000-0000000000a1', true) r where r = 'no_longer_open'$$, 1, 'one shift per person per photo day');
+select t.login('support');
+select t.count_is($$with u as (update public.shifts set open_level = null returning 1) select count(*) from u$$, 0, 'support cannot change shifts');
+select t.fails($$select public.respond_to_shift('90000000-0000-0000-0000-0000000000a3', true)$$, 'support cannot answer a shift');
+select t.login('office');
+select t.works($$update public.shifts set status = 'filled', filled_by = 'office', crew_member_id = (select id from public.crew_members where full_name = 'Crew A two') where id = '90000000-0000-0000-0000-0000000000a3'$$, 'office assigns crew directly');
+select t.fails($$update public.shifts set status = 'filled', filled_by = 'office', crew_member_id = '91000000-0000-0000-0000-0000000000b1' where id = '90000000-0000-0000-0000-0000000000a4'$$, 'office cannot assign another company''s crew');
+select t.fails($$update public.shifts set status = 'filled' where id = '90000000-0000-0000-0000-0000000000a4'$$, 'a filled shift needs a person');
+select t.fails($$insert into public.pay_rates (company_id, crew_member_id, position, amount) select company_id, id, 'office', 20 from public.crew_members limit 1$$, 'office cannot set pay rates');
+select t.login('admin');
+select t.works($$insert into public.pay_rates (company_id, crew_member_id, position, amount, unit) select company_id, id, 'office', 20, 'hour' from public.crew_members where full_name = 'Crew A two'$$, 'admin sets a pay rate');
+select t.count_is($$select count(*) from public.activity_log where table_name = 'pay_rates'$$, 0, 'pay never reaches the activity log');
+reset role;
+select set_config('app.date_change', '1', true);
+update public.photo_days set status = 'postponed' where job_id = '40000000-0000-0000-0000-0000000000a1';
+select t.login('crew');
+select t.count_is($$select count(*) from public.crew_shift_board()$$, 0, 'a postponed day leaves the crew board');
+reset role;
+update public.photo_days set status = 'scheduled' where job_id = '40000000-0000-0000-0000-0000000000a1';
+select set_config('app.date_change', '', true);
+select t.login('coord');
+select t.count_is($$select count(*) from public.crew_shift_board()$$, 0, 'a coordinator has no shift board');
+select t.fails($$select public.respond_to_shift('90000000-0000-0000-0000-0000000000a4', true)$$, 'a coordinator cannot answer a shift');
 
 reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;

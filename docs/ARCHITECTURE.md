@@ -494,3 +494,35 @@ facts, open policy questions) and `handbook` (staff procedures). Status is
   HTML in an article reaches the page. Links are web or mail addresses only.
 - Support drafts (`lib/support/draft.ts`) add up to six matching published
   articles from the answers and support shelves to the prompt.
+
+## Staffing (Wave B, module 7)
+
+Replaces StaffMate's shift picking. Part one covers shifts, offers and pay
+rates; pay per shift with mileage, payroll reports by pay period and crew
+notices (email and text) come next.
+
+- `shifts`: one row per position needed on a photo day (photographer, poser,
+  coordinator, photo attendant), with an optional station and times. Status is
+  `draft` (crew cannot see it), `open`, `filled` (always with a person) or
+  `cancelled`. A trigger keeps `company_id` and `job_id` in step with the photo
+  day and stamps `published_at` and `filled_at`. One shift per person per day.
+- Waves: Level 1 is asked first. `open_level` is the highest Level that sees an
+  open shift; the office widens it one Level at a time from `/staffing/[dayId]`
+  until it is null (everyone, including crew with no Level). The clock will
+  widen waves on a timer once Josh turns it on.
+- Crew never read photo days or jobs directly. `crew_shift_board()` (security
+  definer) returns their own coming shifts and the offers open to them, with
+  the day's place and times; `respond_to_shift(id, accept)` locks the row,
+  checks the offer is still theirs, refuses an overlapping shift the same day,
+  and fills it or records the decline in `shift_responses`. Postponed and
+  cancelled days are left out.
+- `pay_rates`: per person and position, per shift or per hour. Owner and admin
+  read and write; a crew member reads their own. Pay is kept out of the
+  activity log, which all staff can read.
+- A person given the crew role is linked to the crew record with the same
+  email (`profile_roles` trigger), so their shifts find them.
+- Pages: `/staffing` (coming photo days and how full they are),
+  `/staffing/[dayId]` (add shifts from the station count, publish, widen,
+  assign, take off, cancel), `/shifts` (the crew phone page), `/crew/[id]`
+  (details, coming shifts, pay rates for owner and admin). Crew with no office
+  role land on `/shifts` and see only it and their notices.

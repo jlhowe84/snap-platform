@@ -172,6 +172,9 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                         <Pill tone="warn">Moved from {formatDate(d.original_date)}</Pill>
                       )}
                     </div>
+                    {office && d.status !== "cancelled" && (
+                      <Link href={`/staffing/${d.id}`} className="mt-2 inline-block text-sm text-accent hover:underline">Staffing for this day</Link>
+                    )}
                     {canChangeDates && d.status !== "cancelled" && !["released", "cancelled"].includes(job.status) && (
                       <ChangeDateForm jobId={id} photoDayId={d.id} postponed={d.status === "postponed"} />
                     )}
