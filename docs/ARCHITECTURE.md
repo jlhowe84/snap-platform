@@ -391,6 +391,13 @@ Saved replies are managed at `/support/replies` by anyone on the support desk
 and dropped into the reply box from a picker. `{first_name}` and `{my_name}`
 are filled in when one is inserted (`lib/support/saved.ts`).
 
+A website form is sent from the site's address with the person's address as
+Reply-To. `parseThread` reads the Reply-To person as the writer (unless it is
+one of our own addresses), so the conversation's customer and the address a
+reply goes to are the person's. Reading a thread again corrects an inbound
+message's writer and text and, when the opening message now names someone
+else, the conversation's customer (`support_ingest`).
+
 ### Drafted replies
 
 "Draft a reply" on a conversation asks the model for a suggested answer and

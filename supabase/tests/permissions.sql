@@ -958,6 +958,13 @@ select t.works($$select public.support_sync_mark('a0000000-0000-0000-0000-000000
 select t.works($$select public.support_sync_mark('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', null, 'Gmail GET failed (500)')$$, 'the server records a failed run');
 select t.count_is($$select count(*) from public.support_sync_state where mailbox = 'help@test.invalid' and last_synced_at = '2027-02-03 00:00+00' and last_error is not null$$, 1, 'a failed run keeps the last good point');
 
+-- A website form: read again with the person as the writer, the stored
+-- message and the conversation follow, and nothing counts as new mail.
+select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-form', 'Form', '[{"id":"g-form-1","direction":"in","from_address":"site@test.invalid","from_name":"Site","body":"Email: parent9@test.invalid","sent_at":"2027-02-04T15:00:00Z"}]'::jsonb);
+select t.count_is($$select (public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-form', 'Form', '[{"id":"g-form-1","direction":"in","from_address":"Parent9@test.invalid","body":"Email: parent9@test.invalid","sent_at":"2027-02-04T15:00:00Z"}]'::jsonb)->>'added')::int$$, 0, 'a corrected writer is not new mail');
+select t.count_is($$select count(*) from public.support_conversations c join public.support_messages m on m.conversation_id = c.id where c.gmail_thread_id = 'thread-form' and c.customer_email = 'parent9@test.invalid' and c.customer_name is null and m.from_address = 'parent9@test.invalid' and m.from_name is null$$, 1, 'the conversation follows the corrected writer');
+select t.count_is($$select count(*) from public.support_conversations where gmail_thread_id = 'thread-in' and customer_email = 'c@test.invalid'$$, 1, 'other conversations keep their customer');
+
 -- Quiet senders: untouched conversations made only of automatic notices go.
 select t.login('owner');
 select t.fails($$select public.support_drop_quiet('a0000000-0000-0000-0000-00000000000a', array['no-reply@orders.invalid'])$$, 'people cannot clear the queue');

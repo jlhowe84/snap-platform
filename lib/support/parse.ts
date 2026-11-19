@@ -96,9 +96,13 @@ function isQuiet(address: string | null, subject: string, rules: QuietRule[]): b
 
 function parseMessage(m: GmailMessage, own: Set<string>, quiet: QuietRule[]): ParsedMessage | null {
   if (m.labelIds?.some((l) => SKIP_LABELS.has(l))) return null;
-  const from = parseAddress(header(m.payload, "From"));
+  const sentBy = parseAddress(header(m.payload, "From"));
   // Automatic notices (order receipts and the like) are not support mail.
-  if (isQuiet(from.address, header(m.payload, "Subject"), quiet)) return null;
+  if (isQuiet(sentBy.address, header(m.payload, "Subject"), quiet)) return null;
+  // A website form is sent from the site's address (often one of our own)
+  // with the person's address as Reply-To. The person is who wrote.
+  const replyTo = parseAddress(header(m.payload, "Reply-To"));
+  const from = replyTo.address && replyTo.address !== sentBy.address && !own.has(replyTo.address) ? replyTo : sentBy;
   const ms = Number(m.internalDate);
   if (!m.id || !Number.isFinite(ms) || ms <= 0) return null;
   return {

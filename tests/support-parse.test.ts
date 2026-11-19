@@ -137,3 +137,23 @@ describe("support sync planning", () => {
     expect(windowQuery({ from: 1_000_000, to: 2_000_500 })).toBe("after:1000 before:2002 -in:chats");
   });
 });
+
+describe("website form mail", () => {
+  const form = (replyTo: string) => {
+    const m = msg("f1", "Site Owner <owner@example.com>", 1_800_000_000_000);
+    m.payload.headers.push({ name: "Reply-To", value: replyTo });
+    return m;
+  };
+  it("reads the Reply-To person as the writer, even when the form is sent from our own address", () => {
+    const t = parseThread({ id: "t1", messages: [form("pat.parent@example.org")] }, ["help@example.com", "owner@example.com"]);
+    expect(t.messages[0]).toMatchObject({ direction: "in", from_address: "pat.parent@example.org", from_name: null });
+    const named = parseThread({ id: "t1", messages: [form("Pat Parent <Pat@Example.org>")] }, ["help@example.com"]);
+    expect(named.messages[0]).toMatchObject({ direction: "in", from_address: "pat@example.org", from_name: "Pat Parent" });
+  });
+  it("ignores a Reply-To that is our own address or the sender's", () => {
+    const own = parseThread({ id: "t1", messages: [form("help@example.com")] }, ["help@example.com"]);
+    expect(own.messages[0]).toMatchObject({ direction: "in", from_address: "owner@example.com", from_name: "Site Owner" });
+    const same = parseThread({ id: "t1", messages: [form("owner@example.com")] }, ["help@example.com", "owner@example.com"]);
+    expect(same.messages[0].direction).toBe("out");
+  });
+});
