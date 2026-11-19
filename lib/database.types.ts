@@ -1341,13 +1341,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "lab_invoice_items_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "lab_invoice_orders"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "lab_invoice_items_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -1359,6 +1352,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "lab_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_invoice_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "lab_invoice_orders"
             referencedColumns: ["id"]
           },
         ]
