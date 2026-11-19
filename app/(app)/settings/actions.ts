@@ -155,3 +155,47 @@ export async function saveCompanySettings(_prev: SettingsState, form: FormData):
   revalidatePath("/settings");
   return { ok: true, message: "Saved." };
 }
+
+export type DriveState = { ok: boolean; message: string } | null;
+
+// The Drive folder the lab's invoice PDFs are filed in. An owner or admin
+// pastes the folder's link; only its id is kept. The row is written as the
+// signed-in person, so RLS has the last word.
+export async function saveInvoiceFolder(_prev: DriveState, form: FormData): Promise<DriveState> {
+  const viewer = await requireStaff(ADMIN_ROLES);
+  if (!viewer.companyId) return { ok: false, message: "No company on this account." };
+  const { folderIdFrom } = await import("@/lib/drive/client");
+  const id = folderIdFrom(String(form.get("folder") ?? ""));
+  if (!id) return { ok: false, message: "Paste the folder's link from Google Drive." };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("settings")
+    .upsert({ company_id: viewer.companyId, key: "lab.invoice_drive_folder", value: id }, { onConflict: "company_id,key" });
+  if (error) return { ok: false, message: "The folder could not be saved." };
+  revalidatePath("/settings");
+  return { ok: true, message: "Saved. Use the test to make sure the platform can add files there." };
+}
+
+// Reads the shared folder's name and whether files may be added. Nothing is
+// written to Drive and no file is opened.
+export async function testDriveFolder(): Promise<DriveState> {
+  const viewer = await requireStaff(ADMIN_ROLES);
+  const { loadServiceAccount } = await import("@/lib/gmail/client");
+  const { createDriveClient, driveProblem, folderIdFrom } = await import("@/lib/drive/client");
+  const supabase = await createClient();
+  const { data: row } = await supabase.from("settings").select("value").eq("key", "lab.invoice_drive_folder").maybeSingle();
+  const id = typeof row?.value === "string" ? folderIdFrom(row.value) : null;
+  if (!id) return { ok: false, message: "Save the folder's link first." };
+  try {
+    const sa = await loadServiceAccount(viewer.companyId!);
+    if (!sa) return { ok: false, message: "No Workspace key is stored yet." };
+    const folder = await createDriveClient(sa, id).root();
+    if (folder.mimeType !== "application/vnd.google-apps.folder") return { ok: false, message: "That link is a file, not a folder." };
+    if (folder.capabilities?.canAddChildren === false) {
+      return { ok: false, message: `The platform can see "${folder.name}" but may not add files. Share it as Content manager.` };
+    }
+    return { ok: true, message: `The platform can add files to "${folder.name}".` };
+  } catch (e) {
+    return { ok: false, message: driveProblem(e) };
+  }
+}

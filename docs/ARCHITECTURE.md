@@ -424,3 +424,34 @@ by its number.
 A reply that still holds a [bracketed note] or an unfilled {blank} is not
 sent: the Send button is off and `sendReply` refuses it on the server
 (`unfilledNotes` in `lib/support/saved.ts`).
+
+## Lab invoices (Wave B)
+
+The lab emails one invoice per order as a PDF. The platform keeps a record of
+each so lab costs add up by job, season and year, and any invoice can be found
+again.
+
+- **Pickup** (`lib/lab/sync.ts`, run by hand from Lab costs or by
+  `/api/cron/lab-invoices` when `lab.invoices_enabled` is true). It searches
+  the allowed mailboxes for the senders and subject words in
+  `lab.invoice_sources`, reads each PDF attachment, files the PDF in Drive and
+  stores the invoice. It only reads Gmail. Messages already stored or skipped
+  are not opened again, so a run that stops early is picked up by the next.
+- **Reading** (`lib/lab/invoice-parse.ts`, `lib/lab/pdf-text.ts`). By rule
+  from the PDF's own text, with no model. The lab's "PO No" is the Captura
+  order number; its "Online Order No" is not. The ship-to address is never
+  read. An invoice whose lines do not add up is stored with `needs_check`.
+- **Drive** (`lib/drive/client.ts`). The Workspace service account signs in
+  as itself (no delegation), so it sees only what is shared with its own
+  address: the one folder in `lab.invoice_drive_folder`. The client finds or
+  makes a month folder (`2026-11`, by invoice date) and adds the PDF. It never
+  deletes, moves or shares.
+- **Jobs** (`lab_invoices_link`). The lab prints the job's name (the
+  reference) on each invoice. For a reference with no gallery yet, one of its
+  orders is looked up in Captura (read only) for the gallery id, which
+  `job_links.captura_gallery_id` ties to a job. The office can also match a
+  reference to a job by hand (`lab_assign_reference`); later invoices follow.
+- **Tables**: `lab_invoices`, `lab_invoice_items`, `lab_invoice_skips`
+  (emails that could not be read), `lab_invoice_sync_state`. Office only
+  (owner, admin, office); the server is the only writer.
+  `lab_cost_summary()` adds costs up as the person asking.

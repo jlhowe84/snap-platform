@@ -30,6 +30,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     { href: "/season", label: "Season", show: office || viewer.roles.includes("support") },
     { href: "/leagues", label: "Leagues", show: office || viewer.roles.includes("support") },
     { href: "/crew", label: "Crew", show: office },
+    { href: "/lab", label: "Lab costs", show: office },
     { href: "/settings", label: "Settings", show: admin },
   ].filter((n) => n.show);
 

@@ -6,14 +6,20 @@ import { ROLE_LABEL } from "@/lib/labels";
 import { InviteForm } from "./invite-form";
 import { CapturaTest } from "./captura-test";
 import { CompanySettingsForm } from "./company-settings";
+import { InvoiceFolder } from "./invoice-folder";
+import { loadServiceAccount } from "@/lib/gmail/client";
 import { EDITABLE_KEYS } from "@/lib/settings/editable";
 import Link from "next/link";
 
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  await requireStaff(ADMIN_ROLES);
+  const viewer = await requireStaff(ADMIN_ROLES);
   const supabase = await createClient();
+  // The service account's own address is not a secret: a folder is shared with it.
+  const platformAddress = viewer.companyId
+    ? await loadServiceAccount(viewer.companyId).then((sa) => sa?.client_email ?? null).catch(() => null)
+    : null;
 
   const [{ data: integrations }, { data: actionTypes }, { data: people }, { data: invites }, { data: settings }] =
     await Promise.all([
@@ -124,6 +130,16 @@ export default async function SettingsPage() {
           <p className="text-sm text-muted">
             The steps each job follows: wording, timing, who does it, the order, and which ones show on the Captura setup list.
           </p>
+        </Card>
+
+        <Card title="Lab invoices" className="xl:col-span-2">
+          <InvoiceFolder
+            platformAddress={platformAddress}
+            folderId={(() => {
+              const v = (settings ?? []).find((x) => x.key === "lab.invoice_drive_folder")?.value;
+              return typeof v === "string" ? v : null;
+            })()}
+          />
         </Card>
 
         <Card title="Planning numbers" className="xl:col-span-2">

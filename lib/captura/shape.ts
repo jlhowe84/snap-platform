@@ -101,6 +101,21 @@ export function shapeOrder(raw: unknown, orderNumber: string, customerEmail: Ema
   };
 }
 
+/** The gallery an order was placed in, when the order names exactly one. */
+export function orderGalleryId(raw: unknown): string | null {
+  const data = obj(raw);
+  const inner = arr(data.orders).length > 0 ? arr(data.orders) : [data];
+  const ids = new Set<string>();
+  for (const o of inner) {
+    for (const g of arr(obj(o).galleryOrders)) {
+      const row = obj(g);
+      const id = str(row.galleryID) ?? str(row.galleryId) ?? str(obj(row.gallery).id);
+      if (id && /^\d{1,14}$/.test(id)) ids.add(id);
+    }
+  }
+  return ids.size === 1 ? [...ids][0] : null;
+}
+
 /** A line a person can read about what was found. */
 export function orderSummary(o: OrderFacts): string {
   if (o.orders.length === 0) return `Order ${o.order_number}: found, with no details.`;

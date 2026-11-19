@@ -65,6 +65,13 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.5a6.5 6.5 0 0 1 3.5 5.5" />
     </>
   ),
+  // Lab costs: a receipt
+  "/lab": (
+    <>
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+      <path d="M9 8h6M9 12h6" />
+    </>
+  ),
   // Settings: sliders
   "/settings": (
     <>

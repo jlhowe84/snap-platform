@@ -58,7 +58,7 @@ export type GmailPart = {
   mimeType?: string;
   filename?: string;
   headers?: { name: string; value: string }[];
-  body?: { data?: string; size?: number };
+  body?: { data?: string; size?: number; attachmentId?: string };
   parts?: GmailPart[];
 };
 export type GmailMessage = { id: string; threadId: string; labelIds?: string[]; internalDate?: string; payload?: GmailPart };
@@ -143,6 +143,23 @@ export function createGmailClient(
       ),
     /** One thread with its messages. Only lib/support/sync.ts calls this. */
     getThread: (id: string) => get<GmailThread>(`threads/${encodeURIComponent(id)}?format=full`),
+    /**
+     * Message ids matching a Gmail search. Only lib/lab/sync.ts calls this,
+     * with a search that names the lab's invoice sender and subject.
+     */
+    listMessages: (q: string, pageToken?: string) =>
+      get<{ messages?: { id: string }[]; nextPageToken?: string }>(
+        `messages?maxResults=100&q=${encodeURIComponent(q)}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`,
+      ),
+    /** One message with its parts. Only lib/lab/sync.ts calls this. */
+    getMessage: (id: string) => get<GmailMessage>(`messages/${encodeURIComponent(id)}?format=full`),
+    /** The bytes of one attachment. Only lib/lab/sync.ts calls this. */
+    getAttachment: async (messageId: string, attachmentId: string) => {
+      const a = await get<{ data?: string; size?: number }>(
+        `messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`,
+      );
+      return new Uint8Array(Buffer.from(a.data ?? "", "base64url"));
+    },
     /** Address and message count only; no message content. */
     profile: () => get<{ emailAddress: string; messagesTotal: number; threadsTotal: number }>("profile"),
   };

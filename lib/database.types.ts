@@ -1296,6 +1296,248 @@ export type Database = {
           },
         ]
       }
+      lab_invoice_items: {
+        Row: {
+          company_id: string
+          description: string
+          each_qty: number
+          extended: number
+          id: string
+          invoice_id: string
+          org_qty: number
+          position: number
+          shipping: boolean
+          taxed: boolean
+          unit_price: number
+        }
+        Insert: {
+          company_id: string
+          description: string
+          each_qty?: number
+          extended?: number
+          id?: string
+          invoice_id: string
+          org_qty?: number
+          position: number
+          shipping?: boolean
+          taxed?: boolean
+          unit_price?: number
+        }
+        Update: {
+          company_id?: string
+          description?: string
+          each_qty?: number
+          extended?: number
+          id?: string
+          invoice_id?: string
+          org_qty?: number
+          position?: number
+          shipping?: boolean
+          taxed?: boolean
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_invoice_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "lab_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_invoice_skips: {
+        Row: {
+          company_id: string
+          created_at: string
+          file_name: string
+          gmail_message_id: string
+          mailbox: string
+          reason: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          file_name?: string
+          gmail_message_id: string
+          mailbox: string
+          reason: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          file_name?: string
+          gmail_message_id?: string
+          mailbox?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_invoice_skips_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_invoice_sync_state: {
+        Row: {
+          company_id: string
+          last_error: string | null
+          last_run_at: string | null
+          last_synced_at: string | null
+          mailbox: string
+        }
+        Insert: {
+          company_id: string
+          last_error?: string | null
+          last_run_at?: string | null
+          last_synced_at?: string | null
+          mailbox: string
+        }
+        Update: {
+          company_id?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          last_synced_at?: string | null
+          mailbox?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_invoice_sync_state_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_invoices: {
+        Row: {
+          balance: number | null
+          captura_gallery_id: number | null
+          captura_order_number: string | null
+          check_note: string | null
+          company_id: string
+          created_at: string
+          customer_name: string | null
+          drive_file_id: string | null
+          drive_folder: string | null
+          file_name: string | null
+          gallery_checked_at: string | null
+          gmail_message_id: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          job_id: string | null
+          lab: string
+          lab_order_number: string | null
+          mailbox: string | null
+          needs_check: boolean
+          online_order_number: string | null
+          payments: number | null
+          product_total: number
+          received_date: string | null
+          reference: string | null
+          shipping_total: number
+          subtotal: number
+          tax: number
+          total: number
+        }
+        Insert: {
+          balance?: number | null
+          captura_gallery_id?: number | null
+          captura_order_number?: string | null
+          check_note?: string | null
+          company_id: string
+          created_at?: string
+          customer_name?: string | null
+          drive_file_id?: string | null
+          drive_folder?: string | null
+          file_name?: string | null
+          gallery_checked_at?: string | null
+          gmail_message_id?: string | null
+          id?: string
+          invoice_date: string
+          invoice_number: string
+          job_id?: string | null
+          lab: string
+          lab_order_number?: string | null
+          mailbox?: string | null
+          needs_check?: boolean
+          online_order_number?: string | null
+          payments?: number | null
+          product_total?: number
+          received_date?: string | null
+          reference?: string | null
+          shipping_total?: number
+          subtotal?: number
+          tax?: number
+          total?: number
+        }
+        Update: {
+          balance?: number | null
+          captura_gallery_id?: number | null
+          captura_order_number?: string | null
+          check_note?: string | null
+          company_id?: string
+          created_at?: string
+          customer_name?: string | null
+          drive_file_id?: string | null
+          drive_folder?: string | null
+          file_name?: string | null
+          gallery_checked_at?: string | null
+          gmail_message_id?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          job_id?: string | null
+          lab?: string
+          lab_order_number?: string | null
+          mailbox?: string | null
+          needs_check?: boolean
+          online_order_number?: string | null
+          payments?: number | null
+          product_total?: number
+          received_date?: string | null
+          reference?: string | null
+          shipping_total?: number
+          subtotal?: number
+          tax?: number
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_invoices_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_invoices_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           company_id: string
@@ -3343,6 +3585,33 @@ export type Database = {
         Args: { p_company: string; p_integration: string }
         Returns: string
       }
+      lab_assign_reference: {
+        Args: { p_job: string; p_reference: string }
+        Returns: number
+      }
+      lab_cost_summary: {
+        Args: never
+        Returns: {
+          first_invoice: string
+          invoices: number
+          job_id: string
+          job_name: string
+          last_invoice: string
+          needs_check: number
+          products: number
+          reference: string
+          season: string
+          shipping: number
+          tax: number
+          total: number
+          year: number
+        }[]
+      }
+      lab_invoice_store: {
+        Args: { p_company: string; p_invoice: Json }
+        Returns: boolean
+      }
+      lab_invoices_link: { Args: { p_company: string }; Returns: number }
       open_schedule: { Args: { p_photo_day_id: string }; Returns: string }
       planning_due: {
         Args: { p_job_id: string }
