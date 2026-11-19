@@ -250,6 +250,17 @@ stations in use per day against `capacity.stations_per_date`. Views: everything,
 my tasks only, photo days only. It reads as the signed-in person. Makeup
 sessions and crew shifts join it with their modules.
 
+## Playbook steps editor
+
+`/settings/steps` (owner and admin) edits `playbook_steps`: name, stage, who
+does it, days before or after the first photo day, notes, the `captura` tag
+and whether the step is in use. Steps are reordered by renumbering the list
+and switched off, never removed, so tasks keep their `playbook_step_id`.
+Helpers are in `lib/playbooks/steps.ts`. Steps edited here that came from
+Notion would be overwritten by a Notion re-import (`private.import_notion`
+upserts by `notion_page_id`), so do not re-import templates after cutover of
+this list.
+
 ## Captura setup list
 
 The job page lists the planning playbook's steps tagged `captura` as

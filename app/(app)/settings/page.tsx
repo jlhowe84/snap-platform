@@ -117,6 +117,15 @@ export default async function SettingsPage() {
           </p>
         </Card>
 
+        <Card
+          title="Planning steps"
+          action={<Link href="/settings/steps" className="text-sm text-accent hover:underline">Edit</Link>}
+        >
+          <p className="text-sm text-muted">
+            The steps each job follows: wording, timing, who does it, the order, and which ones show on the Captura setup list.
+          </p>
+        </Card>
+
         <Card title="Planning numbers" className="xl:col-span-2">
           <CompanySettingsForm
             values={Object.fromEntries(

@@ -1,6 +1,7 @@
 import { requireStaff, hasAnyRole, OFFICE_ROLES, ADMIN_ROLES } from "@/lib/auth";
 import { ROLE_LABEL } from "@/lib/labels";
 import { createClient } from "@/lib/supabase/server";
+import { NavIcon } from "./nav-icon";
 import { NavLink } from "./nav-link";
 import { AskWidget } from "./ask-widget";
 import { ASK_ROLES } from "@/lib/ask/roles";
@@ -44,6 +45,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <nav className="flex gap-1 overflow-x-auto md:flex-col">
             {nav.map((n) => (
               <NavLink key={n.href} href={n.href}>
+                <NavIcon href={n.href} />
                 {n.label}
               </NavLink>
             ))}
