@@ -23,6 +23,7 @@ import { AssignDirect } from "../../staffing/[dayId]/assign-direct";
 import { POSITION_LABEL } from "@/lib/staffing/plan";
 import { headers } from "next/headers";
 import { nextStep } from "@/lib/jobs/next-step";
+import { JumpBar } from "./jump-bar";
 import { ConfirmButton } from "@/components/confirm-button";
 
 const READY: Record<string, string> = {
@@ -231,20 +232,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         </div>
       )}
 
-      <nav
-        aria-label="Sections of this job"
-        className="sticky top-0 z-20 -mx-4 mb-6 flex gap-1 overflow-x-auto border-b border-line bg-bg/95 px-4 py-2 backdrop-blur md:-mx-10 md:px-10"
-      >
-        {sections.map(([anchor, label]) => (
-          <a
-            key={anchor}
-            href={`#${anchor}`}
-            className="whitespace-nowrap rounded-lg px-2.5 py-1 text-sm text-muted hover:bg-surface-2 hover:text-text"
-          >
-            {label}
-          </a>
-        ))}
-      </nav>
+      <JumpBar sections={sections} />
 
       {stageIndex >= 0 && (
         <Card className="mb-6" title="Production">

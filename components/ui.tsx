@@ -42,7 +42,7 @@ export function Card({
   id?: string;
 }) {
   return (
-    <section id={id} className={cx("scroll-mt-16 rounded-xl border border-line bg-surface p-5", className)}>
+    <section id={id} className={cx("scroll-mt-20 rounded-xl border border-line bg-surface p-5", className)}>
       {(title || action) && (
         <div className="mb-4 flex items-center justify-between gap-3">
           {title && (
