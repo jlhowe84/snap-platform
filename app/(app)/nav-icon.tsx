@@ -87,6 +87,14 @@ const ICONS: Record<string, ReactNode> = {
     </>
   ),
   // Crew pay: a banknote
+  // My pay: a wallet
+  "/pay": (
+    <>
+      <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3" />
+      <rect x="4" y="8" width="17" height="11" rx="2" />
+      <circle cx="16.5" cy="13.5" r="1" />
+    </>
+  ),
   "/crew/pay": (
     <>
       <rect x="3" y="6.5" width="18" height="11" rx="2" />

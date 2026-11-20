@@ -21,10 +21,12 @@ export default async function PortalLinkProblem({ searchParams }: PageProps<"/p/
   const { reason } = await searchParams;
   const m = MESSAGES[typeof reason === "string" ? reason : "expired"] ?? MESSAGES.expired;
   return (
+    <div className="outward">
     <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center gap-4 px-6">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Photo day portal</p>
       <h1 className="font-display text-4xl font-semibold uppercase tracking-wide">{m.title}</h1>
       <p className="text-muted">{m.body}</p>
     </main>
+    </div>
   );
 }

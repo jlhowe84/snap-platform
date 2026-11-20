@@ -3,13 +3,15 @@ import { notFound } from "next/navigation";
 import { requirePortalViewer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill, cx } from "@/components/ui";
-import { formatDate, formatTime } from "@/lib/dates";
+import { formatDate, formatTime, todayIn } from "@/lib/dates";
 import { planningDates } from "@/lib/planning/dates";
 
-type Step = { title: string; detail: string; state: "done" | "todo" | "later"; href?: string; cta?: string };
+/** `due` is the date shown beside a step that is still open. */
+type Step = { title: string; detail: string; state: "done" | "todo" | "later"; due?: string | null; href?: string; cta?: string };
 
 export default async function PortalJob({ params }: PageProps<"/portal/[jobId]">) {
-  await requirePortalViewer();
+  const viewer = await requirePortalViewer();
+  const today = todayIn(viewer.timeZone);
   const { jobId } = await params;
   const supabase = await createClient();
 
@@ -42,6 +44,7 @@ export default async function PortalJob({ params }: PageProps<"/portal/[jobId]">
           ? `We are holding your date until ${formatDate(firstExpiry)}. Read and sign the agreement to confirm it.`
           : "Read and sign the photo day agreement.",
       state: signature ? "done" : "todo",
+      due: firstExpiry,
       href: `/portal/${jobId}/agreement`,
       cta: signature ? "View agreement" : "Read and sign",
     },
@@ -49,6 +52,7 @@ export default async function PortalJob({ params }: PageProps<"/portal/[jobId]">
       title: "Planning form",
       detail: r?.planning_form === "submitted" ? "Received. Thank you." : "Tell us about your teams, fields and picture day contact.",
       state: r?.planning_form === "submitted" ? "done" : signature ? "todo" : "later",
+      due: dates.askBy,
       href: signature ? `/portal/${jobId}/planning` : undefined,
       cta: r?.planning_form === "submitted" ? "View or change" : "Fill in",
     },
@@ -57,8 +61,9 @@ export default async function PortalJob({ params }: PageProps<"/portal/[jobId]">
       detail:
         r && r.roster !== "not_received"
           ? "Received."
-          : `Upload your rosters in any format: spreadsheet, PDF or a photo.${dates.askBy ? ` Due ${formatDate(dates.askBy)}.` : ""}`,
+          : "Upload your rosters in any format: spreadsheet, PDF or a photo.",
       state: r && r.roster !== "not_received" ? "done" : signature ? "todo" : "later",
+      due: dates.askBy,
       href: signature ? `/portal/${jobId}/rosters` : undefined,
       cta: r && r.roster !== "not_received" ? "Add or view" : "Upload",
     },
@@ -66,8 +71,9 @@ export default async function PortalJob({ params }: PageProps<"/portal/[jobId]">
       title: "Picture day schedule",
       detail: scheduleDone
         ? "Submitted."
-        : `Place each team in a time slot.${dates.askBy ? ` Due ${formatDate(dates.askBy)}.` : ""}`,
+        : "Place each team in a time slot.",
       state: scheduleDone ? "done" : signature ? "todo" : "later",
+      due: dates.askBy,
       href: signature ? `/portal/${jobId}/schedule` : undefined,
       cta: scheduleDone ? "View or change" : "Build",
     },
@@ -142,7 +148,10 @@ export default async function PortalJob({ params }: PageProps<"/portal/[jobId]">
                   {s.state === "done" ? "✓" : i + 1}
                 </span>
                 <div>
-                  <p className="font-medium">{s.title}</p>
+                  <p className="flex flex-wrap items-center gap-2 font-medium">
+                    {s.title}
+                    {s.state === "todo" && s.due && <Pill tone={s.due < today ? "risk" : "warn"}>{s.due < today ? "Was due" : "Due"} {formatDate(s.due)}</Pill>}
+                  </p>
                   <p className="text-sm text-muted">{s.state === "later" ? "Opens once your date is confirmed." : s.detail}</p>
                 </div>
               </div>
@@ -150,7 +159,7 @@ export default async function PortalJob({ params }: PageProps<"/portal/[jobId]">
                 <Link
                   href={s.href}
                   className={cx(
-                    "rounded-lg px-4 py-2 text-sm font-semibold",
+                    "rounded-lg px-4 py-2.5 text-base font-semibold",
                     s.state === "done" ? "border border-line hover:bg-surface-2" : "bg-accent text-accent-ink hover:brightness-110",
                   )}
                 >
