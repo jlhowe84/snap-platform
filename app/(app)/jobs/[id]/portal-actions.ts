@@ -13,7 +13,9 @@ export type PortalLinkState = { ok: true; url: string; contact: string } | { ok:
 const Create = z.object({ jobId: z.uuid(), contactId: z.uuid() });
 
 // Mints a portal link for one of the job's contacts. The token is shown once,
-// here; only its hash is stored. Nothing is emailed: in the prototype the
+// here; only its hash is stored, so an old link can never be shown again. To
+// hand a link over a second time the office makes a fresh one (the earlier
+// one keeps working). Nothing is emailed: in the prototype the
 // office copies the link (mail stays in test mode).
 export async function createPortalLink(jobId: string, _prev: PortalLinkState, form: FormData): Promise<PortalLinkState> {
   const viewer = await requireStaff(OFFICE_ROLES);
@@ -52,6 +54,20 @@ export async function createPortalLink(jobId: string, _prev: PortalLinkState, fo
   const site = liveSiteUrl(await headers());
   revalidatePath(`/jobs/${parsed.data.jobId}`);
   return { ok: true, url: `${site}/p/${token}`, contact: c.full_name };
+}
+
+/** Closes every open link one contact holds for this job. */
+export async function revokeContactLinks(jobId: string, contactId: string) {
+  await requireStaff(OFFICE_ROLES);
+  const ids = z.object({ jobId: z.uuid(), contactId: z.uuid() }).parse({ jobId, contactId });
+  const supabase = await createClient();
+  await supabase
+    .from("portal_links")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("job_id", ids.jobId)
+    .eq("contact_id", ids.contactId)
+    .is("revoked_at", null);
+  revalidatePath(`/jobs/${ids.jobId}`);
 }
 
 export async function revokePortalLink(jobId: string, linkId: string) {
