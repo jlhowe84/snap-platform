@@ -241,8 +241,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         </Card>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className="space-y-6 xl:col-span-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="min-w-0 space-y-6 xl:col-span-2">
           <Card id="days" title={`Photo days (${days?.length ?? 0})`}>
             {days?.length ? (
               <ul className="divide-y divide-line">
@@ -498,7 +498,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Card id="details" title="Details">
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
               <Detail label="League">
