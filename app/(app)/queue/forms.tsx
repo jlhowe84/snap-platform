@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useToast } from "@/components/toast";
+import { ConfirmButton } from "@/components/confirm-button";
 import { decideDraft, runClockNow, sendNow, type QueueState } from "./actions";
 
 const field = "w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm focus:border-accent focus:outline-none";
@@ -47,17 +48,16 @@ export function DraftForm({
           >
             Approve
           </button>
-          <button
+          <ConfirmButton
             name="intent"
             value="reject"
+            ask="Reject this draft? It will not be sent."
+            yes="Yes, reject"
             disabled={pending}
-            onClick={(e) => {
-              if (!window.confirm("Reject this draft? It will not be sent.")) e.preventDefault();
-            }}
             className="rounded-lg border border-line px-4 py-2 text-sm hover:bg-surface-2 disabled:opacity-60"
           >
             Reject
-          </button>
+          </ConfirmButton>
           <input name="note" placeholder="Note (optional)" className={`${field} max-w-xs`} />
         </div>
       ) : (
