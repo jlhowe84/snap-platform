@@ -17,6 +17,7 @@ import {
 } from "@/lib/staffing/plan";
 import { assignShift, cancelShift, openNextWave, publishShifts, releaseShift } from "../actions";
 import { AddShifts } from "./add-shifts";
+import { AssignDirect } from "./assign-direct";
 import { addKitToDay, checkKitIn, removeKitFromDay, sendKitOut } from "../../gear/actions";
 import { CHECKOUT_LABEL, KIT_STATUS_LABEL } from "@/lib/gear/field";
 
@@ -42,7 +43,7 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
   const [{ data: shifts }, { data: crew }, { data: busy }, { data: kits }, { data: dayKits }, { data: kitsThatDate }, { data: checklist }] = await Promise.all([
     supabase
       .from("shifts")
-      .select("id, position, station, start_time, end_time, status, open_level, filled_by, crew_member_id, crew_members(full_name, level), shift_responses(response)")
+      .select("id, position, station, start_time, end_time, status, open_level, filled_by, crew_member_id, crew_members!shifts_crew_member_id_fkey(full_name, level), shift_responses(response)")
       .eq("photo_day_id", dayId)
       .order("position")
       .order("station", { nullsFirst: false })
@@ -87,10 +88,15 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
           <p className="text-sm text-muted">filled{sum.drafts ? `, ${sum.drafts} not published yet` : ""}</p>
         </Card>
         <Card title="Offers">
+          {sum.drafts === 0 && !canWiden && (
+            <p className="mb-2 text-sm text-muted">
+              {list.length ? "Nothing waiting to publish." : "Add shifts at the bottom of this page, then publish them here."}
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             {sum.drafts > 0 && (
               <form action={publishShifts.bind(null, day.id)}>
-                <button className={primary}>Publish to Level 1</button>
+                <button className={primary}>Publish {sum.drafts} to Level 1</button>
               </form>
             )}
             {canWiden && (
@@ -163,6 +169,14 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
             })}
           </ul>
         )}
+      </Card>
+
+      <Card title="Assign someone directly" className="mb-6">
+        <AssignDirect
+          dayId={day.id}
+          crew={choices.map((c) => ({ id: c.id, full_name: c.full_name, level: c.level, positions: c.positions, busy: busyIds.has(c.id) }))}
+        />
+        <p className="mt-2 text-xs text-muted">Puts them on this day straight away, without an offer. Their notice waits in the approval queue.</p>
       </Card>
 
       <Card title="Kits" className="mb-6">

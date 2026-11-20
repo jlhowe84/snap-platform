@@ -721,42 +721,6 @@ export type Database = {
           },
         ]
       }
-      crew_homes: {
-        Row: {
-          address: string
-          company_id: string
-          crew_member_id: string
-          updated_at: string
-        }
-        Insert: {
-          address: string
-          company_id: string
-          crew_member_id: string
-          updated_at?: string
-        }
-        Update: {
-          address?: string
-          company_id?: string
-          crew_member_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crew_homes_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crew_homes_crew_member_id_fkey"
-            columns: ["crew_member_id"]
-            isOneToOne: true
-            referencedRelation: "crew_members"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       crew_members: {
         Row: {
           active: boolean
@@ -770,6 +734,7 @@ export type Database = {
           notes: string | null
           notion_page_id: string | null
           phone: string | null
+          photo_path: string | null
           positions: string[]
           profile_id: string | null
           state: string | null
@@ -787,6 +752,7 @@ export type Database = {
           notes?: string | null
           notion_page_id?: string | null
           phone?: string | null
+          photo_path?: string | null
           positions?: string[]
           profile_id?: string | null
           state?: string | null
@@ -804,6 +770,7 @@ export type Database = {
           notes?: string | null
           notion_page_id?: string | null
           phone?: string | null
+          photo_path?: string | null
           positions?: string[]
           profile_id?: string | null
           state?: string | null
@@ -822,6 +789,48 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: true
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_private: {
+        Row: {
+          address: string | null
+          company_id: string
+          crew_member_id: string
+          emergency_name: string | null
+          emergency_phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          company_id: string
+          crew_member_id: string
+          emergency_name?: string | null
+          emergency_phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          company_id?: string
+          crew_member_id?: string
+          emergency_name?: string | null
+          emergency_phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_homes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_homes_crew_member_id_fkey"
+            columns: ["crew_member_id"]
+            isOneToOne: true
+            referencedRelation: "crew_members"
             referencedColumns: ["id"]
           },
         ]

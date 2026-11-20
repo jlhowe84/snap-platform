@@ -27,7 +27,7 @@ export async function loadPayLines(from: string, to: string): Promise<{ lines: L
     .limit(2000);
   const crewIds = [...new Set((data ?? []).map((l) => l.crew_member_id))];
   const { data: homes } = crewIds.length
-    ? await supabase.from("crew_homes").select("crew_member_id, address").in("crew_member_id", crewIds)
+    ? await supabase.from("crew_private").select("crew_member_id, address").in("crew_member_id", crewIds)
     : { data: [] };
   const homeOf = new Map((homes ?? []).map((h) => [h.crew_member_id, h.address]));
   const lines = (data ?? []).map((l) => ({

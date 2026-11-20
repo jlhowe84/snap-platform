@@ -18,6 +18,8 @@ import { PortalLinkForm } from "./portal-link-form";
 import { StandardRosterUpload } from "./standard-roster";
 import { revokePortalLink } from "./portal-actions";
 import { DayPageForm } from "./day-page-form";
+import { AssignDirect } from "../../staffing/[dayId]/assign-direct";
+import { POSITION_LABEL } from "@/lib/staffing/plan";
 import { headers } from "next/headers";
 
 const READY: Record<string, string> = {
@@ -69,6 +71,23 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     .select("id, kind, from_date, to_date, reason, created_at, profiles!date_changes_decided_by_fkey(full_name)")
     .eq("job_id", id)
     .order("created_at", { ascending: false });
+  const dayIds = (days ?? []).map((d) => d.id);
+  const dayDates = [...new Set((days ?? []).map((d) => d.date))];
+  const [{ data: dayShifts }, { data: crewList }, { data: busyThatDate }] = await Promise.all([
+    dayIds.length
+      ? supabase
+          .from("shifts")
+          .select("id, photo_day_id, position, status, crew_member_id, crew_members!shifts_crew_member_id_fkey(full_name)")
+          .in("photo_day_id", dayIds)
+          .neq("status", "cancelled")
+      : Promise.resolve({ data: [] }),
+    office ? supabase.from("crew_members").select("id, full_name, level, positions").eq("active", true).order("full_name") : Promise.resolve({ data: [] }),
+    office && dayDates.length
+      ? supabase.from("shifts").select("crew_member_id, photo_days!inner(date)").in("photo_days.date", dayDates).eq("status", "filled")
+      : Promise.resolve({ data: [] }),
+  ]);
+  const busyOn = (date: string) =>
+    new Set((busyThatDate ?? []).filter((b) => b.photo_days?.date === date).map((b) => b.crew_member_id).filter((v): v is string => !!v));
   const { data: dayPage } = await supabase
     .from("day_pages")
     .select("slug, published, published_at, show_team_times, what_to_wear, what_to_bring, note")
@@ -181,8 +200,26 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                         <Pill tone="warn">Moved from {formatDate(d.original_date)}</Pill>
                       )}
                     </div>
+                    {(() => {
+                      const here = (dayShifts ?? []).filter((x) => x.photo_day_id === d.id);
+                      const filled = here.filter((x) => x.status === "filled");
+                      return here.length ? (
+                        <p className="mt-2 text-sm">
+                          <span className="text-muted">Staff ({filled.length} of {here.length} filled): </span>
+                          {filled.length
+                            ? filled.map((x) => `${x.crew_members?.full_name ?? "Someone"} (${POSITION_LABEL[x.position] ?? x.position})`).join(", ")
+                            : "nobody yet"}
+                        </p>
+                      ) : null;
+                    })()}
                     {office && d.status !== "cancelled" && (
-                      <Link href={`/staffing/${d.id}`} className="mt-2 inline-block text-sm text-accent hover:underline">Staffing for this day</Link>
+                      <div className="mt-2 space-y-2">
+                        <AssignDirect
+                          dayId={d.id}
+                          crew={(crewList ?? []).map((c) => ({ ...c, busy: busyOn(d.date).has(c.id) }))}
+                        />
+                        <Link href={`/staffing/${d.id}`} className="inline-block text-sm text-accent hover:underline">Staffing for this day</Link>
+                      </div>
                     )}
                     {canChangeDates && d.status !== "cancelled" && !["released", "cancelled"].includes(job.status) && (
                       <ChangeDateForm jobId={id} photoDayId={d.id} postponed={d.status === "postponed"} />

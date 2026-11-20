@@ -171,3 +171,61 @@ export async function cancelShift(dayId: string, shiftId: string) {
   }
   refresh(day);
 }
+
+const Direct = z.object({
+  crew: id,
+  position: z.enum(SHIFT_POSITIONS),
+  start_time: time,
+  end_time: time,
+});
+
+/**
+ * Put someone straight on a photo day, with no offer: a filled shift in the
+ * office's name. The crew member gets a notice through the approval queue.
+ */
+export async function assignDirect(dayId: string, _prev: StaffingState, form: FormData): Promise<StaffingState> {
+  const viewer = await requireStaff(OFFICE_ROLES);
+  const day = id.safeParse(dayId);
+  const d = Direct.safeParse({
+    crew: form.get("crew_member_id"),
+    position: form.get("position"),
+    start_time: form.get("start_time") ?? "",
+    end_time: form.get("end_time") ?? "",
+  });
+  if (!day.success || !d.success) return { ok: false, message: "Pick a person and a position." };
+  if (d.data.start_time && d.data.end_time && d.data.end_time <= d.data.start_time) {
+    return { ok: false, message: "The end time must be after the start time." };
+  }
+  const supabase = await createClient();
+  const { data: pd } = await supabase.from("photo_days").select("id, job_id, start_time, end_time").eq("id", day.data).maybeSingle();
+  if (!pd) return { ok: false, message: "That photo day was not found." };
+  const { data: taken } = await supabase
+    .from("shifts")
+    .select("id")
+    .eq("photo_day_id", pd.id)
+    .eq("crew_member_id", d.data.crew)
+    .neq("status", "cancelled")
+    .limit(1);
+  if (taken?.length) return { ok: false, message: "They are already on this day." };
+  const { data: row, error } = await supabase
+    .from("shifts")
+    .insert({
+      company_id: viewer.companyId!,
+      job_id: pd.job_id,
+      photo_day_id: pd.id,
+      position: d.data.position,
+      status: "filled",
+      crew_member_id: d.data.crew,
+      filled_by: "office",
+      start_time: d.data.start_time ?? pd.start_time,
+      end_time: d.data.end_time ?? pd.end_time,
+      created_by: viewer.id,
+    })
+    .select("id")
+    .single();
+  if (error || !row) return { ok: false, message: "They could not be added. They may already work another shift that day." };
+  await queueCrewNotice(viewer, row.id, d.data.crew, "added");
+  refresh(pd.id);
+  revalidatePath(`/jobs/${pd.job_id}`);
+  return { ok: true, message: "Added. Their notice is waiting in the approval queue." };
+}

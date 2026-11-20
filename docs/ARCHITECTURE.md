@@ -600,3 +600,18 @@ day-before briefing come with the field view and the clock.
   log. The pay page links driving directions from home to the day; working
   out the miles automatically needs a maps service and is not built yet.
 - Each kit keeps its camera body (`camera_bodies.kit_id`), set on the Gear page.
+
+### Crew profiles and direct assignment (owner's ask, 2026-11-20)
+
+- `/crew/[id]` is the crew member's profile: photo, contact details,
+  positions, Level, notes (office edits), home address and emergency contact
+  (`crew_private`, owner and admin only, never logged), pay rates (owner and
+  admin). `/crew/new` adds someone.
+- Photos live in the private `crew-photos` bucket; the server makes one-hour
+  signed links for staff (`lib/staffing/photos.ts`).
+- The office can put someone straight on a photo day from the job page or
+  the staffing page (`assignDirect`): a filled shift in the office's name, with
+  the crew notice queued for approval.
+- Embedding `crew_members` from `shifts` must name the foreign key
+  (`crew_members!shifts_crew_member_id_fkey`): `shift_responses` and
+  `pay_lines` also link the two tables, so PostgREST finds more than one path.

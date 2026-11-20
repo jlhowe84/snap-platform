@@ -240,7 +240,7 @@ insert into public.camera_bodies (company_id, serial, letter, model, kit_id) val
 insert into public.kit_checkouts (company_id, job_id, photo_day_id, kit_id, station)
   select company_id, job_id, id, '92000000-0000-0000-0000-0000000000a1', 1 from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000a1';
 
-insert into public.crew_homes (crew_member_id, company_id, address)
+insert into public.crew_private (crew_member_id, company_id, address)
   select id, company_id, '1 Test Lane, Town' from public.crew_members where full_name = 'Crew A';
 
 -- Public pages. Job A1's page is published; the knowledge base answer is on
@@ -320,7 +320,7 @@ declare
     array['kit_checklist_items',   '2','2','2','2','0','0','0','0'],
     array['camera_bodies',         '1','1','1','1','0','0','0','0'],
     array['kit_checkouts',         '1','1','1','1','0','0','0','0'],
-    array['crew_homes',            '1','1','0','0','0','0','0','0'],
+    array['crew_private',          '1','1','0','0','0','0','0','0'],
     array['day_pages',             '2','2','2','2','0','0','0','0'],
     array['kb_article_versions',   '1','1','1','1','0','0','0','1']
   ];
@@ -1277,13 +1277,26 @@ reset role;
 
 -- Crew home addresses: owner and admin only.
 select t.login('admin');
-select t.works($$insert into public.crew_homes (crew_member_id, company_id, address) select id, company_id, '2 Test Road, Town' from public.crew_members where full_name = 'Crew A two'$$, 'admin saves a home address');
-select t.fails($$insert into public.crew_homes (crew_member_id, company_id, address) values ('91000000-0000-0000-0000-0000000000b1', 'a0000000-0000-0000-0000-00000000000a', '3 Other Way, Town')$$, 'a home cannot point at another company''s crew');
+select t.works($$insert into public.crew_private (crew_member_id, company_id, address) select id, company_id, '2 Test Road, Town' from public.crew_members where full_name = 'Crew A two'$$, 'admin saves a home address');
+select t.fails($$insert into public.crew_private (crew_member_id, company_id, address) values ('91000000-0000-0000-0000-0000000000b1', 'a0000000-0000-0000-0000-00000000000a', '3 Other Way, Town')$$, 'a home cannot point at another company''s crew');
 select t.login('office');
-select t.fails($$insert into public.crew_homes (crew_member_id, company_id, address) select id, company_id, '4 Test Road, Town' from public.crew_members where full_name = 'Crew A'$$, 'office cannot save a home address');
+select t.fails($$insert into public.crew_private (crew_member_id, company_id, address) select id, company_id, '4 Test Road, Town' from public.crew_members where full_name = 'Crew A'$$, 'office cannot save a home address');
 select t.login('crew');
-select t.count_is($$select count(*) from public.crew_homes$$, 0, 'crew do not read home addresses');
+select t.count_is($$select count(*) from public.crew_private$$, 0, 'crew do not read home addresses');
 reset role;
-select t.count_is($$select count(*) from public.activity_log where table_name = 'crew_homes'$$, 0, 'home addresses never reach the activity log');
+select t.count_is($$select count(*) from public.activity_log where table_name in ('crew_homes', 'crew_private')$$, 0, 'home addresses never reach the activity log');
+
+-- Profiles: emergency contact is private; the office assigns someone straight to a day.
+select t.login('admin');
+select t.works($$update public.crew_private set emergency_name = 'Pat', emergency_phone = '555-0100' where address = '1 Test Lane, Town'$$, 'admin saves an emergency contact');
+select t.works($$insert into public.crew_private (crew_member_id, company_id) select id, company_id from public.crew_members where full_name = 'Crew A two' on conflict (crew_member_id) do nothing$$, 'a private row can have no address');
+select t.login('office');
+select t.count_is($$select count(*) from public.crew_private$$, 0, 'office cannot read emergency contacts');
+select t.works($$update public.crew_members set phone = '555-0199' where full_name = 'Crew A two'$$, 'office edits a crew member''s details');
+select t.works($$insert into public.shifts (company_id, job_id, photo_day_id, position, status, crew_member_id, filled_by) select company_id, job_id, id, 'poser', 'filled', (select id from public.crew_members where full_name = 'Crew A two'), 'office' from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000a2'$$, 'office assigns someone straight to a day');
+select t.count_is($$select count(*) from public.shifts s join public.photo_days d on d.id = s.photo_day_id where d.job_id = '40000000-0000-0000-0000-0000000000a2' and s.status = 'filled' and s.filled_at is not null$$, 1, 'a direct assignment is filled and stamped');
+select t.login('support');
+select t.fails($$insert into public.shifts (company_id, job_id, photo_day_id, position, status, crew_member_id, filled_by) select company_id, job_id, id, 'poser', 'filled', (select id from public.crew_members where full_name = 'Crew A'), 'office' from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000a2'$$, 'support cannot assign staff');
+reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;
 rollback;
