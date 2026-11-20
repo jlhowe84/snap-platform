@@ -124,9 +124,9 @@ export default async function CrewPayPage({ searchParams }: PageProps<"/crew/pay
                       {l.unit === "hour" && (
                         <label className="text-muted">Hours <input name="hours" type="number" step="0.25" min={0} max={24} defaultValue={l.hours ?? ""} className={cell} /></label>
                       )}
-                      <label className="text-muted">Miles <input name="miles" type="number" step="0.1" min={0} defaultValue={l.miles} className={cell} /></label>
+                      <label className="text-muted" title="Round trip: home to the photo day and back">Miles, round trip <input name="miles" type="number" step="0.1" min={0} defaultValue={l.miles} className={cell} /></label>
                       {l.directions ? (
-                        <a href={l.directions} target="_blank" rel="noreferrer" className="text-accent hover:underline">Route from home</a>
+                        <a href={l.directions} target="_blank" rel="noreferrer" className="text-accent hover:underline">Route from home (one way, double it)</a>
                       ) : (
                         <span className="text-xs text-muted">No home address</span>
                       )}

@@ -595,7 +595,7 @@ day-before briefing come with the field view and the clock.
 - Level 1 is the top crew level; offers go to Level 1 first.
 - Crew are paid by the hour, so a new pay rate defaults to hourly.
 - Mileage is a company setting (`pay.mileage_cents_per_mile`), editable in
-  Settings. It is paid from the person's home to the photo day. Home
+  Settings. It is paid round trip, from the person's home to the photo day and back. Home
   addresses live in `crew_homes`, owner and admin only, never in the activity
   log. The pay page links driving directions from home to the day; working
   out the miles automatically needs a maps service and is not built yet.
