@@ -120,7 +120,7 @@ export function PhoneBar({
               <Groups groups={groups} active={active} onNavigate={() => setOpen(false)} />
             </nav>
             <div className="mt-5 grid grid-cols-2 gap-2 border-t border-line pt-4">
-              <ThemeToggle className="min-h-12 w-full rounded-lg border border-line px-3 py-2 text-base text-muted hover:text-text" />
+              <ThemeToggle className="flex min-h-12 w-full items-center justify-center rounded-lg border border-line px-3 py-2 text-muted hover:text-text" />
               <form action="/auth/signout" method="post">
                 <button className="min-h-12 w-full rounded-lg border border-line px-3 py-2 text-base text-muted hover:text-text">Sign out</button>
               </form>

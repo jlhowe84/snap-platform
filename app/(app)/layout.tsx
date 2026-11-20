@@ -135,8 +135,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <div className="hidden text-xs text-muted md:block">
             <p className="truncate text-text">{viewer.name}</p>
             <p>{roleLine}</p>
-            <div className="mt-3 flex items-center gap-4">
-              <ThemeToggle className="text-muted underline-offset-2 hover:text-text hover:underline" />
+            <div className="mt-3 flex items-center justify-between gap-4">
+              <ThemeToggle className="-m-1.5 flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-text" />
               <form action="/auth/signout" method="post">
                 <button className="text-muted underline-offset-2 hover:text-text hover:underline">
                   Sign out
