@@ -28,7 +28,7 @@ export function JumpBar({ sections }: { sections: readonly (readonly [anchor: st
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           aria-controls="jump-list"
-          className="flex w-full items-center justify-between rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium"
+          className="flex w-full items-center justify-between rounded-lg border border-line bg-surface px-3.5 py-3 text-base font-medium"
         >
           Jump to a section
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={open ? "rotate-180" : ""}>
@@ -36,9 +36,9 @@ export function JumpBar({ sections }: { sections: readonly (readonly [anchor: st
           </svg>
         </button>
         {open && (
-          <div id="jump-list" className="mt-2 grid grid-cols-2 gap-1">
+          <div id="jump-list" className="mt-2 grid grid-cols-2 gap-2">
             {sections.map(([anchor, label]) => (
-              <a key={anchor} href={`#${anchor}`} onClick={() => setOpen(false)} className={link + " bg-surface"}>
+              <a key={anchor} href={`#${anchor}`} onClick={() => setOpen(false)} className="flex min-h-12 items-center rounded-lg border border-line bg-surface px-3.5 py-3 text-base font-medium active:border-accent active:text-accent">
                 {label}
               </a>
             ))}
