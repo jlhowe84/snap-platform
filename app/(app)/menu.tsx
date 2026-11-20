@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { NavIcon } from "./nav-icon";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { activeHref, type MenuGroup, type MenuItem } from "@/lib/menu";
 
 function Badge({ n, active }: { n?: number; active: boolean }) {
@@ -118,9 +119,12 @@ export function PhoneBar({
             <nav aria-label="Main menu" className="grid grid-cols-2 gap-x-2 gap-y-4">
               <Groups groups={groups} active={active} onNavigate={() => setOpen(false)} />
             </nav>
-            <form action="/auth/signout" method="post" className="mt-5 border-t border-line pt-4">
-              <button className="w-full rounded-lg border border-line px-3 py-2 text-sm text-muted hover:text-text">Sign out</button>
-            </form>
+            <div className="mt-5 grid grid-cols-2 gap-2 border-t border-line pt-4">
+              <ThemeToggle className="min-h-12 w-full rounded-lg border border-line px-3 py-2 text-base text-muted hover:text-text" />
+              <form action="/auth/signout" method="post">
+                <button className="min-h-12 w-full rounded-lg border border-line px-3 py-2 text-base text-muted hover:text-text">Sign out</button>
+              </form>
+            </div>
           </div>
         </div>
       )}
