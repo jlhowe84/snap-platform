@@ -1,6 +1,7 @@
 import { requireStaff, hasAnyRole, OFFICE_ROLES, ADMIN_ROLES } from "@/lib/auth";
 import { ROLE_LABEL } from "@/lib/labels";
 import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 import { PhoneBar, SideMenu } from "./menu";
 import { CrewShell } from "./crew-shell";
 import type { MenuGroup, MenuItem } from "@/lib/menu";
@@ -9,6 +10,13 @@ import { ASK_ROLES } from "@/lib/ask/roles";
 
 // Ask SNAP can be asked from any page, and an answer can take a few lookups.
 export const maxDuration = 60;
+
+const glass = (size: number) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="M16 16l4.5 4.5" />
+  </svg>
+);
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const viewer = await requireStaff();
@@ -97,12 +105,29 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="border-b border-line bg-surface print:hidden md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:border-b-0 md:border-r">
         <div className="flex h-full flex-col gap-5 px-4 py-3 md:p-5">
-          <div className="flex items-baseline justify-between gap-3 md:block">
+          <div className="flex items-center justify-between gap-3 md:block">
             <p className="font-display text-xl font-bold uppercase tracking-wide md:text-2xl">
               {viewer.companyName ?? "Photo Day"}
             </p>
-            <p className="text-[0.65rem] uppercase tracking-[0.18em] text-accent md:text-xs">Photo Day Platform</p>
+            <p className="hidden text-[0.65rem] uppercase tracking-[0.18em] text-accent md:block md:text-xs">Photo Day Platform</p>
+            {support && (
+              <Link href="/search" aria-label="Search everything" className="-my-2 flex h-12 w-12 items-center justify-center rounded-lg text-muted hover:text-accent md:hidden">
+                {glass(22)}
+              </Link>
+            )}
           </div>
+          {support && (
+            <form action="/search" role="search" className="relative hidden md:block">
+              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted">{glass(16)}</span>
+              <input
+                type="search"
+                name="q"
+                placeholder="Search everything"
+                aria-label="Search everything"
+                className="w-full rounded-lg border border-line bg-surface-2 py-2 pl-9 pr-3 text-sm placeholder:text-muted focus:border-accent focus:outline-none"
+              />
+            </form>
+          )}
           <div className="hidden min-h-0 flex-1 flex-col md:flex">
             <SideMenu groups={groups} />
           </div>
