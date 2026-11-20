@@ -78,7 +78,13 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         { href: "/gear", label: "Gear", show: office },
       ],
     },
-    { label: "Money", items: [{ href: "/lab", label: "Lab costs", show: office }] },
+    {
+      label: "Money",
+      items: [
+        { href: "/orders", label: "Orders", show: office },
+        { href: "/lab", label: "Lab costs", show: office },
+      ],
+    },
     { label: "Admin", items: [{ href: "/settings", label: "Settings", show: admin }] },
   ]
     .map((g) => ({ label: g.label, items: g.items.filter((i) => i.show).map((i): MenuItem => ({ href: i.href, label: i.label, badge: "badge" in i ? i.badge : undefined })) }))

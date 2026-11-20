@@ -570,6 +570,177 @@ export type Database = {
           },
         ]
       }
+      captura_galleries: {
+        Row: {
+          company_id: string
+          first_order_on: string | null
+          gallery_id: number
+          last_order_on: string | null
+          refreshed_at: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          first_order_on?: string | null
+          gallery_id: number
+          last_order_on?: string | null
+          refreshed_at?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          first_order_on?: string | null
+          gallery_id?: number
+          last_order_on?: string | null
+          refreshed_at?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "captura_galleries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      captura_order_sync: {
+        Row: {
+          company_id: string
+          history_done: boolean
+          last_counts: Json
+          last_error: string | null
+          last_run_at: string | null
+          next_from: string | null
+          next_start: number
+        }
+        Insert: {
+          company_id: string
+          history_done?: boolean
+          last_counts?: Json
+          last_error?: string | null
+          last_run_at?: string | null
+          next_from?: string | null
+          next_start?: number
+        }
+        Update: {
+          company_id?: string
+          history_done?: boolean
+          last_counts?: Json
+          last_error?: string | null
+          last_run_at?: string | null
+          next_from?: string | null
+          next_start?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "captura_order_sync_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      captura_orders: {
+        Row: {
+          background_fee: number | null
+          buyer_key: string | null
+          company_id: string
+          delivery: string
+          discount: number | null
+          fees: number | null
+          fulfillment: string
+          gallery_id: number | null
+          handling: number | null
+          lab_fees: number | null
+          lab_order_ids: string[]
+          net_pay: number | null
+          order_date: string
+          order_id: number
+          order_type: string
+          ordered_at: string
+          pay_date: string | null
+          payment_status: string | null
+          refunded: number | null
+          shipping: number | null
+          status: string
+          subject_ids: string[]
+          subtotal: number | null
+          synced_at: string
+          tax: number | null
+          total: number | null
+        }
+        Insert: {
+          background_fee?: number | null
+          buyer_key?: string | null
+          company_id: string
+          delivery?: string
+          discount?: number | null
+          fees?: number | null
+          fulfillment?: string
+          gallery_id?: number | null
+          handling?: number | null
+          lab_fees?: number | null
+          lab_order_ids?: string[]
+          net_pay?: number | null
+          order_date: string
+          order_id: number
+          order_type?: string
+          ordered_at: string
+          pay_date?: string | null
+          payment_status?: string | null
+          refunded?: number | null
+          shipping?: number | null
+          status?: string
+          subject_ids?: string[]
+          subtotal?: number | null
+          synced_at?: string
+          tax?: number | null
+          total?: number | null
+        }
+        Update: {
+          background_fee?: number | null
+          buyer_key?: string | null
+          company_id?: string
+          delivery?: string
+          discount?: number | null
+          fees?: number | null
+          fulfillment?: string
+          gallery_id?: number | null
+          handling?: number | null
+          lab_fees?: number | null
+          lab_order_ids?: string[]
+          net_pay?: number | null
+          order_date?: string
+          order_id?: number
+          order_type?: string
+          ordered_at?: string
+          pay_date?: string | null
+          payment_status?: string | null
+          refunded?: number | null
+          shipping?: number | null
+          status?: string
+          subject_ids?: string[]
+          subtotal?: number | null
+          synced_at?: string
+          tax?: number | null
+          total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "captura_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clock_log: {
         Row: {
           action_id: string | null
@@ -4591,7 +4762,41 @@ export type Database = {
         Returns: boolean
       }
       lab_invoices_link: { Args: { p_company: string }; Returns: number }
+      link_gallery_to_job: {
+        Args: { p_gallery: number; p_job: string }
+        Returns: undefined
+      }
       open_schedule: { Args: { p_photo_day_id: string }; Returns: string }
+      order_daily_totals: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          gross: number
+          net_pay: number
+          order_date: string
+          orders: number
+          prepay_orders: number
+        }[]
+      }
+      order_gallery_totals: {
+        Args: { p_from?: string; p_gallery?: number; p_to?: string }
+        Returns: {
+          buyers: number
+          first_order_on: string
+          gallery_id: number
+          gallery_orders: number
+          gross: number
+          internal_orders: number
+          job_id: string
+          job_name: string
+          last_order_on: string
+          net_pay: number
+          orders: number
+          prepay_orders: number
+          refunded: number
+          refunded_orders: number
+          title: string
+        }[]
+      }
       planning_due: {
         Args: { p_job_id: string }
         Returns: {
@@ -4664,6 +4869,10 @@ export type Database = {
         }
         Returns: string
       }
+      stamp_captura_galleries: {
+        Args: { p_company: string; p_galleries: number[] }
+        Returns: undefined
+      }
       submit_schedule: { Args: { p_schedule_id: string }; Returns: string }
       support_drop_quiet: {
         Args: { p_company: string; p_senders: string[] }
@@ -4692,6 +4901,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      unlink_gallery_job: { Args: { p_job: string }; Returns: undefined }
     }
     Enums: {
       action_kind: "read" | "draft" | "propose" | "never"

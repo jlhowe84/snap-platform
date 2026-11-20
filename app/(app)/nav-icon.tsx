@@ -109,6 +109,13 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M8.5 8V5.5a1.5 1.5 0 0 1 1.5-1.5h4a1.5 1.5 0 0 1 1.5 1.5V8M3.5 13h17" />
     </>
   ),
+  // Orders: a shopping bag
+  "/orders": (
+    <>
+      <path d="M5 8h14l-1 12H6z" />
+      <path d="M9 8V6.5a3 3 0 0 1 6 0V8" />
+    </>
+  ),
   // Lab costs: a receipt
   "/lab": (
     <>
