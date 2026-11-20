@@ -34,8 +34,34 @@
   --font-display: var(--font-barlow), var(--font-inter), ui-sans-serif, sans-serif;
 }
 
+/* Light mode, chosen by the person (theme toggle, kept in the "theme" cookie). */
+:root[data-theme="light"] {
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --surface-2: #f0eee9;
+  --line: #e2dfd7;
+  --text: #17181b;
+  --muted: #5d6169;
+  --accent: #d9601c;
+  --accent-ink: #ffffff;
+  --ok: #1f8a5b;
+  --warn: #9a6a00;
+  --risk: #c23b38;
+  --info: #2f6fd1;
+}
+
 html {
   color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* The toggle names the mode it switches to. */
+html[data-theme="light"] .when-dark,
+html:not([data-theme="light"]) .when-light {
+  display: none;
 }
 
 body {
