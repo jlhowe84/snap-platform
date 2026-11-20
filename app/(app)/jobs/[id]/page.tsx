@@ -24,6 +24,7 @@ import { POSITION_LABEL } from "@/lib/staffing/plan";
 import { headers } from "next/headers";
 import { nextStep } from "@/lib/jobs/next-step";
 import { JumpBar } from "./jump-bar";
+import { CombineForm } from "./combine-form";
 import { ConfirmButton } from "@/components/confirm-button";
 
 const READY: Record<string, string> = {
@@ -54,6 +55,12 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     .eq("id", id)
     .maybeSingle();
   if (!job) notFound();
+
+  // Other jobs of the same league, nearest photo day first: candidates to
+  // combine when photo days were entered as separate jobs.
+  const { data: leagueJobs } = job.org_id
+    ? await supabase.from("jobs").select("id, name, status, photo_days(date)").eq("org_id", job.org_id).neq("id", id).limit(200)
+    : { data: [] as { id: string; name: string; status: string; photo_days: { date: string }[] }[] };
 
   const [{ data: days }, { data: links }, { data: contacts }, { data: tasks }] = await Promise.all([
     supabase.from("photo_days").select("*").eq("job_id", id).order("date").order("start_time"),
@@ -204,6 +211,17 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     setup: { done: progress.done, total: progress.total },
     plannedElsewhere: !!links?.notion_page_url && untouchedHere,
   });
+  const ownFirstDay = days?.[0]?.date ?? null;
+  const dayGap = (iso: string | null) => (iso && ownFirstDay ? Math.abs(Date.parse(iso) - Date.parse(ownFirstDay)) : Number.MAX_SAFE_INTEGER);
+  const siblings = (leagueJobs ?? [])
+    .map((j) => {
+      const dates = (j.photo_days ?? []).map((d) => d.date).sort();
+      const status = STATUS_LABEL[j.status as keyof typeof STATUS_LABEL] ?? j.status;
+      return { id: j.id, first: dates[0] ?? null, label: `${j.name} · ${dates.length ? dates.map((d) => formatDate(d)).join(", ") : "no photo day yet"} · ${status}` };
+    })
+    .sort((x, y) => dayGap(x.first) - dayGap(y.first))
+    .map(({ id: jobId, label }) => ({ id: jobId, label }));
+
   const sections = [
     ["days", "Photo days"],
     ["readiness", "Readiness"],
@@ -695,6 +713,15 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
               <Empty>No contacts linked yet.</Empty>
             )}
           </Card>
+
+          {office && siblings.length > 0 && (
+            <Card title="Combine jobs">
+              <p className="mb-3 text-sm text-muted">
+                {job.organizations?.name ?? "This league"} has {siblings.length === 1 ? "another job" : `${siblings.length} other jobs`}. If one of them is really another photo day of this job, bring it in here.
+              </p>
+              <CombineForm jobId={id} others={siblings} />
+            </Card>
+          )}
         </div>
       </div>
     </>
