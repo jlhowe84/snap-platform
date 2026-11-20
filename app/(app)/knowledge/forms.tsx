@@ -27,7 +27,7 @@ export function ArticleForm({ article, sections, shelf }: { article?: ArticleFie
         Title or question
         <input name="title" defaultValue={article?.title ?? ""} required maxLength={200} className={field} />
       </label>
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={label}>
           Shelf
           <select name="shelf" defaultValue={article?.shelf ?? shelf ?? "answers"} className={field}>
@@ -76,7 +76,7 @@ export function ImportForm() {
         The document&apos;s text (Markdown)
         <textarea name="markdown" required rows={16} className={`${field} font-mono`} placeholder={"## 3. Photo Day\n\n### What if it rains?\n\nWe reschedule…"} />
       </label>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={label}>
           Leave out these sections
           <input name="skip" defaultValue="Maintenance" maxLength={500} className={field} placeholder="Comma between names" />

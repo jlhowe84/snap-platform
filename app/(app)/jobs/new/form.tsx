@@ -10,7 +10,7 @@ export function NewJobForm({ leagues, orgId }: { leagues: { id: string; name: st
   const [state, action, pending] = useActionState<NewJobState, FormData>(createJob, null);
   return (
     <form action={action} className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className={label}>
           League
           <select name="org_id" required defaultValue={orgId ?? ""} className={field}>

@@ -168,7 +168,7 @@ export default async function FieldViewPage({ params }: PageProps<"/field/[dayId
 
       {v.checklist.length > 0 && (
         <Section title="Kit checklist">
-          <div className="grid gap-3 sm:grid-cols-2 print:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 print:grid-cols-3">
             {bySection(v.checklist).map(([section, items]) => (
               <div key={section}>
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted">{section}</p>

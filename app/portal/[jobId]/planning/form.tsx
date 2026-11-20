@@ -68,7 +68,7 @@ export function PlanningForm({
     <form action={action} className="space-y-4">
       <section className={group}>
         <h2 className={heading}>The day</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className={label}>
             When should the first group be ready?
             <select name="first_group_time" defaultValue={answers.first_group_time ?? ""} disabled={off} className={field}>
@@ -116,7 +116,7 @@ export function PlanningForm({
 
       <section className={group}>
         <h2 className={heading}>Your groups</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className={label}>
             About how many teams or groups?
             <input name="team_count" type="number" min={0} max={5000} defaultValue={answers.team_count ?? ""} disabled={off} placeholder="A rough number is fine" className={field} />

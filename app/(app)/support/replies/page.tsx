@@ -29,7 +29,7 @@ export default async function SavedRepliesPage() {
         Write <code>{"{first_name}"}</code> where the customer&apos;s first name goes and <code>{"{my_name}"}</code> for yours.
       </p>
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
           {replies?.length ? (
             replies.map((r) => (

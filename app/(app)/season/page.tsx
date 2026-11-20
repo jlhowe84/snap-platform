@@ -111,7 +111,7 @@ export default async function SeasonBoardPage({ searchParams }: PageProps<"/seas
           {office ? "Add returning leagues to start it." : "The office starts the board."}
         </Empty>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
           {COLUMNS.map((col) => {
             const items = list.filter((o) => column(o.stage) === col.key);
             return (

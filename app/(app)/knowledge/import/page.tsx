@@ -14,7 +14,7 @@ export default async function ImportPage() {
         <Link href="/knowledge" className="text-muted hover:text-accent">← Knowledge base</Link>
       </p>
       <PageHeader eyebrow="Knowledge" title="Import articles" />
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <ImportForm />
         </Card>

@@ -77,7 +77,7 @@ export default async function LabInvoicePage({ params }: PageProps<"/lab/invoice
           const labFees = n(o.order_lab_fees);
           return (
             <Card key={o.id} title={`Order ${o.captura_order_number ?? o.lab_order_number ?? o.position}`}>
-              <div className="grid gap-6 xl:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
                 <div className="space-y-4">
                   <Facts
                     rows={[

@@ -127,7 +127,7 @@ export default async function GearPage() {
       </Card>
 
       <Card title="Master checklist">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {bySection(items ?? []).map(([section, list]) => (
             <div key={section}>
               <p className="text-xs font-semibold uppercase tracking-wider text-muted">{section}</p>

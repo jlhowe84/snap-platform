@@ -32,7 +32,7 @@ export function DetailsForm({ crew }: { crew: CrewDetails | null }) {
   const [state, action, pending] = useActionState<PayState, FormData>(saveCrewDetails.bind(null, crew?.id ?? null), null);
   return (
     <form action={action} className="space-y-3">
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={label}>
           Name
           <input name="full_name" required maxLength={120} defaultValue={crew?.full_name ?? ""} className={field} />
@@ -67,7 +67,7 @@ export function DetailsForm({ crew }: { crew: CrewDetails | null }) {
           ))}
         </div>
       </fieldset>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={label}>
           Level (1 is asked first)
           <select name="level" defaultValue={crew?.level == null ? "" : String(crew.level)} className={field}>
@@ -106,7 +106,7 @@ export function PrivateForm({
         Home address (for mileage)
         <input name="address" maxLength={300} placeholder="Street, town, state" defaultValue={current?.address ?? ""} className={field} />
       </label>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={label}>
           Emergency contact
           <input name="emergency_name" maxLength={120} defaultValue={current?.emergency_name ?? ""} className={field} />

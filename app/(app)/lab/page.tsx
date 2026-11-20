@@ -86,7 +86,7 @@ export default async function LabCostsPage({ searchParams }: PageProps<"/lab">) 
           <section>
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">What the lab charged</h2>
             <p className="mb-3 text-sm text-muted">Every order on every invoice read so far.</p>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <Stat label="Lab charged" value={usd(view.all.total)} hint={`${count(view.all.orders)} orders on ${count(invoices ?? 0)} invoices`} />
               <Stat label="Prints and products" value={usd(view.all.products)} hint={`${pct(view.all.products, view.all.total)} of the lab's charge`} />
               <Stat label="Shipping to families" value={usd(view.all.shipping)} hint={`${pct(view.all.shipping, view.all.total)} of the lab's charge`} />
@@ -101,7 +101,7 @@ export default async function LabCostsPage({ searchParams }: PageProps<"/lab">) 
                 ? "Every order has been found in Captura."
                 : `Only the ${count(view.all.priced)} of ${count(view.all.orders)} orders looked up in Captura so far. Each check looks up more, so these numbers grow until every order is in.`}
             </p>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <Stat label="Customers paid" value={usd(view.all.orderTotal)} hint={`${count(view.all.priced)} orders, including their tax and shipping`} />
               <Stat label="Net pay from Captura" value={usd(view.all.netPay)} hint="What Captura pays SNAP after its fees" />
               <Stat label="Lab charged for these" value={usd(view.all.pricedLab)} hint={`${usd(view.all.priced ? view.all.pricedLab / view.all.priced : 0)} an order`} />
@@ -109,7 +109,7 @@ export default async function LabCostsPage({ searchParams }: PageProps<"/lab">) 
             </div>
           </section>
 
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <Card title="By year">
               <Table head={MONEY_HEAD("Year")}>
                 {view.years.map((y) => (

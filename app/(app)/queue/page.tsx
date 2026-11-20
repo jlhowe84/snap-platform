@@ -64,6 +64,18 @@ export default async function QueuePage() {
   const jobName = new Map((jobs ?? []).map((j) => [j.id, j.name]));
   const orgName = new Map((orgs ?? []).map((o) => [o.id, o.name]));
 
+  // One line per draft, gathered under its job (or league) so a job's
+  // messages are read together. Groups keep the order of their oldest draft.
+  const grouped = new Map<string, { a: (typeof list)[number]; draft: Draft; refs: Refs; to: string[] }[]>();
+  for (const a of list) {
+    const draft = (a.draft ?? {}) as Draft;
+    const refs = (a.record_refs ?? {}) as Refs;
+    const to = Array.isArray(draft.to) ? draft.to.filter((x): x is string => typeof x === "string") : [];
+    const key = refs.job_id ?? refs.org_id ?? "none";
+    grouped.set(key, [...(grouped.get(key) ?? []), { a, draft, refs, to }]);
+  }
+  const groups = [...grouped];
+
   const counts = new Map<string, number>();
   for (const a of list) counts.set(a.action_type_key, (counts.get(a.action_type_key) ?? 0) + 1);
   const clockOn = settings?.find((s) => s.key === "clock.enabled")?.value === true;
@@ -77,7 +89,7 @@ export default async function QueuePage() {
         {admin && <RunClockButton />}
       </PageHeader>
       <p className="mb-6 max-w-2xl text-sm text-muted">
-        Drafts wait here until a person approves them. Approving saves the final wording and sends the message.
+        Drafts wait here until a person approves them. Tap a line to read or change it. Approving saves the final wording and sends the message.
         {testMode
           ? hasTestTo
             ? " Test mode is on: every message goes to the test address only, never to the league."
@@ -101,39 +113,59 @@ export default async function QueuePage() {
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className="space-y-4 xl:col-span-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="min-w-0 space-y-5 xl:col-span-2">
           {list.length === 0 && <Empty>Nothing is waiting for approval.</Empty>}
-          {list.map((a) => {
-            const draft = (a.draft ?? {}) as Draft;
-            const refs = (a.record_refs ?? {}) as Refs;
-            const to = Array.isArray(draft.to) ? draft.to.filter((x): x is string => typeof x === "string") : [];
-            return (
-              <Card key={a.id}>
-                <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-                  <Pill tone={a.action_type_key === "chase.at_risk" ? "risk" : "accent"}>{label(a.action_type_key)}</Pill>
-                  {refs.org_id && (
-                    <Link href={`/leagues/${refs.org_id}`} className="hover:text-accent">
-                      {orgName.get(refs.org_id) ?? "League"}
-                    </Link>
-                  )}
-                  {refs.job_id && (
-                    <Link href={`/jobs/${refs.job_id}`} className="text-muted hover:text-accent">
-                      {jobName.get(refs.job_id) ?? "Job"}
-                    </Link>
-                  )}
-                  <span className="ml-auto text-xs text-muted">Drafted {when(a.created_at)}</span>
-                </div>
-                <DraftForm
-                  id={a.id}
-                  to={to}
-                  subject={typeof draft.subject === "string" ? draft.subject : ""}
-                  body={typeof draft.body === "string" ? draft.body : ""}
-                  canDecide={a.action_type_key !== "chase.at_risk" || admin}
-                />
-              </Card>
-            );
-          })}
+          {groups.map(([groupKey, items]) => (
+            <section key={groupKey}>
+              <h2 className="mb-2 flex flex-wrap items-baseline gap-x-2 text-sm font-semibold">
+                {items[0].refs.job_id ? (
+                  <Link href={`/jobs/${items[0].refs.job_id}`} className="hover:text-accent">
+                    {jobName.get(items[0].refs.job_id) ?? "Job"}
+                  </Link>
+                ) : items[0].refs.org_id ? (
+                  <Link href={`/leagues/${items[0].refs.org_id}`} className="hover:text-accent">
+                    {orgName.get(items[0].refs.org_id) ?? "League"}
+                  </Link>
+                ) : (
+                  "Not tied to a job"
+                )}
+                {items[0].refs.job_id && items[0].refs.org_id && (
+                  <Link href={`/leagues/${items[0].refs.org_id}`} className="font-normal text-muted hover:text-accent">
+                    {orgName.get(items[0].refs.org_id) ?? "League"}
+                  </Link>
+                )}
+              </h2>
+              <div className="overflow-hidden rounded-xl border border-line bg-surface">
+                {items.map(({ a, draft, to }) => (
+                  <details key={a.id} className="group border-b border-line last:border-b-0">
+                    <summary className="flex min-h-12 cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1 px-4 py-3 text-sm hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
+                      <Pill tone={a.action_type_key === "chase.at_risk" ? "risk" : "accent"}>{label(a.action_type_key)}</Pill>
+                      <span className="min-w-0 flex-1 basis-48 truncate">
+                        {typeof draft.subject === "string" && draft.subject ? draft.subject : "No subject"}
+                      </span>
+                      <span className="text-xs text-muted">
+                        {to.length ? `to ${to[0]}${to.length > 1 ? ` and ${to.length - 1} more` : ""} · ` : ""}
+                        {when(a.created_at)}
+                      </span>
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-muted group-open:rotate-180">
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </summary>
+                    <div className="border-t border-line p-4">
+                      <DraftForm
+                        id={a.id}
+                        to={to}
+                        subject={typeof draft.subject === "string" ? draft.subject : ""}
+                        body={typeof draft.body === "string" ? draft.body : ""}
+                        canDecide={a.action_type_key !== "chase.at_risk" || admin}
+                      />
+                    </div>
+                  </details>
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
 
         <Card title="Recently decided">
