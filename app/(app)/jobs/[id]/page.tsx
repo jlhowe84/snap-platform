@@ -19,6 +19,7 @@ import { ChangeDateForm } from "./change-date-form";
 import { FreshLink, PortalLinkForm } from "./portal-link-form";
 import { StandardRosterUpload } from "./standard-roster";
 import { revokeContactLinks, revokePortalLink } from "./portal-actions";
+import { DeleteDay } from "./delete-day";
 import { DayPageForm } from "./day-page-form";
 import { AssignDirect } from "../../staffing/[dayId]/assign-direct";
 import { POSITION_LABEL } from "@/lib/staffing/plan";
@@ -333,6 +334,9 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                     )}
                     {canChangeDates && d.status !== "cancelled" && !["released", "cancelled"].includes(job.status) && (
                       <ChangeDateForm jobId={id} photoDayId={d.id} postponed={d.status === "postponed"} />
+                    )}
+                    {office && (days?.length ?? 0) > 1 && (
+                      <DeleteDay jobId={id} photoDayId={d.id} date={formatDate(d.date, { weekday: true })} />
                     )}
                   </li>
                 ))}

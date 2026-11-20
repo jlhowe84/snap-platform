@@ -59,3 +59,34 @@ export async function addPhotoDay(jobId: string, _prev: AddDayState, form: FormD
   revalidatePath("/jobs");
   return { ok: true, message: "Photo day added." };
 }
+
+/**
+ * Deletes a photo day added by mistake. A day with crew assigned, gear
+ * checked out or a schedule is real work, so it is cancelled from Change
+ * date instead, which keeps the record. A job keeps at least one day.
+ */
+export async function deletePhotoDay(jobId: string, photoDayId: string): Promise<AddDayState> {
+  await requireStaff(OFFICE_ROLES);
+  const ids = z.object({ job: z.uuid(), day: z.uuid() }).safeParse({ job: jobId, day: photoDayId });
+  if (!ids.success) return { ok: false, message: "That photo day was not found." };
+
+  const supabase = await createClient();
+  const [{ data: days }, { count: crew }, { count: kits }, { count: schedules }] = await Promise.all([
+    supabase.from("photo_days").select("id").eq("job_id", ids.data.job),
+    supabase.from("shifts").select("id", { count: "exact", head: true }).eq("photo_day_id", ids.data.day).eq("status", "filled"),
+    supabase.from("kit_checkouts").select("id", { count: "exact", head: true }).eq("photo_day_id", ids.data.day),
+    supabase.from("schedules").select("id", { count: "exact", head: true }).eq("photo_day_id", ids.data.day),
+  ]);
+  if (!days?.some((d) => d.id === ids.data.day)) return { ok: false, message: "That photo day was not found." };
+  if (days.length < 2) return { ok: false, message: "This is the job's only photo day, so it cannot be deleted. Change its date instead." };
+  if (crew || kits || schedules) {
+    return { ok: false, message: "This day has crew, gear or a schedule on it. Use Change date, then Cancel this photo day, so the record is kept." };
+  }
+
+  const { error } = await supabase.from("photo_days").delete().eq("id", ids.data.day).eq("job_id", ids.data.job);
+  if (error) return { ok: false, message: "The photo day could not be deleted." };
+
+  revalidatePath(`/jobs/${ids.data.job}`);
+  revalidatePath("/jobs");
+  return { ok: true, message: "Photo day deleted." };
+}
