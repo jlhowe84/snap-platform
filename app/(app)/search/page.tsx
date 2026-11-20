@@ -95,14 +95,13 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
 
   return (
     <>
-      <PageHeader eyebrow="Search" title={q ? `Results for "${q}"` : "Search everything"} />
+      <PageHeader eyebrow="Search" title={q ? `Results for "${q}"` : "Search everything"} back={{ href: "/", label: "Close search" }} />
 
       <form action="/search" className="mb-6 flex gap-2">
         <input
           type="search"
           name="q"
           defaultValue={q}
-          autoFocus={!q}
           placeholder="A league, job, person, team, email or order number"
           aria-label="Search everything"
           className="min-h-12 min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 text-base placeholder:text-muted focus:border-accent focus:outline-none"
