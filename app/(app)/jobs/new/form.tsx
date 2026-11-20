@@ -62,7 +62,7 @@ export function NewJobForm({ leagues, orgId }: { leagues: { id: string; name: st
         </label>
       </div>
       <p className="text-xs text-muted">
-        This adds a booked photo day in planning, with no hold. More photo days can be added once multi-day editing lands. To hold a date
+        This adds a booked photo day in planning, with no hold. If this league already has a job this season, open that job and use Add a photo day instead. To hold a date
         for a league that has not confirmed, use the Season board.
       </p>
       <div className="flex items-center gap-3">

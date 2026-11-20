@@ -14,10 +14,12 @@ import { toClock, toMinutes } from "@/lib/schedule/layout";
 import { DATE_CHANGE_LABEL, type DateChangeKind } from "@/lib/jobs/date-change";
 import { buildSetupValues, CAPTURA_TAG, readTemplates, setupProgress, stepDueOn, WELCOME_TEMPLATES_KEY } from "@/lib/captura/setup";
 import { CapturaSetup } from "./captura-setup";
+import { AddDayForm } from "./add-day-form";
 import { ChangeDateForm } from "./change-date-form";
 import { FreshLink, PortalLinkForm } from "./portal-link-form";
 import { StandardRosterUpload } from "./standard-roster";
 import { revokeContactLinks, revokePortalLink } from "./portal-actions";
+import { DeleteDay } from "./delete-day";
 import { DayPageForm } from "./day-page-form";
 import { AssignDirect } from "../../staffing/[dayId]/assign-direct";
 import { POSITION_LABEL } from "@/lib/staffing/plan";
@@ -333,11 +335,17 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                     {canChangeDates && d.status !== "cancelled" && !["released", "cancelled"].includes(job.status) && (
                       <ChangeDateForm jobId={id} photoDayId={d.id} postponed={d.status === "postponed"} />
                     )}
+                    {office && (days?.length ?? 0) > 1 && (
+                      <DeleteDay jobId={id} photoDayId={d.id} date={formatDate(d.date, { weekday: true })} />
+                    )}
                   </li>
                 ))}
               </ul>
             ) : (
               <Empty>No photo days yet.</Empty>
+            )}
+            {office && !["released", "cancelled"].includes(job.status) && (
+              <AddDayForm jobId={id} defaults={days?.length ? days[days.length - 1] : null} />
             )}
             {dateChanges?.length ? (
               <div className="mt-4 border-t border-line pt-3">
