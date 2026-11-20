@@ -15,9 +15,9 @@ import { DATE_CHANGE_LABEL, type DateChangeKind } from "@/lib/jobs/date-change";
 import { buildSetupValues, CAPTURA_TAG, readTemplates, setupProgress, stepDueOn, WELCOME_TEMPLATES_KEY } from "@/lib/captura/setup";
 import { CapturaSetup } from "./captura-setup";
 import { ChangeDateForm } from "./change-date-form";
-import { PortalLinkForm } from "./portal-link-form";
+import { FreshLink, PortalLinkForm } from "./portal-link-form";
 import { StandardRosterUpload } from "./standard-roster";
-import { revokePortalLink } from "./portal-actions";
+import { revokeContactLinks, revokePortalLink } from "./portal-actions";
 import { DayPageForm } from "./day-page-form";
 import { AssignDirect } from "../../staffing/[dayId]/assign-direct";
 import { POSITION_LABEL } from "@/lib/staffing/plan";
@@ -104,7 +104,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     supabase.from("agreement_signatures").select("id, signer_name, signed_at").eq("job_id", id).order("signed_at", { ascending: false }),
     supabase
       .from("portal_links")
-      .select("id, created_at, expires_at, last_used_at, revoked_at, contacts(full_name)")
+      .select("id, contact_id, created_at, expires_at, last_used_at, revoked_at, contacts(full_name)")
       .eq("job_id", id)
       .order("created_at", { ascending: false }),
   ]);
@@ -160,6 +160,19 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   });
 
   const liveLinks = (portalLinks ?? []).filter((l) => !l.revoked_at && l.expires_at > nowIso);
+  // One row per contact: their newest open link and how many they hold.
+  const linkHolders: { link: (typeof liveLinks)[number]; count: number }[] = [];
+  for (const l of liveLinks) {
+    const row = l.contact_id ? linkHolders.find((h) => h.link.contact_id === l.contact_id) : undefined;
+    if (!row) linkHolders.push({ link: l, count: 1 });
+    else {
+      // Links arrive newest first, so the row already holds the newest one.
+      row.count += 1;
+      if (l.last_used_at && (!row.link.last_used_at || l.last_used_at > row.link.last_used_at)) {
+        row.link = { ...row.link, last_used_at: l.last_used_at };
+      }
+    }
+  }
   const oldLinks = (portalLinks ?? []).filter((l) => l.revoked_at || l.expires_at <= nowIso);
 
   // The next coming photo day, and the one thing this job is waiting on.
@@ -558,24 +571,36 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
           <Card id="portal" title="Coordinator portal" action={<Link href={`/portal/${id}`} className="text-sm text-accent hover:underline">View as staff</Link>}>
             {office && <PortalLinkForm jobId={id} contacts={emailContacts} />}
-            {liveLinks.length > 0 && (
+            {linkHolders.length > 0 && (
               <ul className="mt-4 divide-y divide-line text-sm">
-                {liveLinks.map((l) => (
-                  <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                    <div>
+                {linkHolders.map(({ link: l, count }) => (
+                  <li key={l.id} className="flex flex-wrap items-center gap-2 py-3">
+                    <div className="mr-auto">
                       <p>{(l.contacts as { full_name: string } | null)?.full_name ?? "Contact"}</p>
                       <p className="text-xs text-muted">
-                        Open until {formatDate(l.expires_at.slice(0, 10))}
+                        {count > 1 ? `${count} links open, the newest until ` : "Open until "}
+                        {formatDate(l.expires_at.slice(0, 10))}
                         {l.last_used_at ? ` · last used ${formatDate(l.last_used_at.slice(0, 10))}` : " · not used yet"}
                       </p>
                     </div>
-                    {office && (
-                      <form action={revokePortalLink.bind(null, id, l.id)}>
-                        <ConfirmButton ask="Revoke this link? The coordinator will need a new one to get back in." className="text-xs text-risk hover:underline">
+                    {office && l.contact_id && (
+                      <form action={revokeContactLinks.bind(null, id, l.contact_id)}>
+                        <ConfirmButton
+                          ask={count > 1 ? `Revoke all ${count} of this contact's links? They will need a new one to get back in.` : "Revoke this link? The coordinator will need a new one to get back in."}
+                          className="px-2 py-2 text-sm text-risk hover:underline"
+                        >
                           Revoke
                         </ConfirmButton>
                       </form>
                     )}
+                    {office && !l.contact_id && (
+                      <form action={revokePortalLink.bind(null, id, l.id)}>
+                        <ConfirmButton ask="Revoke this link?" className="px-2 py-2 text-sm text-risk hover:underline">
+                          Revoke
+                        </ConfirmButton>
+                      </form>
+                    )}
+                    {office && l.contact_id && <FreshLink jobId={id} contactId={l.contact_id} />}
                   </li>
                 ))}
               </ul>

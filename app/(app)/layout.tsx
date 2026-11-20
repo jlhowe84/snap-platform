@@ -2,6 +2,7 @@ import { requireStaff, hasAnyRole, OFFICE_ROLES, ADMIN_ROLES } from "@/lib/auth"
 import { ROLE_LABEL } from "@/lib/labels";
 import { createClient } from "@/lib/supabase/server";
 import { PhoneBar, SideMenu } from "./menu";
+import { CrewShell } from "./crew-shell";
 import type { MenuGroup, MenuItem } from "@/lib/menu";
 import { AskWidget } from "./ask-widget";
 import { ASK_ROLES } from "@/lib/ask/roles";
@@ -37,6 +38,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       items: [
         { href: "/", label: "Today", show: desk },
         { href: "/shifts", label: "My shifts", show: crew },
+        { href: "/pay", label: "My pay", show: crew },
         { href: "/notices", label: "Notices", show: true, badge: unread ?? 0 },
         { href: "/tasks", label: "Tasks", show: desk },
         { href: "/calendar", label: "Calendar", show: desk },
@@ -80,6 +82,16 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     .filter((i): i is MenuItem => !!i)
     .slice(0, 4);
   const roleLine = viewer.roles.map((r) => ROLE_LABEL[r]).join(", ");
+
+  // Someone who is crew and nothing else gets the bright, simple layout: three
+  // pages and no office menu.
+  if (viewer.roles.every((r) => r === "crew")) {
+    return (
+      <CrewShell companyName={viewer.companyName ?? "Photo Day"} name={viewer.name} items={all}>
+        {children}
+      </CrewShell>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
