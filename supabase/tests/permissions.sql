@@ -116,6 +116,8 @@ insert into public.jobs (id, company_id, org_id, name) values
   ('40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-0000000000a1', 'Job A1'),
   ('40000000-0000-0000-0000-0000000000a2', 'a0000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-0000000000a1', 'Job A2'),
   ('40000000-0000-0000-0000-0000000000b1', 'b0000000-0000-0000-0000-00000000000b', '20000000-0000-0000-0000-0000000000b1', 'Job B1');
+insert into public.job_notes (company_id, job_id, body) values
+  ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'A note on job A1');
 insert into public.photo_days (company_id, job_id, date) values
   ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', '2027-04-17'),
   ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a2', '2027-04-24'),
@@ -283,6 +285,7 @@ declare
     array['organization_terms',    '1','1','1','1','0','0','0','0'],
     array['league_notes',          '1','1','1','1','0','0','0','0'],
     array['jobs',                  '2','2','2','2','0','1','0','1'],
+    array['job_notes',             '1','1','1','1','0','0','0','0'],
     array['photo_days',            '2','2','2','2','0','1','0','1'],
     array['job_links',             '1','1','1','1','0','1','0','0'],
     array['job_contacts',          '1','1','1','1','0','1','0','0'],
@@ -1364,6 +1367,8 @@ insert into public.shifts (company_id, job_id, photo_day_id, position, status) v
   ('a0000000-0000-0000-0000-00000000000a', '4f000000-0000-0000-0000-000000000002', '4f100000-0000-0000-0000-000000000002', 'poser', 'draft');
 insert into public.tasks (company_id, job_id, title) values
   ('a0000000-0000-0000-0000-00000000000a', '4f000000-0000-0000-0000-000000000002', 'Task of the absorbed job');
+insert into public.job_notes (company_id, job_id, body) values
+  ('a0000000-0000-0000-0000-00000000000a', '4f000000-0000-0000-0000-000000000002', 'Note of the absorbed job');
 select t.login('support');
 select t.fails($$select public.combine_jobs('4f000000-0000-0000-0000-000000000001', '4f000000-0000-0000-0000-000000000002')$$, 'support cannot combine jobs');
 select t.login('coord');
@@ -1382,6 +1387,28 @@ select t.count_is($$select count(*) from public.tasks where title = 'Task of the
 select t.count_is($$select count(*) from public.job_links where job_id = '4f000000-0000-0000-0000-000000000001' and captura_gallery_id = 888$$, 1, 'the kept job takes the gallery it lacked');
 select t.count_is($$select count(*) from public.job_contacts where job_id = '4f000000-0000-0000-0000-000000000001'$$, 1, 'contacts come along');
 select t.count_is($$select count(*) from public.jobs where id = '4f000000-0000-0000-0000-000000000001' and notes like 'Combined with Job A4 (May 2, 2027)%'$$, 1, 'the kept job notes what was combined');
+select t.count_is($$select count(*) from public.job_notes where body = 'Note of the absorbed job' and job_id = '4f000000-0000-0000-0000-000000000001'$$, 1, 'notes move to the kept job');
+
+-- Job notes: a dated log. Office writes as themselves; an entry is removed
+-- only by its author or by an owner or admin.
+select t.works($$insert into public.job_notes (company_id, job_id, body) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'Office wrote this')$$, 'office adds a job note');
+select t.count_is($$select count(*) from public.job_notes where body = 'Office wrote this' and author_id = '10000000-0000-0000-0000-000000000003'$$, 1, 'the note carries its author');
+select t.fails($$insert into public.job_notes (company_id, job_id, body, author_id) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'As someone else', '10000000-0000-0000-0000-000000000001')$$, 'a note cannot be written in another person''s name');
+select t.fails($$insert into public.job_notes (company_id, job_id, body) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000b1', 'Wrong company')$$, 'a note cannot go on another company''s job');
+select t.fails($$insert into public.job_notes (company_id, job_id, body) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', '   ')$$, 'an empty note is refused');
+select t.fails($$update public.job_notes set body = 'Rewritten' where body = 'Office wrote this'$$, 'a note cannot be rewritten');
+select t.login('support');
+select t.fails($$insert into public.job_notes (company_id, job_id, body) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'Support note')$$, 'support cannot add a job note');
+select t.login('coord');
+select t.fails($$insert into public.job_notes (company_id, job_id, body) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'Coordinator note')$$, 'a coordinator cannot add a job note');
+select t.login('admin');
+select t.works($$insert into public.job_notes (company_id, job_id, body) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'Admin wrote this')$$, 'admin adds a job note');
+select t.login('office');
+delete from public.job_notes where body = 'Admin wrote this';
+select t.login('admin');
+select t.count_is($$select count(*) from public.job_notes where body = 'Admin wrote this'$$, 1, 'office cannot delete another person''s note');
+delete from public.job_notes where body = 'Office wrote this';
+select t.count_is($$select count(*) from public.job_notes where body = 'Office wrote this'$$, 0, 'an admin can delete anyone''s note');
 reset role;
 reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;

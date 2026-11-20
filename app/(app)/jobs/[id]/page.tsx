@@ -26,6 +26,7 @@ import { POSITION_LABEL } from "@/lib/staffing/plan";
 import { headers } from "next/headers";
 import { nextStep } from "@/lib/jobs/next-step";
 import { JumpBar } from "./jump-bar";
+import { AddNoteForm, DeleteNote } from "./notes-form";
 import { CombineForm } from "./combine-form";
 import { ConfirmButton } from "@/components/confirm-button";
 
@@ -163,6 +164,11 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
   const liveDays = (days ?? []).filter((d) => d.status === "scheduled");
   const today = todayIn(viewer.timeZone);
+  const { data: jobNotes } = office
+    ? await supabase.from("job_notes").select("id, body, author_id, created_at, profiles(full_name)").eq("job_id", id).order("created_at", { ascending: false })
+    : { data: null };
+  const noteStamp = new Intl.DateTimeFormat("en-US", { timeZone: viewer.timeZone, month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+  const isAdmin = hasAnyRole(viewer, ["owner", "admin"]);
   const progress = setupProgress(setupSteps ?? [], tasks ?? []);
   const setupRows = (setupSteps ?? []).map((s) => {
     const due = stepDueOn(liveDays[0]?.date, s.offset_days);
@@ -231,6 +237,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     ["planning", "Planning"],
     ["captura", "Captura"],
     ["tasks", "Tasks"],
+    ...(office ? ([["notes", "Notes"]] as const) : []),
     ["details", "Details"],
     ["portal", "Portal"],
     ["parents", "Parent page"],
@@ -546,6 +553,33 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         </div>
 
         <div className="min-w-0 space-y-6">
+          {office && (
+            <Card id="notes" title={`Notes (${jobNotes?.length ?? 0})`}>
+              <AddNoteForm key={jobNotes?.[0]?.id ?? "first"} jobId={id} />
+              {jobNotes?.length ? (
+                <ul className="mt-4 divide-y divide-line border-t border-line">
+                  {jobNotes.map((n) => (
+                    <li key={n.id} className="py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-x-3">
+                        <p className="text-xs text-muted">
+                          {n.profiles?.full_name ?? "Someone"} · {noteStamp.format(new Date(n.created_at))}
+                        </p>
+                        {(n.author_id === viewer.id || isAdmin) && <DeleteNote jobId={id} noteId={n.id} />}
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm">{n.body}</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {job.notes && (
+                <div className="mt-4 border-t border-line pt-3">
+                  <p className="mb-1 text-xs uppercase tracking-wide text-muted">Earlier notes</p>
+                  <p className="whitespace-pre-wrap break-words text-sm text-muted">{job.notes}</p>
+                </div>
+              )}
+              <p className="mt-3 text-xs text-muted">Office only. Leagues and parents never see these.</p>
+            </Card>
+          )}
           <Card id="details" title="Details">
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
               <Detail label="League">
