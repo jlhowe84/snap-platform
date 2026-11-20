@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStaff, hasAnyRole, ADMIN_ROLES, OFFICE_ROLES } from "@/lib/auth";
+import { liveSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill, ReadinessStrip, StatusDot } from "@/components/ui";
 import { formatDate, formatTime, todayIn } from "@/lib/dates";
@@ -93,8 +94,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     .select("slug, published, published_at, show_team_times, what_to_wear, what_to_bring, note")
     .eq("job_id", id)
     .maybeSingle();
-  const h = await headers();
-  const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
+  // Shown for copying to parents and coordinators, so it is the live site's address.
+  const origin = liveSiteUrl(await headers());
   const [{ data: holds }, { data: signatures }, { data: portalLinks }] = await Promise.all([
     supabase.from("date_holds").select("photo_day_id, status, expires_on").eq("job_id", id),
     supabase.from("agreement_signatures").select("id, signer_name, signed_at").eq("job_id", id).order("signed_at", { ascending: false }),

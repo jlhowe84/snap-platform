@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStaff, ADMIN_ROLES } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { liveSiteUrl } from "@/lib/site-url";
 import { runClock } from "@/lib/clock/run";
 import { sendApprovedAction, type SendResult } from "@/lib/mail/send";
 
@@ -22,8 +23,8 @@ const Decide = z.object({
 });
 
 async function baseUrl() {
-  const h = await headers();
-  return `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
+  // Links in a sent message open the live site, not the preview that sent it.
+  return liveSiteUrl(await headers());
 }
 
 /** Sends one approved draft. The caller has already checked the person; this checks they can see the action. */

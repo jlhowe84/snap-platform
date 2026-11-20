@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStaff, OFFICE_ROLES } from "@/lib/auth";
+import { liveSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 import { newPortalToken, portalLinkExpiry } from "@/lib/portal/token";
 
@@ -47,11 +48,10 @@ export async function createPortalLink(jobId: string, _prev: PortalLinkState, fo
   });
   if (error) return { ok: false, message: error.message };
 
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "https";
+  // The link is handed to a coordinator, so it opens the live site.
+  const site = liveSiteUrl(await headers());
   revalidatePath(`/jobs/${parsed.data.jobId}`);
-  return { ok: true, url: `${proto}://${host}/p/${token}`, contact: c.full_name };
+  return { ok: true, url: `${site}/p/${token}`, contact: c.full_name };
 }
 
 export async function revokePortalLink(jobId: string, linkId: string) {

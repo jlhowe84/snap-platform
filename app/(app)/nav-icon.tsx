@@ -86,6 +86,14 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.5a6.5 6.5 0 0 1 3.5 5.5" />
     </>
   ),
+  // Crew pay: a banknote
+  "/crew/pay": (
+    <>
+      <rect x="3" y="6.5" width="18" height="11" rx="2" />
+      <circle cx="12" cy="12" r="2.5" />
+      <path d="M6.5 10v4M17.5 10v4" />
+    </>
+  ),
   // Gear: a camera bag
   "/gear": (
     <>

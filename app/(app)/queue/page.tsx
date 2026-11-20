@@ -13,8 +13,10 @@ type Refs = { job_id?: string | null; org_id?: string | null };
 
 const label = (key: string) =>
   isDraftKind(key) ? DRAFT_LABEL[key] : key === DATE_NOTICE_KEY ? DATE_NOTICE_LABEL : key === CREW_NOTICE_KEY ? CREW_NOTICE_LABEL : key;
-const when = (iso: string) =>
-  new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).format(new Date(iso));
+// A moment in time (drafted, decided), shown on the company's clock so an
+// evening draft does not read as tomorrow's.
+const whenIn = (timeZone: string) => (iso: string) =>
+  new Intl.DateTimeFormat("en-US", { timeZone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(iso));
 
 const STATUS_LABEL: Record<string, string> = {
   approved: "Approved, not sent",
@@ -33,6 +35,7 @@ function sentTo(result: unknown) {
 export default async function QueuePage() {
   const viewer = await requireStaff(["owner", "admin", "office", "support"]);
   const admin = hasAnyRole(viewer, ADMIN_ROLES);
+  const when = whenIn(viewer.timeZone);
   const supabase = await createClient();
 
   const [{ data: waiting }, { data: decided }, { data: settings }] = await Promise.all([
