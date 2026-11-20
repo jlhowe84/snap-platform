@@ -6,6 +6,7 @@ import { Card, Empty, PageHeader, Pill, cx } from "@/components/ui";
 import { formatDate, todayIn } from "@/lib/dates";
 import { assignTask, setTaskStatus } from "./actions";
 import { NewTask } from "./new-task";
+import { SubmitButton } from "@/components/submit-button";
 
 export const metadata: Metadata = { title: "Tasks" };
 
@@ -42,7 +43,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
 
   return (
     <>
-      <PageHeader eyebrow="Work" title="Tasks" />
+      <PageHeader eyebrow="Today" title="Tasks" />
       <Card title="New task" className="mb-6">
         <NewTask people={people} me={viewer.id} />
       </Card>
@@ -82,7 +83,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
                     {t.status !== "done" && t.status !== "todo" && <Pill>{STATUS[t.status]}</Pill>}
                     {t.due_on && <Pill tone={late ? "risk" : "muted"}>{late ? "Was due" : "Due"} {formatDate(t.due_on)}</Pill>}
                     {t.status === "done" ? (
-                      <form action={setTaskStatus.bind(null, t.id, "todo")}><button className={quiet}>Reopen</button></form>
+                      <form action={setTaskStatus.bind(null, t.id, "todo")}><SubmitButton className={quiet}>Reopen</SubmitButton></form>
                     ) : (
                       <>
                         <form action={assignTask.bind(null, t.id)} className="flex items-center gap-1">
@@ -90,10 +91,10 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
                             <option value="">Nobody yet</option>
                             {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                           </select>
-                          <button className={quiet}>Assign</button>
+                          <SubmitButton className={quiet}>Assign</SubmitButton>
                         </form>
                         <form action={setTaskStatus.bind(null, t.id, "done")}>
-                          <button className="rounded-lg bg-accent px-3 py-1 text-sm font-semibold text-accent-ink hover:brightness-110">Done</button>
+                          <SubmitButton className="rounded-lg bg-accent px-3 py-1 text-sm font-semibold text-accent-ink hover:brightness-110">Done</SubmitButton>
                         </form>
                       </>
                     )}

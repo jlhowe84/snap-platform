@@ -34,7 +34,7 @@ export default async function LeaguesPage({ searchParams }: PageProps<"/leagues"
 
   return (
     <>
-      <PageHeader eyebrow="Customers" title={season ? `${season} leagues` : "Leagues"}>
+      <PageHeader eyebrow="Jobs" title={season ? `${season} leagues` : "Leagues"}>
         {office && <ButtonLink href="/leagues/new">New league</ButtonLink>}
       </PageHeader>
       <nav className="mb-4 flex flex-wrap gap-2">

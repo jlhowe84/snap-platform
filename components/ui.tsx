@@ -8,21 +8,29 @@ export function cx(...parts: Array<string | false | null | undefined>) {
 export function PageHeader({
   eyebrow,
   title,
+  back,
   children,
 }: {
   eyebrow?: string;
   title: string;
+  /** Where a detail page came from: shown as a link above the title. */
+  back?: { href: string; label: string };
   children?: ReactNode;
 }) {
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div>
+      <div className="min-w-0">
+        {back && (
+          <Link href={back.href} className="mb-2 inline-flex min-h-8 items-center text-sm text-muted hover:text-accent">
+            ← {back.label}
+          </Link>
+        )}
         {eyebrow && (
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">{eyebrow}</p>
         )}
-        <h1 className="font-display text-4xl font-semibold uppercase tracking-wide">{title}</h1>
+        <h1 className="font-display text-3xl font-semibold uppercase tracking-wide [overflow-wrap:anywhere] md:text-4xl">{title}</h1>
       </div>
-      {children && <div className="flex items-center gap-2">{children}</div>}
+      {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
     </header>
   );
 }

@@ -10,6 +10,7 @@ import { defaultPeriod, payTotals } from "@/lib/staffing/pay";
 import { removePayLine, savePayLine, setPayStatus } from "./actions";
 import { AddPay } from "./add-pay";
 import { loadPayLines } from "./load";
+import { SubmitButton } from "@/components/submit-button";
 
 export const metadata: Metadata = { title: "Crew pay" };
 
@@ -62,12 +63,12 @@ export default async function CrewPayPage({ searchParams }: PageProps<"/crew/pay
           <AddPay from={from} to={to} />
           {pending > 0 && (
             <form action={setPayStatus.bind(null, from, to, "approved")}>
-              <button className={quiet}>Approve {pending} pending</button>
+              <SubmitButton className={quiet}>Approve {pending} pending</SubmitButton>
             </form>
           )}
           {approved > 0 && (
             <form action={setPayStatus.bind(null, from, to, "paid")}>
-              <button className={quiet}>Mark {approved} approved as paid</button>
+              <SubmitButton className={quiet}>Mark {approved} approved as paid</SubmitButton>
             </form>
           )}
         </div>
@@ -132,7 +133,7 @@ export default async function CrewPayPage({ searchParams }: PageProps<"/crew/pay
                       )}
                       <label className="text-muted">Adjust $ <input name="adjustment" type="number" step="0.01" defaultValue={l.adjustment} className={cell} /></label>
                       <input name="note" defaultValue={l.note ?? ""} placeholder="Note" maxLength={500} className="w-40 rounded-md border border-line bg-surface-2 px-2 py-1 text-sm" />
-                      <button className={quiet}>Save</button>
+                      <SubmitButton className={quiet}>Save</SubmitButton>
                     </form>
                   )}
                   <div className="flex items-center gap-2 lg:justify-end">
@@ -140,7 +141,7 @@ export default async function CrewPayPage({ searchParams }: PageProps<"/crew/pay
                     <Pill tone={STATUS_TONE[l.status as keyof typeof STATUS_TONE] ?? "muted"}>{l.status}</Pill>
                     {l.status === "pending" && (
                       <form action={removePayLine.bind(null, l.id)}>
-                        <button className="text-xs text-muted hover:text-risk">Remove</button>
+                        <SubmitButton className="text-xs text-muted hover:text-risk">Remove</SubmitButton>
                       </form>
                     )}
                   </div>

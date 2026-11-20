@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill, cx } from "@/components/ui";
 import { NOTICE_KINDS, NOTICE_LABEL, isNoticeKind } from "@/lib/notices";
 import { markAllRead, markRead, setNoticeKind } from "./actions";
+import { SubmitButton } from "@/components/submit-button";
 
 export const metadata: Metadata = { title: "Notices" };
 
@@ -25,10 +26,10 @@ export default async function NoticesPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Notices" title={unread ? `${unread} new` : "All caught up"}>
+      <PageHeader eyebrow="Today · Notices" title={unread ? `${unread} new` : "All caught up"}>
         {unread > 0 && (
           <form action={markAllRead}>
-            <button className={quiet}>Mark all read</button>
+            <SubmitButton className={quiet}>Mark all read</SubmitButton>
           </form>
         )}
       </PageHeader>
@@ -55,7 +56,7 @@ export default async function NoticesPage() {
                   </div>
                   {!n.read_at && (
                     <form action={markRead.bind(null, n.id)}>
-                      <button className={quiet}>Mark read</button>
+                      <SubmitButton className={quiet}>Mark read</SubmitButton>
                     </form>
                   )}
                 </li>
@@ -78,9 +79,9 @@ export default async function NoticesPage() {
                     <p className="text-xs text-muted">{NOTICE_LABEL[k].hint}</p>
                   </div>
                   <form action={setNoticeKind.bind(null, k, !on)}>
-                    <button className={cx(quiet, on && "border-accent text-accent")} aria-pressed={on}>
+                    <SubmitButton className={cx(quiet, on && "border-accent text-accent")} aria-pressed={on}>
                       {on ? "On" : "Off"}
-                    </button>
+                    </SubmitButton>
                   </form>
                 </li>
               );

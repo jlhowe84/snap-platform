@@ -50,7 +50,7 @@ export default async function LabCostsPage({ searchParams }: PageProps<"/lab">) 
 
   return (
     <>
-      <PageHeader eyebrow="Lab" title="Lab costs">
+      <PageHeader eyebrow="Money" title="Lab costs">
         <Link href="/lab/invoices" className="rounded-lg border border-line px-3 py-1.5 text-sm font-semibold hover:border-accent hover:text-accent">
           Find an invoice
         </Link>

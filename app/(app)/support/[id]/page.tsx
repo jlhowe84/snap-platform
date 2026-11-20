@@ -8,6 +8,7 @@ import { Card, PageHeader, Pill, cx } from "@/components/ui";
 import { SUPPORT_ROLES, SUPPORT_STATUS_LABEL, SUPPORT_STATUS_TONE } from "@/lib/support/labels";
 import { takeConversation } from "../actions";
 import { NoteForm, ReplyForm, WorkForm } from "./work";
+import { SubmitButton } from "@/components/submit-button";
 
 export const metadata: Metadata = { title: "Support conversation" };
 
@@ -110,7 +111,7 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
             action={
               c.assignee_id !== viewer.id ? (
                 <form action={takeConversation.bind(null, c.id)}>
-                  <button className="rounded-lg border border-line px-2.5 py-1 text-sm hover:border-accent hover:text-accent">Take it</button>
+                  <SubmitButton className="rounded-lg border border-line px-2.5 py-1 text-sm hover:border-accent hover:text-accent">Take it</SubmitButton>
                 </form>
               ) : undefined
             }

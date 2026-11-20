@@ -21,6 +21,7 @@ import { AssignDirect } from "./assign-direct";
 import { ConfirmButton } from "@/components/confirm-button";
 import { addKitToDay, checkKitIn, removeKitFromDay, sendKitOut } from "../../gear/actions";
 import { CHECKOUT_LABEL, KIT_STATUS_LABEL } from "@/lib/gear/field";
+import { SubmitButton } from "@/components/submit-button";
 
 export const metadata: Metadata = { title: "Staffing" };
 
@@ -100,9 +101,9 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
             <p className="text-sm text-muted">Crew cannot see a shift until it is published. Level 1 crew see it first.</p>
           </div>
           <form action={publishShifts.bind(null, day.id)}>
-            <button className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110">
+            <SubmitButton className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110">
               Publish {sum.drafts} to Level 1
-            </button>
+            </SubmitButton>
           </form>
         </div>
       )}
@@ -112,7 +113,7 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
             Open shifts that nobody has taken can be offered to the next Level, until they are open to everyone.
           </p>
           <form action={openNextWave.bind(null, day.id)}>
-            <button className={quiet}>Open to the next Level</button>
+            <SubmitButton className={quiet}>Open to the next Level</SubmitButton>
           </form>
         </div>
       )}
@@ -166,7 +167,7 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
                             </option>
                           ))}
                         </select>
-                        <button className={quiet}>Assign</button>
+                        <SubmitButton className={quiet}>Assign</SubmitButton>
                       </form>
                     )}
                     {status === "filled" && (
@@ -177,7 +178,7 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
                     {status !== "cancelled" && (
                       <form action={cancelShift.bind(null, day.id, s.id)}>
                         {status === "draft" ? (
-                          <button className={quiet}>Remove</button>
+                          <SubmitButton className={quiet}>Remove</SubmitButton>
                         ) : (
                           <ConfirmButton ask={status === "filled" ? `Cancel this shift? ${s.crew_members?.full_name ?? "The person on it"} will be taken off.` : "Cancel this shift?"} className={quiet}>Cancel</ConfirmButton>
                         )}
@@ -214,8 +215,8 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
                   <span className="ml-auto flex gap-2">
                     {k.status === "planned" && (
                       <>
-                        <form action={sendKitOut.bind(null, day.id, k.id)}><button className={quiet}>Send out</button></form>
-                        <form action={removeKitFromDay.bind(null, day.id, k.id)}><button className={quiet}>Remove</button></form>
+                        <form action={sendKitOut.bind(null, day.id, k.id)}><SubmitButton className={quiet}>Send out</SubmitButton></form>
+                        <form action={removeKitFromDay.bind(null, day.id, k.id)}><SubmitButton className={quiet}>Remove</SubmitButton></form>
                       </>
                     )}
                   </span>
@@ -232,7 +233,7 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <input name="issues" maxLength={2000} placeholder="Anything broken or worth knowing" className="min-w-64 flex-1 rounded-md border border-line bg-surface-2 px-2 py-1 text-sm" />
-                      <button className={primary}>Checked in</button>
+                      <SubmitButton className={primary}>Checked in</SubmitButton>
                     </div>
                   </form>
                 )}
@@ -253,7 +254,7 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
             <option value="">No station</option>
             {Array.from({ length: day.stations }, (_, i) => i + 1).map((n) => <option key={n} value={n}>Station {n}</option>)}
           </select>
-          <button className={quiet}>Add kit</button>
+          <SubmitButton className={quiet}>Add kit</SubmitButton>
         </form>
       </Card>
 

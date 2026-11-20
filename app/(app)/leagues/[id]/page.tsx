@@ -55,7 +55,7 @@ export default async function LeaguePage({ params }: PageProps<"/leagues/[id]">)
 
   return (
     <>
-      <PageHeader eyebrow={org.relationship ?? "League"} title={org.name}>
+      <PageHeader back={{ href: "/leagues", label: "Leagues" }} eyebrow={org.relationship ?? "League"} title={org.name}>
         {!org.active && <Pill tone="warn">Inactive</Pill>}
         <ButtonLink href={`/jobs/new?org=${org.id}`} variant="ghost">New job</ButtonLink>
       </PageHeader>

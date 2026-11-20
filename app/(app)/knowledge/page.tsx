@@ -39,7 +39,7 @@ export default async function KnowledgePage({ searchParams }: PageProps<"/knowle
 
   return (
     <>
-      <PageHeader eyebrow="Knowledge" title="Knowledge base">
+      <PageHeader eyebrow="Customers" title="Knowledge base">
         {canEdit && (
           <>
             <Link href="/knowledge/import" className="rounded-lg border border-line px-3 py-1.5 text-sm font-semibold hover:border-accent hover:text-accent">

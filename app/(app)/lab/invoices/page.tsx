@@ -59,7 +59,7 @@ export default async function LabInvoicesPage({ searchParams }: PageProps<"/lab/
 
   return (
     <>
-      <PageHeader eyebrow="Lab" title={ref || "Lab invoices"}>
+      <PageHeader eyebrow="Money" title={ref || "Lab invoices"}>
         <Link href="/lab" className="rounded-lg border border-line px-3 py-1.5 text-sm font-semibold hover:border-accent hover:text-accent">
           Lab costs
         </Link>

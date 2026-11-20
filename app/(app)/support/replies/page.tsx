@@ -6,6 +6,7 @@ import { Card, Empty, PageHeader, Pill } from "@/components/ui";
 import { SUPPORT_ROLES } from "@/lib/support/labels";
 import { setSavedReplyActive } from "../actions";
 import { SavedReplyForm } from "./saved-form";
+import { SubmitButton } from "@/components/submit-button";
 
 export const metadata: Metadata = { title: "Saved replies" };
 
@@ -23,7 +24,7 @@ export default async function SavedRepliesPage() {
       <p className="mb-2 text-sm">
         <Link href="/support" className="text-muted hover:text-accent">← Support</Link>
       </p>
-      <PageHeader eyebrow="Support" title="Saved replies" />
+      <PageHeader eyebrow="Customers" title="Saved replies" />
       <p className="mb-6 max-w-2xl text-sm text-muted">
         Answers you send often. Pick one in a conversation and it drops into the reply box, where you can still change it.
         Write <code>{"{first_name}"}</code> where the customer&apos;s first name goes and <code>{"{my_name}"}</code> for yours.
@@ -46,9 +47,9 @@ export default async function SavedRepliesPage() {
                   <div className="mt-4 space-y-3">
                     <SavedReplyForm reply={r} />
                     <form action={setSavedReplyActive.bind(null, r.id, !r.active)}>
-                      <button className="text-sm text-muted underline-offset-2 hover:text-accent hover:underline">
+                      <SubmitButton className="text-sm text-muted underline-offset-2 hover:text-accent hover:underline">
                         {r.active ? "Switch off (hide it from the reply box)" : "Switch back on"}
-                      </button>
+                      </SubmitButton>
                     </form>
                   </div>
                 </details>

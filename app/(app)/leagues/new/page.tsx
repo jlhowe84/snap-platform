@@ -11,7 +11,7 @@ export default async function NewLeaguePage() {
   return (
     <>
       <Link href="/leagues" className="text-sm text-muted underline-offset-2 hover:underline">Back to leagues</Link>
-      <PageHeader eyebrow="Customers" title="New league" />
+      <PageHeader eyebrow="Jobs" title="New league" />
       <Card className="max-w-3xl">
         <NewLeagueForm />
       </Card>

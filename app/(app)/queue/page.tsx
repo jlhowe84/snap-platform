@@ -7,6 +7,7 @@ import { DATE_NOTICE_KEY, DATE_NOTICE_LABEL } from "@/lib/jobs/date-change";
 import { CREW_NOTICE_KEY, CREW_NOTICE_LABEL } from "@/lib/staffing/notices";
 import { approveAll } from "./actions";
 import { DraftForm, RunClockButton, SendButton } from "./forms";
+import { SubmitButton } from "@/components/submit-button";
 
 type Draft = { to?: unknown; subject?: unknown; body?: unknown };
 type Refs = { job_id?: string | null; org_id?: string | null };
@@ -85,7 +86,7 @@ export default async function QueuePage() {
 
   return (
     <>
-      <PageHeader eyebrow="Approval queue" title={list.length ? `${list.length} waiting` : "All clear"}>
+      <PageHeader eyebrow="Customers · Approval queue" title={list.length ? `${list.length} waiting` : "All clear"}>
         {admin && <RunClockButton />}
       </PageHeader>
       <p className="mb-6 max-w-2xl text-sm text-muted">
@@ -102,12 +103,12 @@ export default async function QueuePage() {
         <div className="mb-6 flex flex-wrap gap-2">
           {[...counts].map(([key, n]) => (
             <form key={key} action={approveAll.bind(null, key)}>
-              <button
+              <SubmitButton
                 disabled={key === "chase.at_risk" && !admin}
                 className="rounded-lg border border-line px-3 py-1.5 text-sm hover:bg-surface-2 disabled:opacity-50"
               >
                 Approve as written: {label(key)} ({n})
-              </button>
+              </SubmitButton>
             </form>
           ))}
         </div>

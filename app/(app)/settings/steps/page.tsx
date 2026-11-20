@@ -8,6 +8,7 @@ import { timingLabel } from "@/lib/playbooks/steps";
 import { moveStep } from "./actions";
 import { RemoveStep } from "./remove-step";
 import { StepForm } from "./step-form";
+import { SubmitButton } from "@/components/submit-button";
 
 export const metadata: Metadata = { title: "Planning steps" };
 
@@ -77,10 +78,10 @@ export default async function StepsSettings({ searchParams }: PageProps<"/settin
                       <div className="flex items-start gap-3">
                         <div className="flex shrink-0 flex-col gap-1 pt-0.5">
                           <form action={moveStep.bind(null, s.id, "up")}>
-                            <button disabled={i === 0} className={arrow} aria-label={`Move "${s.name}" up`}>↑</button>
+                            <SubmitButton disabled={i === 0} className={arrow} aria-label={`Move "${s.name}" up`}>↑</SubmitButton>
                           </form>
                           <form action={moveStep.bind(null, s.id, "down")}>
-                            <button disabled={i === list.length - 1} className={arrow} aria-label={`Move "${s.name}" down`}>↓</button>
+                            <SubmitButton disabled={i === list.length - 1} className={arrow} aria-label={`Move "${s.name}" down`}>↓</SubmitButton>
                           </form>
                         </div>
                         <details className="min-w-0 flex-1">
