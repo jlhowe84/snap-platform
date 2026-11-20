@@ -18,6 +18,7 @@ import {
 import { assignShift, cancelShift, openNextWave, publishShifts, releaseShift } from "../actions";
 import { AddShifts } from "./add-shifts";
 import { AssignDirect } from "./assign-direct";
+import { ConfirmButton } from "@/components/confirm-button";
 import { addKitToDay, checkKitIn, removeKitFromDay, sendKitOut } from "../../gear/actions";
 import { CHECKOUT_LABEL, KIT_STATUS_LABEL } from "@/lib/gear/field";
 
@@ -75,7 +76,7 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
         <Link href={`/jobs/${day.jobs.id}`} className={quiet}>Open the job</Link>
       </PageHeader>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-3">
+      <div className="mb-6 grid gap-4 md:grid-cols-2">
         <Card title="The day">
           <p>{[formatTime(day.start_time), formatTime(day.end_time)].filter(Boolean).join(" to ") || "No times yet"}</p>
           <p className="text-sm text-muted">{[day.label, day.location_name, day.city, day.state].filter(Boolean).join(", ")}</p>
@@ -83,37 +84,52 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
             {day.stations} station{day.stations === 1 ? "" : "s"} · {day.indoor == null ? "Indoor or outdoor not known" : day.indoor ? "Indoors" : "Outdoors"}
           </p>
         </Card>
-        <Card title="Shifts">
+        <Card title="Filled">
           <p className="font-display text-4xl font-semibold">{sum.filled} of {sum.total}</p>
-          <p className="text-sm text-muted">filled{sum.drafts ? `, ${sum.drafts} not published yet` : ""}</p>
-        </Card>
-        <Card title="Offers">
-          {sum.drafts === 0 && !canWiden && (
-            <p className="mb-2 text-sm text-muted">
-              {list.length ? "Nothing waiting to publish." : "Add shifts at the bottom of this page, then publish them here."}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {sum.drafts > 0 && (
-              <form action={publishShifts.bind(null, day.id)}>
-                <button className={primary}>Publish {sum.drafts} to Level 1</button>
-              </form>
-            )}
-            {canWiden && (
-              <form action={openNextWave.bind(null, day.id)}>
-                <button className={quiet}>Open to the next Level</button>
-              </form>
-            )}
-          </div>
-          <p className="mt-2 text-xs text-muted">
-            Level 1 crew see a published shift first. Open it to the next Level when nobody has taken it, until it is open to everyone.
-          </p>
+          <p className="text-sm text-muted">shifts filled{sum.drafts ? `, ${sum.drafts} not published yet` : ""}</p>
         </Card>
       </div>
 
-      <Card title="Shifts" className="mb-6">
+      {/* The page runs in working order: add shifts, publish them, fill them, then kits. */}
+      {sum.drafts > 0 && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/60 bg-accent/10 p-4">
+          <div>
+            <p className="font-semibold">
+              {sum.drafts} shift{sum.drafts === 1 ? " is" : "s are"} not published yet
+            </p>
+            <p className="text-sm text-muted">Crew cannot see a shift until it is published. Level 1 crew see it first.</p>
+          </div>
+          <form action={publishShifts.bind(null, day.id)}>
+            <button className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110">
+              Publish {sum.drafts} to Level 1
+            </button>
+          </form>
+        </div>
+      )}
+      {canWiden && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface p-4">
+          <p className="text-sm text-muted">
+            Open shifts that nobody has taken can be offered to the next Level, until they are open to everyone.
+          </p>
+          <form action={openNextWave.bind(null, day.id)}>
+            <button className={quiet}>Open to the next Level</button>
+          </form>
+        </div>
+      )}
+
+      <Card title={list.length ? "Add more shifts" : "Step 1: add shifts"} className="mb-6">
+        <AddShifts
+          dayId={day.id}
+          counts={sum.total ? { photographer: 0, poser: 0, coordinator: 0, photo_attendant: 0 } : defaultCounts(day.stations)}
+          start={day.start_time}
+          end={day.end_time}
+          stations={day.stations}
+        />
+      </Card>
+
+      <Card title="Who is on" className="mb-6">
         {!list.length ? (
-          <Empty>No shifts yet. Add them below.</Empty>
+          <Empty>No shifts yet. Add them above, then publish them so crew can take them.</Empty>
         ) : (
           <ul className="divide-y divide-line">
             {list.map((s) => {
@@ -155,12 +171,16 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
                     )}
                     {status === "filled" && (
                       <form action={releaseShift.bind(null, day.id, s.id)}>
-                        <button className={quiet}>Take off and reopen</button>
+                        <ConfirmButton ask={`Take ${s.crew_members?.full_name ?? "this person"} off this shift and reopen it?`} className={quiet}>Take off and reopen</ConfirmButton>
                       </form>
                     )}
                     {status !== "cancelled" && (
                       <form action={cancelShift.bind(null, day.id, s.id)}>
-                        <button className={quiet}>{status === "draft" ? "Remove" : "Cancel"}</button>
+                        {status === "draft" ? (
+                          <button className={quiet}>Remove</button>
+                        ) : (
+                          <ConfirmButton ask={status === "filled" ? `Cancel this shift? ${s.crew_members?.full_name ?? "The person on it"} will be taken off.` : "Cancel this shift?"} className={quiet}>Cancel</ConfirmButton>
+                        )}
                       </form>
                     )}
                   </div>
@@ -237,15 +257,6 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
         </form>
       </Card>
 
-      <Card title="Add shifts">
-        <AddShifts
-          dayId={day.id}
-          counts={sum.total ? { photographer: 0, poser: 0, coordinator: 0, photo_attendant: 0 } : defaultCounts(day.stations)}
-          start={day.start_time}
-          end={day.end_time}
-          stations={day.stations}
-        />
-      </Card>
     </>
   );
 }

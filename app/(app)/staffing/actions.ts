@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { OFFICE_ROLES, requireStaff, type Viewer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { liveSiteUrl } from "@/lib/site-url";
 import { SHIFT_POSITIONS, nextWave, planShifts } from "@/lib/staffing/plan";
 import { CREW_NOTICE_KEY, crewNotice, firstNameOf } from "@/lib/staffing/notices";
 
@@ -37,8 +38,8 @@ async function queueCrewNotice(viewer: Viewer, shiftId: string, crewMemberId: st
     supabase.from("crew_members").select("full_name, email").eq("id", crewMemberId).maybeSingle(),
   ]);
   if (!s || !c?.email || !s.photo_days || !s.jobs) return;
-  const h = await headers();
-  const base = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
+  // The link goes out in a message, so it opens the live site.
+  const base = liveSiteUrl(await headers());
   const draft = crewNotice({
     kind,
     firstName: firstNameOf(c.full_name),

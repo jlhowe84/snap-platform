@@ -49,6 +49,9 @@ export function DraftForm({
             name="intent"
             value="reject"
             disabled={pending}
+            onClick={(e) => {
+              if (!window.confirm("Reject this draft? It will not be sent.")) e.preventDefault();
+            }}
             className="rounded-lg border border-line px-4 py-2 text-sm hover:bg-surface-2 disabled:opacity-60"
           >
             Reject
