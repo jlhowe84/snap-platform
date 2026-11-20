@@ -14,9 +14,13 @@ const EVENT = "app:toast";
  */
 export function useToast(state: Result) {
   useEffect(() => {
-    if (!state?.message) return;
-    window.dispatchEvent(new CustomEvent(EVENT, { detail: { ok: state.ok, text: state.message } }));
+    if (state?.message) toast(state.ok, state.message);
   }, [state]);
+}
+
+/** Shows one message now, for work done outside a form. */
+export function toast(ok: boolean, text: string) {
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: { ok, text } }));
 }
 
 /** Shows the messages. One of these sits in the root layout. */
