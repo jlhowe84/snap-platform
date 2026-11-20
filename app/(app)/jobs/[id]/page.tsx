@@ -26,6 +26,7 @@ import { POSITION_LABEL } from "@/lib/staffing/plan";
 import { headers } from "next/headers";
 import { nextStep } from "@/lib/jobs/next-step";
 import { JumpBar } from "./jump-bar";
+import { NotesForm } from "./notes-form";
 import { CombineForm } from "./combine-form";
 import { ConfirmButton } from "@/components/confirm-button";
 
@@ -231,6 +232,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     ["planning", "Planning"],
     ["captura", "Captura"],
     ["tasks", "Tasks"],
+    ...(office ? ([["notes", "Notes"]] as const) : []),
     ["details", "Details"],
     ["portal", "Portal"],
     ["parents", "Parent page"],
@@ -546,6 +548,11 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         </div>
 
         <div className="min-w-0 space-y-6">
+          {office && (
+            <Card id="notes" title="Notes">
+              <NotesForm key={job.notes ?? ""} jobId={id} notes={job.notes} />
+            </Card>
+          )}
           <Card id="details" title="Details">
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
               <Detail label="League">

@@ -47,6 +47,13 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M8 12.5l3 3 5-6.5" />
     </>
   ),
+  // Notes: a page with lines
+  notes: (
+    <>
+      <path d="M6 3.5h8.5L19 8v12.5H6z" />
+      <path d="M14 3.5V8h5M9 12h6M9 16h6" />
+    </>
+  ),
   // Details: an "i" in a circle
   details: (
     <>
