@@ -206,6 +206,18 @@ insert into public.lab_invoice_skips (company_id, gmail_message_id, mailbox, rea
 insert into public.lab_invoice_sync_state (company_id, mailbox) values
   ('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid');
 
+-- Order ledger. Gallery 123 is Job A1's; two orders in A (one prepay, one
+-- internal), one in B.
+insert into public.captura_galleries (company_id, gallery_id, title) values
+  ('a0000000-0000-0000-0000-00000000000a', 123, '2027 League A1'),
+  ('b0000000-0000-0000-0000-00000000000b', 456, '2027 League B1');
+insert into public.captura_orders (company_id, order_id, gallery_id, ordered_at, order_date, order_type, status, total, refunded, net_pay, buyer_key) values
+  ('a0000000-0000-0000-0000-00000000000a', 90000001, 123, '2027-03-01 15:00+00', '2027-03-01', 'prepay', 'placed', 40.00, 0, 36.00, '0123456789abcdef'),
+  ('a0000000-0000-0000-0000-00000000000a', 90000002, 123, '2027-03-02 15:00+00', '2027-03-02', 'internal', 'placed', 1.00, 0, 0, null),
+  ('b0000000-0000-0000-0000-00000000000b', 90000003, 456, '2027-03-02 15:00+00', '2027-03-02', 'gallery', 'refunded', 25.00, 25.00, 22.00, null);
+insert into public.captura_order_sync (company_id, next_from) values
+  ('a0000000-0000-0000-0000-00000000000a', '2027-01-01');
+
 -- Knowledge base. One article in company A, one in B.
 insert into public.kb_articles (id, company_id, shelf, section, title, body) values
   ('f0000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', 'answers', 'Ordering', 'When will my order arrive?', 'Orders ship from the lab within two weeks.'),
@@ -322,6 +334,9 @@ declare
     array['kit_checkouts',         '1','1','1','1','0','0','0','0'],
     array['crew_private',          '1','1','0','0','0','0','0','0'],
     array['day_pages',             '2','2','2','2','0','0','0','0'],
+    array['captura_galleries',     '1','1','1','0','0','0','0','1'],
+    array['captura_orders',        '2','2','2','0','0','0','0','1'],
+    array['captura_order_sync',    '1','1','1','0','0','0','0','0'],
     array['kb_article_versions',   '1','1','1','1','0','0','0','1']
   ];
   who text[] := array['owner','admin','office','support','crew','coord','outsider','owner_b'];
@@ -1068,6 +1083,26 @@ select t.count_is($$select count(*) from public.support_conversations where gmai
 -- ---------------------------------------------------------------------------
 -- Lab invoices: the server stores them, the office reads and matches them.
 -- ---------------------------------------------------------------------------
+select t.login('office');
+-- Order ledger: people read, only the server writes; totals leave internal orders out.
+select t.login('office');
+select t.fails($$insert into public.captura_orders (company_id, order_id, ordered_at, order_date) values ('a0000000-0000-0000-0000-00000000000a', 1, now(), current_date)$$, 'people cannot add an order by hand');
+select t.fails($$update public.captura_orders set total = 0$$, 'people cannot change an order');
+select t.fails($$delete from public.captura_orders$$, 'people cannot delete an order');
+select t.count_is($$select orders from public.order_gallery_totals(null, null, 123)$$, 1, 'gallery totals leave internal orders out');
+select t.count_is($$select internal_orders from public.order_gallery_totals() where gallery_id = 123$$, 1, 'and count them apart');
+select t.count_is($$select count(*) from public.order_gallery_totals() where job_id = '40000000-0000-0000-0000-0000000000a1'$$, 1, 'a gallery takes its job from the job links');
+select t.count_is($$select count(*) from public.order_gallery_totals() where gallery_id = 456$$, 0, 'another company''s galleries stay out of the totals');
+select t.count_is($$select sum(orders) from public.order_daily_totals('2027-03-01', '2027-03-31')$$, 1, 'daily totals leave internal orders out');
+select t.works($$select public.link_gallery_to_job(777, '40000000-0000-0000-0000-0000000000a2')$$, 'office links a gallery to a job');
+select t.count_is($$select count(*) from public.job_links where captura_gallery_id = 777 and job_id = '40000000-0000-0000-0000-0000000000a2'$$, 1, 'the job now holds the gallery');
+select t.works($$select public.link_gallery_to_job(777, null)$$, 'office clears a gallery link');
+select t.count_is($$select count(*) from public.job_links where captura_gallery_id = 777$$, 0, 'no job holds the gallery after clearing');
+select t.login('support');
+select t.fails($$select public.link_gallery_to_job(777, null)$$, 'support cannot link galleries');
+select t.count_is($$select count(*) from public.order_gallery_totals()$$, 0, 'support sees no order totals');
+select t.login('anon');
+select t.fails($$select * from public.order_gallery_totals()$$, 'anon cannot read order totals');
 select t.login('office');
 select t.fails($$insert into public.lab_invoices (company_id, lab, invoice_number, invoice_date) values ('a0000000-0000-0000-0000-00000000000a', 'Lab', '9', '2027-04-10')$$, 'people cannot write an invoice by hand');
 select t.fails($$update public.lab_invoices set total = 0$$, 'people cannot change an invoice');

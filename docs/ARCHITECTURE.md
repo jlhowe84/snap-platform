@@ -615,3 +615,42 @@ day-before briefing come with the field view and the clock.
 - Embedding `crew_members` from `shifts` must name the foreign key
   (`crew_members!shifts_crew_member_id_fkey`): `shift_responses` and
   `pay_lines` also link the two tables, so PostgREST finds more than one path.
+
+## Order ledger (Wave C, module 16)
+
+Every Captura order, read through the API into `captura_orders`, one row per
+Captura order id, with its gallery in `captura_galleries`. The mapping in
+`lib/orders/map.ts` follows the SNAP OS ledger (`ingest_api_orders.py`):
+money in dollars, order date in the company time zone, Captura's order types
+folded to prepay, gallery, internal (SNAP's own "blueprint" orders) and
+reprint, refunds kept as a positive amount, shipments folded to the slowest
+part. Adjustment rows Captura lists among orders (refunds, chargebacks,
+commissions) are counted and skipped; the original order's refunded amount
+already carries a refund. No names, addresses or emails are stored: a buyer
+is a 16-character key from a hash of the company id and the billing email.
+Line items are not stored, because the order list does not carry them.
+
+- **Sync** (`lib/orders/sync.ts`, service role, Captura read only): each run
+  reads the last few days (`orders.recent_days`, default 3), then walks the
+  history a week at a time from `orders.history_from`, resuming at the page
+  where the last run stopped (`captura_order_sync`), then refreshes a few
+  galleries with an order in the last 60 days in full, because an old
+  prepay order's shipment and refund change after its order date.
+  Captura's `orderStartDate` is exclusive and `orderEndDate` inclusive.
+- **When it runs:** `/api/cron/orders` four times a day for companies whose
+  `orders.sync_enabled` is true (off until Josh says), or from the orders
+  page. While the history is loading, the page's button keeps calling the
+  server action batch after batch until the history is in or the person
+  stops it.
+- **Reading:** owner, admin and office only (RLS). `order_gallery_totals`
+  and `order_daily_totals` run as the caller. Internal orders are counted
+  apart and left out of every money figure; refunds are shown, never taken
+  off the gross.
+- **Jobs:** a gallery's job is `job_links.captura_gallery_id`, so the tie
+  lives in one place. `link_gallery_to_job` (ops editors) sets it from the
+  orders page and clears it from any other job. A gallery tied to a job
+  counts in the season of the job's first photo day; one that is not counts
+  in the season of its first order.
+- **Pages:** `/orders` (comparisons with the same days a year earlier,
+  totals and galleries by season, linking) and an Orders card on the job
+  page when the job has a gallery.

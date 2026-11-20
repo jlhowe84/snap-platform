@@ -39,6 +39,8 @@ const CHASE_OUTCOME: Record<string, string> = {
   queued: "drafted", skipped: "skipped", not_needed: "not needed", task: "created", released: "released",
 };
 
+const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+
 export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
   const viewer = await requireStaff();
   const office = hasAnyRole(viewer, OFFICE_ROLES);
@@ -70,6 +72,12 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
       .order("position"),
     supabase.from("settings").select("value").eq("key", WELCOME_TEMPLATES_KEY).maybeSingle(),
   ]);
+  // The job's Captura orders, from the order ledger (office roles only).
+  const { data: orderRows } =
+    office && links?.captura_gallery_id
+      ? await supabase.rpc("order_gallery_totals", { p_gallery: links.captura_gallery_id })
+      : { data: null };
+  const orderTotals = orderRows?.[0] ?? null;
   const { data: dateChanges } = await supabase
     .from("date_changes")
     .select("id, kind, from_date, to_date, reason, created_at, profiles!date_changes_decided_by_fkey(full_name)")
@@ -650,6 +658,25 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
               <LinkRow label="Drive folder" href={links?.drive_folder_url} />
             </ul>
           </Card>
+
+          {orderTotals && (
+            <Card title="Orders">
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                <Detail label="Orders">
+                  {orderTotals.orders.toLocaleString("en-US")}
+                  {orderTotals.orders ? ` (${Math.round((orderTotals.prepay_orders / orderTotals.orders) * 100)}% prepay)` : ""}
+                </Detail>
+                <Detail label="Gross">{money.format(Number(orderTotals.gross))}</Detail>
+                <Detail label="Net pay">{money.format(Number(orderTotals.net_pay))}</Detail>
+                <Detail label="Buyers">{orderTotals.buyers.toLocaleString("en-US")}</Detail>
+                <Detail label="Refunded">{Number(orderTotals.refunded) ? money.format(Number(orderTotals.refunded)) : "None"}</Detail>
+                <Detail label="Last order">{formatDate(orderTotals.last_order_on)}</Detail>
+              </dl>
+              <p className="mt-3 text-xs text-muted">
+                From the order ledger. <Link href="/orders" className="underline hover:text-accent">All orders</Link>
+              </p>
+            </Card>
+          )}
 
           <Card id="contacts" title="Contacts">
             {contacts?.length ? (
