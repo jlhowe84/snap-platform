@@ -4869,6 +4869,10 @@ export type Database = {
         }
         Returns: string
       }
+      stamp_captura_galleries: {
+        Args: { p_company: string; p_galleries: number[] }
+        Returns: undefined
+      }
       submit_schedule: { Args: { p_schedule_id: string }; Returns: string }
       support_drop_quiet: {
         Args: { p_company: string; p_senders: string[] }

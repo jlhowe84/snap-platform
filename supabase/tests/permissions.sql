@@ -1103,6 +1103,8 @@ select t.fails($$select public.link_gallery_to_job(777, null)$$, 'support cannot
 select t.count_is($$select count(*) from public.order_gallery_totals()$$, 0, 'support sees no order totals');
 select t.login('anon');
 select t.fails($$select * from public.order_gallery_totals()$$, 'anon cannot read order totals');
+select t.login('owner');
+select t.fails($$select public.stamp_captura_galleries('a0000000-0000-0000-0000-00000000000a', array[123]::bigint[])$$, 'only the server stamps gallery dates');
 select t.login('office');
 select t.fails($$insert into public.lab_invoices (company_id, lab, invoice_number, invoice_date) values ('a0000000-0000-0000-0000-00000000000a', 'Lab', '9', '2027-04-10')$$, 'people cannot write an invoice by hand');
 select t.fails($$update public.lab_invoices set total = 0$$, 'people cannot change an invoice');

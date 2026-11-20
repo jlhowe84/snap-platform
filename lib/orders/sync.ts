@@ -17,6 +17,9 @@ import { historyWindow, ORDER_SETTING_KEYS, orderSettings, PAGE, shiftDay, type 
 //      shipment and refund change long after its order date.
 
 const BUDGET_MS = 45_000;
+// A Captura page can take several seconds; do not start one this close to the
+// end of the budget, so the run finishes and saves its place in time.
+const PAGE_RESERVE_MS = 12_000;
 const GALLERY_REFRESH = 4;
 const GALLERY_WINDOW_DAYS = 60;
 const GALLERY_STALE_MS = 6 * 60 * 60 * 1000;
@@ -60,17 +63,9 @@ function fold(raw: unknown[], companyId: string, timeZone: string, counts: SyncC
 
 /** Keeps each gallery's first and last order dates in step with its orders. */
 async function stampGalleries(admin: Admin, companyId: string, ids: number[]) {
-  for (const galleryId of ids) {
-    const [{ data: first }, { data: last }] = await Promise.all([
-      admin.from("captura_orders").select("order_date").eq("company_id", companyId).eq("gallery_id", galleryId).neq("order_type", "internal").order("order_date").limit(1).maybeSingle(),
-      admin.from("captura_orders").select("order_date").eq("company_id", companyId).eq("gallery_id", galleryId).neq("order_type", "internal").order("order_date", { ascending: false }).limit(1).maybeSingle(),
-    ]);
-    await admin
-      .from("captura_galleries")
-      .update({ first_order_on: first?.order_date ?? null, last_order_on: last?.order_date ?? null })
-      .eq("company_id", companyId)
-      .eq("gallery_id", galleryId);
-  }
+  if (!ids.length) return;
+  const { error } = await admin.rpc("stamp_captura_galleries", { p_company: companyId, p_galleries: ids });
+  if (error) throw new Error(`Could not update gallery dates: ${error.message}`);
 }
 
 export async function runOrderSync(onlyCompanyId?: string, budgetMs = BUDGET_MS): Promise<OrderSyncResult[]> {
@@ -87,7 +82,7 @@ export async function runOrderSync(onlyCompanyId?: string, budgetMs = BUDGET_MS)
     if (!onlyCompanyId && !settings.enabled) continue;
 
     const timeZone = company.time_zone || "America/New_York";
-    const deadline = Date.now() + budgetMs;
+    const deadline = Date.now() + budgetMs - PAGE_RESERVE_MS;
     const counts: SyncCounts = { orders: 0, adjustments: 0, skipped: 0, pages: 0, galleries: 0 };
     const result: OrderSyncResult = { ...counts, company: company.id, historyFrom: null, historyDone: false, error: null };
     results.push(result);
@@ -134,6 +129,8 @@ export async function runOrderSync(onlyCompanyId?: string, budgetMs = BUDGET_MS)
           nextFrom = w.next;
           nextStart = 1;
         } else nextStart += PAGE;
+        // Save the place after every page, so a run cut short loses nothing.
+        await admin.from("captura_order_sync").upsert({ company_id: company.id, next_from: nextFrom, next_start: nextStart, history_done: false });
       }
 
       // 3. A few recent galleries in full, least recently refreshed first.

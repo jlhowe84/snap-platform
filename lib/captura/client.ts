@@ -52,6 +52,8 @@ export async function loadCapturaCredentials(companyId: string): Promise<Captura
 
 type FetchLike = typeof fetch;
 
+const REQUEST_TIMEOUT_MS = 15_000;
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -106,6 +108,8 @@ export function createCapturaClient(rawCreds: CapturaCredentials, fetchImpl: Fet
     const res = await fetchImpl(url, {
       method: "GET",
       headers: { authorization: `Bearer ${await getToken()}`, accept: "application/json" },
+      // A slow answer must not hold a request past its time limit.
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!res.ok) throw new Error(`Captura GET ${path} failed (${res.status})`);
     return (await res.json()) as T;

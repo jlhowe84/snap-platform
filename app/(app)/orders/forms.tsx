@@ -4,6 +4,8 @@ import { useActionState, useEffect, useRef, useState, useTransition } from "reac
 import { useToast } from "@/components/toast";
 import { checkOrders, linkGallery, type OrdersState } from "./actions";
 
+const MAX_FAILURES = 3;
+
 /**
  * Reads Captura orders now. While older orders are still loading it keeps
  * going on its own, one batch after another, until the history is in or the
@@ -20,12 +22,22 @@ export function CheckOrders({ loading }: { loading: boolean }) {
     stopped.current = false;
     setKeepGoing(again);
     start(async () => {
-      let next = await checkOrders();
-      setState(next);
-      while (again && next?.ok && next.more && !stopped.current) {
-        next = await checkOrders();
+      // A batch that fails on the way (a dropped connection, a slow answer)
+      // is tried again a few times; the server saves its place after every
+      // page, so nothing read is lost.
+      let failures = 0;
+      let next: OrdersState = null;
+      do {
+        try {
+          next = await checkOrders();
+          failures = 0;
+        } catch {
+          failures += 1;
+          next = { ok: false, message: "A batch did not finish. Trying again…", more: true };
+          if (failures >= MAX_FAILURES) next = { ok: false, message: "Captura did not answer in time. Try again in a few minutes; it picks up where it stopped." };
+        }
         setState(next);
-      }
+      } while (again && next?.more && failures < MAX_FAILURES && (next.ok || failures > 0) && !stopped.current);
       setKeepGoing(false);
     });
   }
