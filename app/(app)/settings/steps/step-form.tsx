@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { addStep, saveStep, type StepState } from "./actions";
 
 export type StepValues = {
@@ -34,6 +35,7 @@ export function StepForm({
 }) {
   const run = stepId ? saveStep.bind(null, stepId) : addStep.bind(null, playbookId ?? "");
   const [state, action, pending] = useActionState<StepState, FormData>(run, null);
+  useToast(state);
   const adding = !stepId;
 
   return (

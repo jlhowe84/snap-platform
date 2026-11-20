@@ -1,10 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { checkMail, type SupportState } from "./actions";
 
 export function CheckMail() {
   const [state, action, pending] = useActionState<SupportState>(checkMail, null);
+  useToast(state);
   return (
     <form action={action} className="flex flex-wrap items-center gap-3">
       {state && (

@@ -1,11 +1,13 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { EDITABLE_SETTINGS } from "@/lib/settings/editable";
 import { saveCompanySettings, type SettingsState } from "./actions";
 
 export function CompanySettingsForm({ values }: { values: Record<string, number | null> }) {
   const [state, action, pending] = useActionState<SettingsState, FormData>(saveCompanySettings, null);
+  useToast(state);
   return (
     <form action={action} className="space-y-6">
       {EDITABLE_SETTINGS.map((g) => (

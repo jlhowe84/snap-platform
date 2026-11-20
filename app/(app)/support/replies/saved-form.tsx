@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { saveSavedReply, type SupportState } from "../actions";
 
 const field = "mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm";
@@ -8,6 +9,7 @@ const label = "block text-xs font-semibold uppercase tracking-[0.14em] text-mute
 
 export function SavedReplyForm({ reply }: { reply?: { id: string; title: string; body: string; category: string | null } }) {
   const [state, action, pending] = useActionState<SupportState, FormData>(saveSavedReply.bind(null, reply?.id ?? null), null);
+  useToast(state);
   return (
     <form action={action} className="space-y-3">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">

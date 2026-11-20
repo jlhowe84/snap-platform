@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import type { AgreementSection } from "@/lib/agreement/pdf";
 import { signAgreement, type SignState } from "./actions";
 
@@ -19,6 +20,7 @@ export function SignForm({
   canSign: boolean;
 }) {
   const [state, action, pending] = useActionState<SignState, FormData>(signAgreement.bind(null, jobId, versionId), null);
+  useToast(state);
   return (
     <form action={action} className="space-y-4">
       {sections.map((s) => (

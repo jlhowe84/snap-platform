@@ -1,12 +1,14 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useToast } from "@/components/toast";
 import { changePhotoDay, type DateChangeState } from "./date-actions";
 
 const field = "rounded-lg border border-line bg-bg px-3 py-2 text-sm focus:border-accent focus:outline-none";
 
 export function ChangeDateForm({ jobId, photoDayId, postponed }: { jobId: string; photoDayId: string; postponed: boolean }) {
   const [state, action, pending] = useActionState<DateChangeState, FormData>(changePhotoDay.bind(null, jobId, photoDayId), null);
+  useToast(state);
   const [kind, setKind] = useState("reschedule");
 
   if (state?.ok) return <p className="mt-2 text-sm text-ok">{state.message}</p>;

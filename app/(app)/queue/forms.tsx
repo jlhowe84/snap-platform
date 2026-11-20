@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { decideDraft, runClockNow, sendNow, type QueueState } from "./actions";
 
 const field = "w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm focus:border-accent focus:outline-none";
@@ -19,6 +20,7 @@ export function DraftForm({
   canDecide: boolean;
 }) {
   const [state, action, pending] = useActionState<QueueState, FormData>(decideDraft, null);
+  useToast(state);
   if (state?.ok) return <p className="text-sm text-ok">{state.message}</p>;
   return (
     <form action={action} className="space-y-2">
@@ -68,6 +70,7 @@ export function DraftForm({
 
 export function RunClockButton() {
   const [state, action, pending] = useActionState<QueueState, FormData>(runClockNow, null);
+  useToast(state);
   return (
     <form action={action} className="flex flex-col items-end gap-1">
       <button disabled={pending} className="rounded-lg border border-line px-3 py-1.5 text-sm hover:bg-surface-2 disabled:opacity-60">
@@ -80,6 +83,7 @@ export function RunClockButton() {
 
 export function SendButton({ id, retry }: { id: string; retry: boolean }) {
   const [state, action, pending] = useActionState<QueueState, FormData>(sendNow, null);
+  useToast(state);
   if (state?.ok) return <p className="text-xs text-ok">{state.message}</p>;
   return (
     <form action={action} className="mt-1">

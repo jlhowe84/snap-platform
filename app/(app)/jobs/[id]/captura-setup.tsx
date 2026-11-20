@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import { useToast } from "@/components/toast";
 import { saveCoupon, setSetupStep, type CouponState } from "./setup-actions";
 
 type Step = { id: string; name: string; stage: string | null; due: string | null; late: boolean; done: boolean };
@@ -22,6 +23,7 @@ export function CapturaSetup({
   const [pending, start] = useTransition();
   const [copied, setCopied] = useState<string | null>(null);
   const [state, action, saving] = useActionState<CouponState, FormData>(saveCoupon.bind(null, jobId), null);
+  useToast(state);
 
   return (
     <div className="space-y-5">

@@ -1,10 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { addPayLines, type PayRunState } from "./actions";
 
 export function AddPay({ from, to }: { from: string; to: string }) {
   const [state, action, pending] = useActionState<PayRunState, FormData>(addPayLines, null);
+  useToast(state);
   return (
     <form action={action} className="flex flex-wrap items-center gap-3">
       <input type="hidden" name="from" value={from} />

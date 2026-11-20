@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { saveDayPage, type DayPageState } from "./day-page-actions";
 
 const field = "mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm";
@@ -16,6 +17,7 @@ export type DayPageFields = {
 
 export function DayPageForm({ jobId, page }: { jobId: string; page: DayPageFields | null }) {
   const [state, action, pending] = useActionState<DayPageState, FormData>(saveDayPage.bind(null, jobId), null);
+  useToast(state);
   return (
     <form action={action} className="space-y-3">
       <label className="flex items-center gap-2 text-sm">

@@ -1,12 +1,14 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
+import { useToast } from "@/components/toast";
 import { addTask, type TaskState } from "./actions";
 
 const input = "rounded-lg border border-line bg-surface px-3 py-2 text-sm";
 
 export function NewTask({ people, me }: { people: { id: string; name: string }[]; me: string }) {
   const [state, action, pending] = useActionState<TaskState, FormData>(addTask, null);
+  useToast(state);
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (state?.ok) form.current?.reset();

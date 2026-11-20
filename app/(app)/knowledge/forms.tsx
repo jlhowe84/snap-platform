@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { importArticles, saveArticle, type KbState } from "./actions";
 import { KB_SHELVES, KB_STATUSES, SHELF_LABEL, STATUS_LABEL, type KbShelf, type KbStatus } from "@/lib/kb/labels";
 
@@ -21,6 +22,7 @@ export type ArticleFields = { id: string; title: string; section: string | null;
 
 export function ArticleForm({ article, sections, shelf }: { article?: ArticleFields; sections: string[]; shelf?: KbShelf }) {
   const [state, action, pending] = useActionState<KbState, FormData>(saveArticle.bind(null, article?.id ?? null), null);
+  useToast(state);
   return (
     <form action={action} className="space-y-3">
       <label className={label}>
@@ -70,6 +72,7 @@ export function ArticleForm({ article, sections, shelf }: { article?: ArticleFie
 
 export function ImportForm() {
   const [state, action, pending] = useActionState<KbState, FormData>(importArticles, null);
+  useToast(state);
   return (
     <form action={action} className="space-y-3">
       <label className={label}>

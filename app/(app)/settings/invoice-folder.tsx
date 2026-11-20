@@ -1,11 +1,14 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { saveInvoiceFolder, testDriveFolder, type DriveState } from "./actions";
 
 export function InvoiceFolder({ platformAddress, folderId }: { platformAddress: string | null; folderId: string | null }) {
   const [saved, save, saving] = useActionState<DriveState, FormData>(saveInvoiceFolder, null);
+  useToast(saved);
   const [tested, test, testing] = useActionState<DriveState>(testDriveFolder, null);
+  useToast(tested);
   return (
     <div className="space-y-4 text-sm">
       <p className="text-muted">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { assignDirect, type StaffingState } from "../actions";
 import { POSITION_LABEL, SHIFT_POSITIONS } from "@/lib/staffing/plan";
 
@@ -11,6 +12,7 @@ export type DirectChoice = { id: string; full_name: string; level: number | null
 /** Put someone straight on a photo day, without an offer. */
 export function AssignDirect({ dayId, crew }: { dayId: string; crew: DirectChoice[] }) {
   const [state, action, pending] = useActionState<StaffingState, FormData>(assignDirect.bind(null, dayId), null);
+  useToast(state);
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
       <select name="crew_member_id" required defaultValue="" aria-label="Crew member" className={`${input} max-w-56`}>

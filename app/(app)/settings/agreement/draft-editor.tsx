@@ -1,10 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { saveDraft, type DraftState } from "./actions";
 
 export function DraftEditor({ id, title, text }: { id: string; title: string; text: string }) {
   const [state, action, pending] = useActionState<DraftState, FormData>(saveDraft, null);
+  useToast(state);
   const field = "w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm focus:border-accent focus:outline-none";
   return (
     <form action={action} className="space-y-3">

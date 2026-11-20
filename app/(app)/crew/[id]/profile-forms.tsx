@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
+import { useToast } from "@/components/toast";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { finishCrewPhoto, saveCrewDetails, savePrivate, startCrewPhoto, type PayState } from "../actions";
@@ -30,6 +31,7 @@ export type CrewDetails = {
 
 export function DetailsForm({ crew }: { crew: CrewDetails | null }) {
   const [state, action, pending] = useActionState<PayState, FormData>(saveCrewDetails.bind(null, crew?.id ?? null), null);
+  useToast(state);
   return (
     <form action={action} className="space-y-3">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -100,6 +102,7 @@ export function PrivateForm({
   current: { address: string | null; emergency_name: string | null; emergency_phone: string | null } | null;
 }) {
   const [state, action, pending] = useActionState<PayState, FormData>(savePrivate.bind(null, crewId), null);
+  useToast(state);
   return (
     <form action={action} className="space-y-3">
       <label className={label}>

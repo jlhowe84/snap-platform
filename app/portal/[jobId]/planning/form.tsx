@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useToast } from "@/components/toast";
 import { formatTime } from "@/lib/dates";
 import { DELIVERY_CHOICE_LABEL, SETUP_LABEL, timeChoices, type PlanningAnswers } from "@/lib/planning/form";
 import { savePlanning, type PlanningState } from "./actions";
@@ -60,6 +61,7 @@ export function PlanningForm({
   submitted: boolean;
 }) {
   const [state, action, pending] = useActionState<PlanningState, FormData>(savePlanning.bind(null, jobId), null);
+  useToast(state);
   const [setup, setSetup] = useState<string>(answers.setup ?? "");
   const [delivery, setDelivery] = useState<string>(answers.delivery ?? "");
   const off = !canEdit || pending;

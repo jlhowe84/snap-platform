@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { inviteStaff, type InviteState } from "./actions";
 
 const ROLES = [
@@ -12,6 +13,7 @@ const ROLES = [
 
 export function InviteForm() {
   const [state, action, pending] = useActionState<InviteState, FormData>(inviteStaff, null);
+  useToast(state);
   return (
     <form action={action} className="space-y-3">
       <input

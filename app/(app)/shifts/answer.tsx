@@ -1,11 +1,14 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { answerShift, type ShiftAnswer } from "./actions";
 
 export function Answer({ shiftId }: { shiftId: string }) {
   const [taken, take, taking] = useActionState<ShiftAnswer, FormData>(answerShift.bind(null, shiftId, true), null);
+  useToast(taken);
   const [passed, pass, passing] = useActionState<ShiftAnswer, FormData>(answerShift.bind(null, shiftId, false), null);
+  useToast(passed);
   const state = taken ?? passed;
   return (
     <div className="mt-3">
