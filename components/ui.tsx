@@ -32,14 +32,17 @@ export function Card({
   action,
   children,
   className,
+  id,
 }: {
   title?: string;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** Lets a jump bar link to this card; it stops clear of a sticky bar. */
+  id?: string;
 }) {
   return (
-    <section className={cx("rounded-xl border border-line bg-surface p-5", className)}>
+    <section id={id} className={cx("scroll-mt-16 rounded-xl border border-line bg-surface p-5", className)}>
       {(title || action) && (
         <div className="mb-4 flex items-center justify-between gap-3">
           {title && (
