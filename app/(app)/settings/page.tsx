@@ -13,7 +13,18 @@ import Link from "next/link";
 
 export const metadata: Metadata = { title: "Settings" };
 
-export default async function SettingsPage() {
+const TABS = [
+  ["team", "Team"],
+  ["planning", "Planning"],
+  ["integrations", "Integrations"],
+  ["assistant", "Assistant"],
+  ["advanced", "Advanced"],
+] as const;
+type Tab = (typeof TABS)[number][0];
+
+export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
+  const sp = await searchParams;
+  const tab: Tab = TABS.find(([k]) => k === sp.tab)?.[0] ?? "team";
   const viewer = await requireStaff(ADMIN_ROLES);
   const supabase = await createClient();
   // The service account's own address is not a secret: a folder is shared with it.
@@ -36,8 +47,25 @@ export default async function SettingsPage() {
   return (
     <>
       <PageHeader eyebrow="Admin" title="Settings" />
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Card title="Team">
+      {/* The tabs wrap on a narrow screen; nothing scrolls sideways. */}
+      <nav aria-label="Settings sections" className="mb-6 flex flex-wrap gap-2">
+        {TABS.map(([key, label]) => (
+          <Link
+            key={key}
+            href={key === "team" ? "/settings" : `/settings?tab=${key}`}
+            aria-current={key === tab ? "page" : undefined}
+            className={
+              "rounded-lg border px-4 py-2.5 text-sm font-medium " +
+              (key === tab ? "border-accent bg-accent text-accent-ink" : "border-line text-muted hover:border-accent hover:text-accent")
+            }
+          >
+            {label}
+          </Link>
+        ))}
+      </nav>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 [&>*]:min-w-0">
+        {tab === "team" && (
+        <Card title="Team" className="xl:col-span-2">
           <ul className="mb-4 divide-y divide-line text-sm">
             {(people ?? [])
               .filter((p) => (p.profile_roles as { role: string }[]).some((r) => r.role !== "coordinator"))
@@ -66,7 +94,9 @@ export default async function SettingsPage() {
           </ul>
           <InviteForm />
         </Card>
+        )}
 
+        {tab === "integrations" && (
         <Card title="Integrations">
           {integrations?.length ? (
             <ul className="divide-y divide-line text-sm">
@@ -88,7 +118,9 @@ export default async function SettingsPage() {
           )}
           <CapturaTest />
         </Card>
+        )}
 
+        {tab === "assistant" && (
         <Card title="Never without a person">
           <p className="mb-3 text-sm text-muted">
             The agent can flag these but never do them. The database enforces this list.
@@ -102,7 +134,9 @@ export default async function SettingsPage() {
             ))}
           </ul>
         </Card>
+        )}
 
+        {tab === "assistant" && (
         <Card title="Agent actions and autonomy">
           <ul className="divide-y divide-line text-sm">
             {earned.map((a) => (
@@ -113,7 +147,9 @@ export default async function SettingsPage() {
             ))}
           </ul>
         </Card>
+        )}
 
+        {tab === "planning" && (
         <Card
           title="Photo day agreement"
           action={<Link href="/settings/agreement" className="text-sm text-accent hover:underline">Edit</Link>}
@@ -122,7 +158,9 @@ export default async function SettingsPage() {
             The text league coordinators read, initial and sign in the portal. Signing confirms their held date.
           </p>
         </Card>
+        )}
 
+        {tab === "planning" && (
         <Card
           title="Planning steps"
           action={<Link href="/settings/steps" className="text-sm text-accent hover:underline">Edit</Link>}
@@ -131,7 +169,9 @@ export default async function SettingsPage() {
             The steps each job follows: wording, timing, who does it, the order, and which ones show on the Captura setup list.
           </p>
         </Card>
+        )}
 
+        {tab === "integrations" && (
         <Card title="Lab invoices" className="xl:col-span-2">
           <InvoiceFolder
             platformAddress={platformAddress}
@@ -141,7 +181,9 @@ export default async function SettingsPage() {
             })()}
           />
         </Card>
+        )}
 
+        {tab === "planning" && (
         <Card title="Planning numbers" className="xl:col-span-2">
           <CompanySettingsForm
             values={Object.fromEntries(
@@ -149,7 +191,9 @@ export default async function SettingsPage() {
             )}
           />
         </Card>
+        )}
 
+        {tab === "advanced" && (
         <Card title="Other settings (read only)" className="xl:col-span-2">
           <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
             {(settings ?? []).filter((s) => !EDITABLE_KEYS.has(s.key)).map((s) => (
@@ -160,6 +204,7 @@ export default async function SettingsPage() {
             ))}
           </dl>
         </Card>
+        )}
       </div>
     </>
   );
