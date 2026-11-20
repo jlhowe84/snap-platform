@@ -10,7 +10,7 @@ export function SavedReplyForm({ reply }: { reply?: { id: string; title: string;
   const [state, action, pending] = useActionState<SupportState, FormData>(saveSavedReply.bind(null, reply?.id ?? null), null);
   return (
     <form action={action} className="space-y-3">
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={`${label} md:col-span-2`}>
           Title
           <input name="title" defaultValue={reply?.title ?? ""} required maxLength={120} className={field} />

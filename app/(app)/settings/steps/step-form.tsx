@@ -43,7 +43,7 @@ export function StepForm({
         Step
         <input name="name" required maxLength={200} defaultValue={values.name} className={field} />
       </label>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className={label}>
           Stage
           <input name="stage" list={listId} maxLength={60} defaultValue={values.stage ?? ""} className={field} placeholder="Pre-Planning" />

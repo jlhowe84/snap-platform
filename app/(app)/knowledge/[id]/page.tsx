@@ -65,7 +65,7 @@ export default async function ArticlePage({ params }: PageProps<"/knowledge/[id]
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
           <Card>
             <KbText body={a.body} />

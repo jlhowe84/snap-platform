@@ -115,7 +115,7 @@ export default async function TodayPage() {
         )}
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card
           title={`My tasks (${myTasks?.length ?? 0})`}
           className="xl:col-span-2"
@@ -225,7 +225,7 @@ export default async function TodayPage() {
       </div>
 
       <h2 className="mb-3 mt-8 font-display text-lg font-semibold uppercase tracking-wider text-muted">The whole book</h2>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Jobs" value={all.length} hint="Every job you can see" />
         <Stat label="Planning" value={planning} hint="Not yet photographed" />
         <Stat label="In production" value={inProduction} hint="Editing through the lab" />

@@ -82,7 +82,7 @@ export default async function CrewMemberPage({ params }: PageProps<"/crew/[id]">
         </div>
       </div>
 
-      <div className="mb-6 grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+      <div className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
         <Card title="Details">
           <DetailsForm
             crew={{

@@ -59,8 +59,8 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
         <Pill tone={SUPPORT_STATUS_TONE[c.status]}>{SUPPORT_STATUS_LABEL[c.status]}</Pill>
       </PageHeader>
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className="space-y-4 xl:col-span-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="min-w-0 space-y-4 xl:col-span-2">
           {(messages ?? []).map((m, i, all) => {
             const note = m.direction === "note";
             const ours = m.direction === "out";
@@ -92,7 +92,7 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
                   </span>
                   <span className="mt-1 block truncate pl-5 text-sm text-muted group-open:hidden">{body.replace(/\s+/g, " ").slice(0, 160)}</span>
                 </summary>
-                <p className="whitespace-pre-wrap break-words px-4 pb-4 text-sm">{body}</p>
+                <p className="whitespace-pre-wrap [overflow-wrap:anywhere] px-4 pb-4 text-sm">{body}</p>
               </details>
             );
           })}

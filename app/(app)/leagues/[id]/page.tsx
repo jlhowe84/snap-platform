@@ -59,7 +59,7 @@ export default async function LeaguePage({ params }: PageProps<"/leagues/[id]">)
         {!org.active && <Pill tone="warn">Inactive</Pill>}
         <ButtonLink href={`/jobs/new?org=${org.id}`} variant="ghost">New job</ButtonLink>
       </PageHeader>
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
         <Card title={`Jobs (${jobs?.length ?? 0})`}>
           {jobs?.length ? (

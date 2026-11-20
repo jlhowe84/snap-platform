@@ -81,7 +81,7 @@ export default async function KnowledgePage({ searchParams }: PageProps<"/knowle
           </Empty>
         </Card>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {[...sections].map(([section, items]) => (
             <Card key={section} title={section}>
               <ul className="divide-y divide-line">

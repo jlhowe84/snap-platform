@@ -76,7 +76,7 @@ export default async function StaffingDayPage({ params }: PageProps<"/staffing/[
         <Link href={`/jobs/${day.jobs.id}`} className={quiet}>Open the job</Link>
       </PageHeader>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-2">
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card title="The day">
           <p>{[formatTime(day.start_time), formatTime(day.end_time)].filter(Boolean).join(" to ") || "No times yet"}</p>
           <p className="text-sm text-muted">{[day.label, day.location_name, day.city, day.state].filter(Boolean).join(", ")}</p>
