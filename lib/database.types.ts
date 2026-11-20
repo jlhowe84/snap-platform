@@ -4901,6 +4901,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      unlink_gallery_job: { Args: { p_job: string }; Returns: undefined }
     }
     Enums: {
       action_kind: "read" | "draft" | "propose" | "never"

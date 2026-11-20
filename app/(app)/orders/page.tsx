@@ -6,7 +6,8 @@ import { Card, Empty, PageHeader, Stat, Table, cx } from "@/components/ui";
 import { formatDate, todayIn } from "@/lib/dates";
 import { shiftDay } from "@/lib/orders/plan";
 import { change, comparisons, galleryLines, seasonsOf, sum, type DayTotal, type GalleryTotal } from "@/lib/orders/view";
-import { CheckOrders, LinkGallery } from "./forms";
+import { likelyJobs, likelyOptions, type JobChoice } from "@/lib/orders/match";
+import { CheckOrders, LinkGallery, UnlinkJob } from "./forms";
 
 export const metadata: Metadata = { title: "Orders" };
 
@@ -38,13 +39,24 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
   ]);
 
   const rows = (galleries ?? []) as GalleryTotal[];
-  const linked = [...new Set(rows.map((r) => r.job_id).filter((x): x is string => !!x))];
-  const { data: firstDays } = linked.length
-    ? await supabase.from("photo_days").select("job_id, date").in("job_id", linked).order("date")
-    : { data: [] as { job_id: string; date: string }[] };
+  // Every job's first photo day: it sets a linked gallery's season and tells
+  // apart the jobs of one league, which share a name.
+  const [{ data: allDays }, { data: links }] = await Promise.all([
+    supabase.from("photo_days").select("job_id, date").order("date").limit(10000),
+    supabase.from("job_links").select("job_id, captura_gallery_id").not("captura_gallery_id", "is", null).limit(5000),
+  ]);
   const firstDayOfJob = new Map<string, string>();
-  for (const d of firstDays ?? []) if (!firstDayOfJob.has(d.job_id)) firstDayOfJob.set(d.job_id, d.date);
-
+  for (const d of allDays ?? []) if (!firstDayOfJob.has(d.job_id)) firstDayOfJob.set(d.job_id, d.date);
+  const choices: JobChoice[] = (jobs ?? []).map((j) => ({ id: j.id, name: j.name, firstDay: firstDayOfJob.get(j.id) ?? null }));
+  const choiceById = new Map(choices.map((c) => [c.id, c]));
+  const jobsOfGallery = new Map<number, JobChoice[]>();
+  for (const l of links ?? []) {
+    const c = choiceById.get(l.job_id);
+    if (!c || l.captura_gallery_id === null) continue;
+    jobsOfGallery.set(l.captura_gallery_id, [...(jobsOfGallery.get(l.captura_gallery_id) ?? []), c]);
+  }
+  for (const list of jobsOfGallery.values()) list.sort((a, b) => (a.firstDay ?? "9").localeCompare(b.firstDay ?? "9"));
+  const optionOf = (c: JobChoice) => ({ id: c.id, label: `${c.name} · ${c.firstDay ? formatDate(c.firstDay) : "no photo day yet"}` });
   const lines = galleryLines(rows, firstDayOfJob);
   const seasons = seasonsOf(lines);
   const picked = typeof sp.season === "string" && seasons.includes(sp.season) ? sp.season : (seasons[0] ?? null);
@@ -54,7 +66,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
   const historyLoading = !state?.history_done;
   // The ledger holds every day from its oldest order once the history is in.
   const compares = comparisons((days ?? []) as DayTotal[], today, state?.history_done ? (oldest?.order_date ?? null) : null);
-  const jobOptions = (jobs ?? []).map((j) => ({ id: j.id, label: j.name }));
+  const jobOptions = [...choices].sort((a, b) => (b.firstDay ?? "").localeCompare(a.firstDay ?? "") || a.name.localeCompare(b.name)).map(optionOf);
   const when = new Intl.DateTimeFormat("en-US", { timeZone: viewer.timeZone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
   return (
@@ -126,7 +138,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
           <Card title={picked ? `${picked} galleries` : "Galleries"}>
             {unlinked > 0 && (
               <p className="mb-3 text-sm text-muted">
-                {unlinked} {unlinked === 1 ? "gallery is" : "galleries are"} not linked to a job yet. Linking one sets the job&apos;s Captura gallery, so its orders show on the job.
+                {unlinked} {unlinked === 1 ? "gallery is" : "galleries are"} not linked to a job yet. Each job shows its photo day, and the ones that look like the gallery&apos;s are listed first. Linking puts the gallery&apos;s orders on that job.
               </p>
             )}
             <Table head={["Gallery", "Job", "Orders", "Prepay", "Gross", "Net pay", "Refunded", "Buyers", "Last order"]}>
@@ -137,13 +149,35 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
                     <span className="block text-xs text-muted">{l.galleryId}</span>
                   </td>
                   <td className="px-3 py-2">
-                    {l.jobId ? (
-                      <Link href={`/jobs/${l.jobId}`} className="hover:text-accent">
-                        {l.jobName}
-                      </Link>
-                    ) : (
-                      <LinkGallery galleryId={l.galleryId} jobId={null} jobs={jobOptions} />
-                    )}
+                    {(() => {
+                      const linked = jobsOfGallery.get(l.galleryId) ?? [];
+                      const taken = new Set(linked.map((j) => j.id));
+                      const likely = likelyOptions(
+                        likelyJobs({ title: l.title, firstOrder: l.firstOrder, lastOrder: l.lastOrder }, choices).filter((j) => !taken.has(j.id)),
+                        formatDate,
+                      );
+                      const rest = jobOptions.filter((j) => !taken.has(j.id));
+                      if (!linked.length) return <LinkGallery galleryId={l.galleryId} likely={likely} jobs={rest} />;
+                      return (
+                        <div className="space-y-1">
+                          {linked.map((j) => (
+                            <div key={j.id} className="flex flex-wrap items-baseline gap-x-2">
+                              <Link href={`/jobs/${j.id}`} className="hover:text-accent">
+                                {j.name}
+                              </Link>
+                              <span className="text-xs text-muted">{j.firstDay ? formatDate(j.firstDay) : "no photo day yet"}</span>
+                              <UnlinkJob jobId={j.id} label={j.name} />
+                            </div>
+                          ))}
+                          <details className="text-xs text-muted">
+                            <summary className="cursor-pointer hover:text-accent">Shared with another job?</summary>
+                            <div className="mt-1">
+                              <LinkGallery galleryId={l.galleryId} likely={likely} jobs={rest} another />
+                            </div>
+                          </details>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-3 py-2">{count(l.orders)}</td>
                   <td className="px-3 py-2">{l.orders ? `${Math.round((l.prepay / l.orders) * 100)}%` : ""}</td>

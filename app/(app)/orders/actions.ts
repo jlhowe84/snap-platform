@@ -27,19 +27,40 @@ export async function checkOrders(): Promise<OrdersState> {
   }
 }
 
-const Link = z.object({ gallery: z.coerce.number().int().positive(), job: z.union([z.literal(""), z.uuid()]) });
+// One job, or several joined by commas when photo days kept as separate jobs
+// share the gallery.
+const Link = z.object({
+  gallery: z.coerce.number().int().positive(),
+  job: z
+    .string()
+    .transform((v) => v.split(",").filter(Boolean))
+    .pipe(z.array(z.uuid()).min(1).max(12)),
+});
 
-/** Ties a Captura gallery to a job, or clears the tie. */
+/** Ties a Captura gallery to a job. A gallery can have several jobs. */
 export async function linkGallery(_prev: OrdersState, form: FormData): Promise<OrdersState> {
   await requireStaff(OFFICE_ROLES);
   const parsed = Link.safeParse({ gallery: form.get("gallery"), job: form.get("job") ?? "" });
+  if (!parsed.success) return { ok: false, message: "Pick a job first." };
+  const supabase = await createClient();
+  for (const job of parsed.data.job) {
+    const { error } = await supabase.rpc("link_gallery_to_job", { p_gallery: parsed.data.gallery, p_job: job });
+    if (error) return { ok: false, message: "The link could not be saved." };
+  }
+  revalidatePath("/orders");
+  return { ok: true, message: parsed.data.job.length > 1 ? `Gallery linked to ${parsed.data.job.length} jobs.` : "Gallery linked to the job." };
+}
+
+const Unlink = z.object({ job: z.uuid() });
+
+/** Takes one job off its gallery; the gallery's other jobs keep it. */
+export async function unlinkJob(_prev: OrdersState, form: FormData): Promise<OrdersState> {
+  await requireStaff(OFFICE_ROLES);
+  const parsed = Unlink.safeParse({ job: form.get("job") });
   if (!parsed.success) return { ok: false, message: "Pick a job." };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("link_gallery_to_job", {
-    p_gallery: parsed.data.gallery,
-    p_job: (parsed.data.job || null) as unknown as string,
-  });
-  if (error) return { ok: false, message: "The link could not be saved." };
+  const { error } = await supabase.rpc("unlink_gallery_job", { p_job: parsed.data.job });
+  if (error) return { ok: false, message: "The link could not be removed." };
   revalidatePath("/orders");
-  return { ok: true, message: parsed.data.job ? "Gallery linked to the job." : "Link cleared." };
+  return { ok: true, message: "Job taken off the gallery." };
 }

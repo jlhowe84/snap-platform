@@ -187,3 +187,44 @@ describe("orders view", () => {
     expect(sum(lines)).toMatchObject({ orders: 4, gross: 20, netPay: 18 });
   });
 });
+
+import { acronym, likelyJobs, likelyOptions, nameWords } from "@/lib/orders/match";
+
+describe("matching a gallery to its jobs", () => {
+  const jobs = [
+    { id: "g1", name: "Genesis Hockey Club", firstDay: "2026-10-19" },
+    { id: "g2", name: "Genesis Hockey Club", firstDay: "2026-10-20" },
+    { id: "f1", name: "Flyers Youth Hockey Club", firstDay: "2026-12-01" },
+    { id: "q1", name: "QFCA", firstDay: "2026-09-01" },
+    { id: "r1", name: "Spring-Ford Rams Football & Cheer", firstDay: "2026-09-28" },
+    { id: "r0", name: "Spring-Ford Rams Football & Cheer", firstDay: "2025-09-28" },
+    { id: "l1", name: "Spring-Ford Youth Lacrosse", firstDay: "2026-04-07" },
+    { id: "n1", name: "Nothing Yet", firstDay: null },
+  ];
+
+  it("reads the telling words of a name", () => {
+    expect(nameWords("2026 Spring-Ford Rams Football and Cheer")).toEqual(["spring", "ford", "rams", "football", "cheer"]);
+    expect(acronym("2026 Quakertown Football & Cheer Association")).toBe("qfca");
+  });
+
+  it("finds the jobs of the same league and season", () => {
+    const hit = likelyJobs({ title: "2026 Genesis Hockey Club", firstOrder: "2026-10-07", lastOrder: "2026-11-19" }, jobs);
+    expect(hit.map((j) => j.id)).toEqual(["g1", "g2"]);
+  });
+
+  it("keeps other years and other sports of the league out", () => {
+    const hit = likelyJobs({ title: "2026 Spring-Ford Rams Football and Cheer", firstOrder: "2026-09-14", lastOrder: "2026-11-18" }, jobs);
+    expect(hit.map((j) => j.id)).toEqual(["r1"]);
+  });
+
+  it("matches a job named by its initials", () => {
+    const hit = likelyJobs({ title: "2026 Quakertown Football & Cheer Association", firstOrder: "2026-08-20", lastOrder: "2026-11-01" }, jobs);
+    expect(hit.map((j) => j.id)).toEqual(["q1"]);
+  });
+
+  it("offers every photo day of one league as a single choice", () => {
+    const options = likelyOptions(jobs.slice(0, 2), (d) => d);
+    expect(options[0]).toEqual({ id: "g1,g2", label: "Genesis Hockey Club · all 2 photo days (2026-10-19 to 2026-10-20)" });
+    expect(options).toHaveLength(3);
+  });
+});

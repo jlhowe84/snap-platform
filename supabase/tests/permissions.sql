@@ -1096,6 +1096,12 @@ select t.count_is($$select count(*) from public.order_gallery_totals() where gal
 select t.count_is($$select sum(orders) from public.order_daily_totals('2027-03-01', '2027-03-31')$$, 1, 'daily totals leave internal orders out');
 select t.works($$select public.link_gallery_to_job(777, '40000000-0000-0000-0000-0000000000a2')$$, 'office links a gallery to a job');
 select t.count_is($$select count(*) from public.job_links where captura_gallery_id = 777 and job_id = '40000000-0000-0000-0000-0000000000a2'$$, 1, 'the job now holds the gallery');
+select t.works($$select public.unlink_gallery_job('40000000-0000-0000-0000-0000000000a2')$$, 'office takes one job off its gallery');
+select t.count_is($$select count(*) from public.job_links where captura_gallery_id = 777$$, 0, 'that job no longer holds the gallery');
+select t.works($$select public.link_gallery_to_job(777, '40000000-0000-0000-0000-0000000000a2')$$, 'office links it again');
+select t.works($$select public.link_gallery_to_job(123, '40000000-0000-0000-0000-0000000000a2')$$, 'a second job can share a gallery');
+select t.count_is($$select count(*) from public.job_links where captura_gallery_id = 123$$, 2, 'linking a second job leaves the first in place');
+select t.works($$select public.link_gallery_to_job(777, '40000000-0000-0000-0000-0000000000a2')$$, 'office moves the job back');
 select t.works($$select public.link_gallery_to_job(777, null)$$, 'office clears a gallery link');
 select t.count_is($$select count(*) from public.job_links where captura_gallery_id = 777$$, 0, 'no job holds the gallery after clearing');
 -- Two photo days kept as two jobs can share one gallery: still one line, and
@@ -1107,6 +1113,7 @@ select t.count_is($$select count(*) from public.order_gallery_totals() where gal
 update public.job_links set captura_gallery_id = null where job_id = '40000000-0000-0000-0000-0000000000a2';
 select t.login('support');
 select t.fails($$select public.link_gallery_to_job(777, null)$$, 'support cannot link galleries');
+select t.fails($$select public.unlink_gallery_job('40000000-0000-0000-0000-0000000000a1')$$, 'support cannot unlink a job');
 select t.count_is($$select count(*) from public.order_gallery_totals()$$, 0, 'support sees no order totals');
 select t.login('anon');
 select t.fails($$select * from public.order_gallery_totals()$$, 'anon cannot read order totals');
