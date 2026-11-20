@@ -22,6 +22,9 @@ import { DayPageForm } from "./day-page-form";
 import { AssignDirect } from "../../staffing/[dayId]/assign-direct";
 import { POSITION_LABEL } from "@/lib/staffing/plan";
 import { headers } from "next/headers";
+import { nextStep } from "@/lib/jobs/next-step";
+import { JumpBar } from "./jump-bar";
+import { ConfirmButton } from "@/components/confirm-button";
 
 const READY: Record<string, string> = {
   not_sent: "not sent", sent: "sent", submitted: "submitted",
@@ -156,6 +159,43 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     templates: readTemplates(welcomeSetting?.value),
   });
 
+  const liveLinks = (portalLinks ?? []).filter((l) => !l.revoked_at && l.expires_at > nowIso);
+  const oldLinks = (portalLinks ?? []).filter((l) => l.revoked_at || l.expires_at <= nowIso);
+
+  // The next coming photo day, and the one thing this job is waiting on.
+  const comingDay = liveDays.find((d) => d.date >= today) ?? null;
+  const comingReady = comingDay ? (readiness ?? []).find((r) => r.photo_day_id === comingDay.id) : null;
+  const untouchedHere = !signatures?.length && !planningForm && !rosterFiles?.length && !schedules?.length;
+  const step = nextStep({
+    status: job.status,
+    day: comingDay
+      ? {
+          id: comingDay.id,
+          date: comingDay.date,
+          agreement_signed: comingReady?.agreement_signed ?? false,
+          planning_form: comingReady?.planning_form ?? null,
+          roster: comingReady?.roster ?? null,
+          schedule: comingReady?.schedule ?? null,
+        }
+      : null,
+    hasFinishedRoster: !!finishedRoster,
+    shifts: (dayShifts ?? []).filter((x) => x.photo_day_id === comingDay?.id).map((x) => x.status),
+    setup: { done: progress.done, total: progress.total },
+    plannedElsewhere: !!links?.notion_page_url && untouchedHere,
+  });
+  const sections = [
+    ["days", "Photo days"],
+    ["readiness", "Readiness"],
+    ["schedule", "Schedule"],
+    ["planning", "Planning"],
+    ["captura", "Captura"],
+    ["tasks", "Tasks"],
+    ["details", "Details"],
+    ["portal", "Portal"],
+    ["parents", "Parent page"],
+    ["contacts", "Contacts"],
+  ] as const;
+
   const season = seasonForDate(days?.[0]?.date);
   const stageIndex = job.production_stage ? STAGES.indexOf(job.production_stage) : -1;
 
@@ -165,6 +205,35 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         <StatusDot tone={STATUS_TONE[job.status]} label={STATUS_LABEL[job.status]} />
       </PageHeader>
 
+      {step && (
+        <div
+          className={
+            "mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 " +
+            (step.waitsOn === "office" ? "border-accent/60 bg-accent/10" : "border-line bg-surface")
+          }
+        >
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">
+              {step.waitsOn === "office" ? "Next step" : step.waitsOn === "league" ? "Waiting on the league" : "Ready"}
+              {comingDay ? ` · ${formatDate(comingDay.date, { weekday: true })}` : ""}
+            </p>
+            <p className="mt-1">{step.text}</p>
+          </div>
+          {step.href &&
+            (step.href.startsWith("#") ? (
+              <a href={step.href} className="rounded-lg border border-line px-3 py-1.5 text-sm font-semibold hover:border-accent hover:text-accent">
+                Go there
+              </a>
+            ) : (
+              <Link href={step.href} className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-ink hover:brightness-110">
+                Open staffing
+              </Link>
+            ))}
+        </div>
+      )}
+
+      <JumpBar sections={sections} />
+
       {stageIndex >= 0 && (
         <Card className="mb-6" title="Production">
           <ReadinessStrip steps={STAGES.map((s) => STAGE_LABEL[s])} current={stageIndex} />
@@ -172,9 +241,9 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         </Card>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className="space-y-6 xl:col-span-2">
-          <Card title={`Photo days (${days?.length ?? 0})`}>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="min-w-0 space-y-6 xl:col-span-2">
+          <Card id="days" title={`Photo days (${days?.length ?? 0})`}>
             {days?.length ? (
               <ul className="divide-y divide-line">
                 {days.map((d) => (
@@ -253,7 +322,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             ) : null}
           </Card>
 
-          <Card title="Planning readiness">
+          <Card id="readiness" title="Planning readiness">
             {readiness?.length ? (
               <ul className="space-y-3 text-sm">
                 {readiness.map((r) => (
@@ -280,6 +349,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
           </Card>
 
           <Card
+            id="schedule"
             title="Schedule"
             action={<Link href={`/portal/${id}/schedule`} className="text-sm text-accent hover:underline">Open the scheduler</Link>}
           >
@@ -348,6 +418,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
           </Card>
 
           <Card
+            id="planning"
             title="Planning details"
             action={
               <span className="flex gap-3 text-sm">
@@ -405,13 +476,13 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             )}
             {office && <StandardRosterUpload jobId={id} hasOne={!!finishedRoster} />}
           </Card>
-          <Card title={`Captura setup (${progress.done} of ${progress.total})`}>
+          <Card id="captura" title={`Captura setup (${progress.done} of ${progress.total})`}>
             <p className="mb-3 text-sm text-muted">
               Done by hand in Captura. Tick each step as you finish it; the platform does not change anything in Captura.
             </p>
             <CapturaSetup jobId={id} steps={setupRows} values={setupValues} coupon={job.coupon} canEdit={office} />
           </Card>
-          <Card title="Tasks">
+          <Card id="tasks" title="Tasks">
             {tasks?.length ? (
               <ul className="divide-y divide-line">
                 {tasks.map((t) => (
@@ -427,8 +498,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
           </Card>
         </div>
 
-        <div className="space-y-6">
-          <Card title="Details">
+        <div className="min-w-0 space-y-6">
+          <Card id="details" title="Details">
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
               <Detail label="League">
                 {job.organizations ? (
@@ -485,38 +556,50 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             </ul>
           </Card>
 
-          <Card title="Coordinator portal" action={<Link href={`/portal/${id}`} className="text-sm text-accent hover:underline">View as staff</Link>}>
+          <Card id="portal" title="Coordinator portal" action={<Link href={`/portal/${id}`} className="text-sm text-accent hover:underline">View as staff</Link>}>
             {office && <PortalLinkForm jobId={id} contacts={emailContacts} />}
-            {portalLinks?.length ? (
+            {liveLinks.length > 0 && (
               <ul className="mt-4 divide-y divide-line text-sm">
-                {portalLinks.map((l) => {
-                  const live = !l.revoked_at && l.expires_at > nowIso;
-                  return (
-                    <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                      <div>
-                        <p>{(l.contacts as { full_name: string } | null)?.full_name ?? "Contact"}</p>
-                        <p className="text-xs text-muted">
-                          {l.revoked_at
-                            ? `Revoked ${formatDate(l.revoked_at.slice(0, 10))}`
-                            : live
-                              ? `Open until ${formatDate(l.expires_at.slice(0, 10))}`
-                              : "Expired"}
-                          {l.last_used_at ? ` · last used ${formatDate(l.last_used_at.slice(0, 10))}` : " · not used yet"}
-                        </p>
-                      </div>
-                      {live && office && (
-                        <form action={revokePortalLink.bind(null, id, l.id)}>
-                          <button className="text-xs text-risk hover:underline">Revoke</button>
-                        </form>
-                      )}
-                    </li>
-                  );
-                })}
+                {liveLinks.map((l) => (
+                  <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                    <div>
+                      <p>{(l.contacts as { full_name: string } | null)?.full_name ?? "Contact"}</p>
+                      <p className="text-xs text-muted">
+                        Open until {formatDate(l.expires_at.slice(0, 10))}
+                        {l.last_used_at ? ` · last used ${formatDate(l.last_used_at.slice(0, 10))}` : " · not used yet"}
+                      </p>
+                    </div>
+                    {office && (
+                      <form action={revokePortalLink.bind(null, id, l.id)}>
+                        <ConfirmButton ask="Revoke this link? The coordinator will need a new one to get back in." className="text-xs text-risk hover:underline">
+                          Revoke
+                        </ConfirmButton>
+                      </form>
+                    )}
+                  </li>
+                ))}
               </ul>
-            ) : null}
+            )}
+            {oldLinks.length > 0 && (
+              <details className="mt-3 text-sm">
+                <summary className="cursor-pointer text-xs text-muted hover:text-text">
+                  {oldLinks.length} older link{oldLinks.length === 1 ? "" : "s"} (revoked or expired)
+                </summary>
+                <ul className="mt-2 space-y-1 text-xs text-muted">
+                  {oldLinks.map((l) => (
+                    <li key={l.id}>
+                      {(l.contacts as { full_name: string } | null)?.full_name ?? "Contact"} ·{" "}
+                      {l.revoked_at ? `revoked ${formatDate(l.revoked_at.slice(0, 10))}` : "expired"}
+                      {l.last_used_at ? ` · last used ${formatDate(l.last_used_at.slice(0, 10))}` : " · never used"}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
           </Card>
 
           <Card
+            id="parents"
             title="Parent photo day page"
             action={dayPage?.published ? <a href={`/day/${dayPage.slug}`} target="_blank" rel="noreferrer" className="text-sm text-accent hover:underline">Open</a> : undefined}
           >
@@ -543,7 +626,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             </ul>
           </Card>
 
-          <Card title="Contacts">
+          <Card id="contacts" title="Contacts">
             {contacts?.length ? (
               <ul className="space-y-3 text-sm">
                 {contacts.map((c) => {

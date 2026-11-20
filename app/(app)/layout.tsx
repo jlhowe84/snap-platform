@@ -19,9 +19,16 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const { count: unread } = await supabase.from("notices").select("id", { count: "exact", head: true }).is("read_at", null);
 
   const desk = hasAnyRole(viewer, ["owner", "admin", "office", "support"]);
+  const support = office || viewer.roles.includes("support");
+  // Waiting work shows as a count on its menu entry, so nobody has to open a page to find out.
+  const [{ count: needReply }, { count: drafts }] = support
+    ? await Promise.all([
+        supabase.from("support_conversations").select("id", { count: "exact", head: true }).in("status", ["new", "open"]),
+        supabase.from("agent_actions").select("id", { count: "exact", head: true }).eq("status", "proposed"),
+      ])
+    : [{ count: 0 }, { count: 0 }];
   const crew = viewer.roles.includes("crew");
 
-  const support = office || viewer.roles.includes("support");
   // The menu, grouped by what the work is. A new staff page goes in the group
   // it belongs to; an empty group is dropped for roles that see none of it.
   const groups: MenuGroup[] = [
@@ -46,8 +53,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     {
       label: "Customers",
       items: [
-        { href: "/support", label: "Support", show: support },
-        { href: "/queue", label: "Queue", show: support },
+        { href: "/support", label: "Support", show: support, badge: needReply ?? 0 },
+        { href: "/queue", label: "Queue", show: support, badge: drafts ?? 0 },
         { href: "/knowledge", label: "Knowledge", show: support },
       ],
     },
