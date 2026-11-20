@@ -1098,6 +1098,13 @@ select t.works($$select public.link_gallery_to_job(777, '40000000-0000-0000-0000
 select t.count_is($$select count(*) from public.job_links where captura_gallery_id = 777 and job_id = '40000000-0000-0000-0000-0000000000a2'$$, 1, 'the job now holds the gallery');
 select t.works($$select public.link_gallery_to_job(777, null)$$, 'office clears a gallery link');
 select t.count_is($$select count(*) from public.job_links where captura_gallery_id = 777$$, 0, 'no job holds the gallery after clearing');
+-- Two photo days kept as two jobs can share one gallery: still one line, and
+-- it names the job with the earlier photo day.
+insert into public.job_links (job_id, company_id, captura_gallery_id) values ('40000000-0000-0000-0000-0000000000a2', 'a0000000-0000-0000-0000-00000000000a', 123)
+  on conflict (job_id) do update set captura_gallery_id = 123;
+select t.count_is($$select count(*) from public.order_gallery_totals() where gallery_id = 123$$, 1, 'a gallery shared by two jobs is one line');
+select t.count_is($$select count(*) from public.order_gallery_totals() where gallery_id = 123 and job_id = '40000000-0000-0000-0000-0000000000a1'$$, 1, 'and it names the job with the earlier photo day');
+update public.job_links set captura_gallery_id = null where job_id = '40000000-0000-0000-0000-0000000000a2';
 select t.login('support');
 select t.fails($$select public.link_gallery_to_job(777, null)$$, 'support cannot link galleries');
 select t.count_is($$select count(*) from public.order_gallery_totals()$$, 0, 'support sees no order totals');
