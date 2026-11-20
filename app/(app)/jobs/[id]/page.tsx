@@ -14,6 +14,7 @@ import { toClock, toMinutes } from "@/lib/schedule/layout";
 import { DATE_CHANGE_LABEL, type DateChangeKind } from "@/lib/jobs/date-change";
 import { buildSetupValues, CAPTURA_TAG, readTemplates, setupProgress, stepDueOn, WELCOME_TEMPLATES_KEY } from "@/lib/captura/setup";
 import { CapturaSetup } from "./captura-setup";
+import { AddDayForm } from "./add-day-form";
 import { ChangeDateForm } from "./change-date-form";
 import { FreshLink, PortalLinkForm } from "./portal-link-form";
 import { StandardRosterUpload } from "./standard-roster";
@@ -338,6 +339,9 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
               </ul>
             ) : (
               <Empty>No photo days yet.</Empty>
+            )}
+            {office && !["released", "cancelled"].includes(job.status) && (
+              <AddDayForm jobId={id} defaults={days?.length ? days[days.length - 1] : null} />
             )}
             {dateChanges?.length ? (
               <div className="mt-4 border-t border-line pt-3">
