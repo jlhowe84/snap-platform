@@ -19,6 +19,7 @@ import {
   updateSlot,
   updateTeam,
 } from "./actions";
+import { SubmitButton } from "@/components/submit-button";
 
 const input = "rounded-lg border border-line bg-bg px-2 py-1.5 text-sm text-text focus:border-accent focus:outline-none";
 const primary = "rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110";
@@ -108,10 +109,10 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                       <input name="sponsor" defaultValue={t.sponsor ?? ""} maxLength={160} placeholder="Sponsor" aria-label="Sponsor" className={cx(input, "w-32")} />
                       <input name="player_count" type="number" min={0} max={500} defaultValue={t.player_count ?? ""} placeholder="Players" aria-label="Players" className={cx(input, "w-20")} />
                       {office && <input name="tc_number" defaultValue={t.tc_number ?? ""} maxLength={20} placeholder="TC" aria-label="Team card number" className={cx(input, "w-16")} />}
-                      <button className={quiet}>Save</button>
+                      <SubmitButton className={quiet}>Save</SubmitButton>
                     </form>
                     <form action={removeTeam.bind(null, jobId, dayId, t.id)}>
-                      <button className="px-2 py-1.5 text-sm text-muted hover:text-risk" aria-label={`Remove ${t.name}`}>Remove</button>
+                      <SubmitButton className="px-2 py-1.5 text-sm text-muted hover:text-risk" aria-label={`Remove ${t.name}`}>Remove</SubmitButton>
                     </form>
                   </div>
                 ) : (
@@ -134,7 +135,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
             <input name="coach_name" maxLength={120} placeholder="Coach" aria-label="Coach" className={cx(input, "w-32")} />
             <input name="sponsor" maxLength={160} placeholder="Sponsor" aria-label="Sponsor" className={cx(input, "w-32")} />
             <input name="player_count" type="number" min={0} max={500} placeholder="Players" aria-label="Players" className={cx(input, "w-20")} />
-            <button className={primary}>Add team</button>
+            <SubmitButton className={primary}>Add team</SubmitButton>
           </form>
         )}
       </Card>
@@ -160,7 +161,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
           <Empty>The schedule has not been started.</Empty>
           {office && canEdit && (
             <form action={startSchedule.bind(null, jobId, day.id)} className="mt-3">
-              <button className={quiet}>Office: start this schedule</button>
+              <SubmitButton className={quiet}>Office: start this schedule</SubmitButton>
             </form>
           )}
         </div>
@@ -191,7 +192,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                   {MINUTES.map((m) => <option key={m} value={m}>{m} min</option>)}
                 </select>
               </label>
-              <button className={quiet}>Save setup</button>
+              <SubmitButton className={quiet}>Save setup</SubmitButton>
             </form>
           )}
 
@@ -220,10 +221,10 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                               <select name="station" defaultValue={s.station} aria-label="Station" className={input}>
                                 {Array.from({ length: Math.max(stations, s.station) }, (_, k) => k + 1).map((k) => <option key={k} value={k}>Station {k}</option>)}
                               </select>
-                              <button className={quiet}>Move</button>
+                              <SubmitButton className={quiet}>Move</SubmitButton>
                             </form>
                             <form action={removeSlot.bind(null, jobId, day.id, s.id)}>
-                              <button className="px-2 py-1.5 text-sm text-muted hover:text-risk">Remove</button>
+                              <SubmitButton className="px-2 py-1.5 text-sm text-muted hover:text-risk">Remove</SubmitButton>
                             </form>
                           </div>
                         )}
@@ -245,7 +246,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
               {unplaced.length > 0 && (
                 <>
                   <form action={placeRest.bind(null, jobId, day.id, schedule.id, start)} className="flex flex-wrap items-center gap-3">
-                    <button className={primary}>Place the {unplaced.length} remaining {unplaced.length === 1 ? "team" : "teams"} for me</button>
+                    <SubmitButton className={primary}>Place the {unplaced.length} remaining {unplaced.length === 1 ? "team" : "teams"} for me</SubmitButton>
                     <span className="text-xs text-muted">Fills the next open times in order. You can move anything afterwards.</span>
                   </form>
                   <form action={addSlot.bind(null, jobId, day.id, schedule.id, "team")} className="flex flex-wrap items-end gap-2">
@@ -259,7 +260,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                     <select name="minutes" defaultValue={schedule.default_block_minutes} aria-label="Minutes" className={input}>
                       {MINUTES.map((m) => <option key={m} value={m}>{m} min</option>)}
                     </select>
-                    <button className={quiet}>Add slot</button>
+                    <SubmitButton className={quiet}>Add slot</SubmitButton>
                   </form>
                 </>
               )}
@@ -272,7 +273,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                 <select name="minutes" defaultValue={15} aria-label="Minutes" className={input}>
                   {MINUTES.map((m) => <option key={m} value={m}>{m} min</option>)}
                 </select>
-                <button className={quiet}>Add break</button>
+                <SubmitButton className={quiet}>Add break</SubmitButton>
                 <span className="text-xs text-muted">Teams after the break on that station move later to make room.</span>
               </form>
             </div>
@@ -299,21 +300,21 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
             )}
             {canEdit && !done && (
               <form action={submitSchedule.bind(null, jobId, day.id, schedule.id)} className="mt-3">
-                <button disabled={!!problems?.length} className={cx(primary, "disabled:cursor-not-allowed disabled:opacity-50")}>
+                <SubmitButton disabled={!!problems?.length} className={cx(primary, "disabled:cursor-not-allowed disabled:opacity-50")}>
                   Submit schedule
-                </button>
+                </SubmitButton>
               </form>
             )}
             {office && canEdit && (
               <div className="mt-3 flex gap-2">
                 {schedule.status === "submitted" && (
                   <form action={setScheduleStatus.bind(null, jobId, day.id, schedule.id, "complete")}>
-                    <button className={quiet}>Office: mark complete</button>
+                    <SubmitButton className={quiet}>Office: mark complete</SubmitButton>
                   </form>
                 )}
                 {done && (
                   <form action={setScheduleStatus.bind(null, jobId, day.id, schedule.id, "started")}>
-                    <button className={quiet}>Office: send back</button>
+                    <SubmitButton className={quiet}>Office: send back</SubmitButton>
                   </form>
                 )}
               </div>

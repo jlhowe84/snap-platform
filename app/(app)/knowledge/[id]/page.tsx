@@ -11,6 +11,7 @@ import { SHELF_LABEL, STATUS_LABEL, type KbShelf, type KbStatus } from "@/lib/kb
 import { ArticleForm } from "../forms";
 import { setOnHelpCenter } from "../actions";
 import { SLOT_PATTERN } from "@/lib/kb/labels";
+import { SubmitButton } from "@/components/submit-button";
 
 export const metadata: Metadata = { title: "Article" };
 
@@ -48,7 +49,7 @@ export default async function ArticlePage({ params }: PageProps<"/knowledge/[id]
         <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
           {a.on_help_center ? (
             <form action={setOnHelpCenter.bind(null, a.id, false)}>
-              <button className="rounded-lg border border-line px-3 py-1.5 hover:border-accent">Take off the help center</button>
+              <SubmitButton className="rounded-lg border border-line px-3 py-1.5 hover:border-accent">Take off the help center</SubmitButton>
             </form>
           ) : a.status !== "published" ? (
             <span className="text-muted">Publish this answer before it can go on the parent help center.</span>
@@ -56,7 +57,7 @@ export default async function ArticlePage({ params }: PageProps<"/knowledge/[id]
             <span className="text-muted">This answer has a [SLOT] for staff to fill in, so it cannot go on the parent help center.</span>
           ) : (
             <form action={setOnHelpCenter.bind(null, a.id, true)}>
-              <button className="rounded-lg border border-line px-3 py-1.5 hover:border-accent">Show on the parent help center</button>
+              <SubmitButton className="rounded-lg border border-line px-3 py-1.5 hover:border-accent">Show on the parent help center</SubmitButton>
             </form>
           )}
           {viewer.companySlug && (

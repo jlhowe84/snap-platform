@@ -11,6 +11,7 @@ import { crewPhotoUrls } from "@/lib/staffing/photos";
 import { removeCrewPhoto, removePayRate } from "../actions";
 import { PayForm } from "./pay-form";
 import { DetailsForm, PhotoUpload, PrivateForm } from "./profile-forms";
+import { SubmitButton } from "@/components/submit-button";
 
 export const metadata: Metadata = { title: "Crew" };
 
@@ -76,7 +77,7 @@ export default async function CrewMemberPage({ params }: PageProps<"/crew/[id]">
           <PhotoUpload crewId={c.id} hasPhoto={!!c.photo_path} />
           {c.photo_path && (
             <form action={removeCrewPhoto.bind(null, c.id)}>
-              <button className="text-xs text-muted hover:text-risk">Remove photo</button>
+              <SubmitButton className="text-xs text-muted hover:text-risk">Remove photo</SubmitButton>
             </form>
           )}
         </div>
@@ -138,7 +139,7 @@ export default async function CrewMemberPage({ params }: PageProps<"/crew/[id]">
                   <span className="flex items-center gap-3">
                     {money.format(Number(r.amount))} per {r.unit}
                     <form action={removePayRate.bind(null, c.id, r.id)}>
-                      <button className="text-xs text-muted hover:text-risk">Remove</button>
+                      <SubmitButton className="text-xs text-muted hover:text-risk">Remove</SubmitButton>
                     </form>
                   </span>
                 </li>

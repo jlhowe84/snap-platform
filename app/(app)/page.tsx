@@ -7,6 +7,7 @@ import { daysBetween, formatDate, formatTime, todayIn } from "@/lib/dates";
 import { seasonSortKey } from "@/lib/season";
 import { STATUS_LABEL, STATUS_TONE } from "@/lib/labels";
 import { setTaskStatus } from "./tasks/actions";
+import { SubmitButton } from "@/components/submit-button";
 
 export default async function TodayPage() {
   const viewer = await requireStaff();
@@ -137,7 +138,7 @@ export default async function TodayPage() {
                     <div className="flex items-center gap-2">
                       {t.due_on && <Pill tone={late ? "risk" : "muted"}>{late ? "Was due" : "Due"} {formatDate(t.due_on)}</Pill>}
                       <form action={setTaskStatus.bind(null, t.id, "done")}>
-                        <button className="rounded-lg border border-line px-2.5 py-1 hover:border-accent hover:text-accent">Done</button>
+                        <SubmitButton className="rounded-lg border border-line px-2.5 py-1 hover:border-accent hover:text-accent">Done</SubmitButton>
                       </form>
                     </div>
                   </li>

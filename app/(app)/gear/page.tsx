@@ -6,6 +6,7 @@ import { Card, Empty, PageHeader, Pill } from "@/components/ui";
 import { formatDate, todayIn } from "@/lib/dates";
 import { KIT_STATUS_LABEL, bySection } from "@/lib/gear/field";
 import { addChecklistItem, addKit, saveCameraBody, setChecklistItemActive, setKitStatus } from "./actions";
+import { SubmitButton } from "@/components/submit-button";
 
 export const metadata: Metadata = { title: "Gear" };
 
@@ -64,7 +65,7 @@ export default async function GearPage() {
                       {Object.entries(KIT_STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
                     <input name="notes" defaultValue={k.notes ?? ""} placeholder="Notes" maxLength={1000} className={`${input} w-56`} />
-                    <button className={quiet}>Save</button>
+                    <SubmitButton className={quiet}>Save</SubmitButton>
                   </form>
                 </li>
               );
@@ -73,7 +74,7 @@ export default async function GearPage() {
         )}
         <form action={addKit} className="mt-4 flex items-center gap-2">
           <input name="code" required maxLength={10} placeholder="New kit letter" className={`${input} w-36`} />
-          <button className={quiet}>Add kit</button>
+          <SubmitButton className={quiet}>Add kit</SubmitButton>
         </form>
       </Card>
 
@@ -111,7 +112,7 @@ export default async function GearPage() {
                   <option value="">No kit</option>
                   {(kits ?? []).map((k) => <option key={k.id} value={k.id}>Kit {k.code}</option>)}
                 </select>
-                <button className={quiet}>Save</button>
+                <SubmitButton className={quiet}>Save</SubmitButton>
                 {b.notes && <span className="text-xs text-muted">{b.notes}</span>}
               </form>
             </li>
@@ -122,7 +123,7 @@ export default async function GearPage() {
           <input name="letter" maxLength={4} placeholder="Letter" className={`${input} w-20`} />
           <input name="model" maxLength={60} placeholder="Model" className={`${input} w-36`} />
           <input type="hidden" name="kit_id" value="" />
-          <button className={quiet}>Add body</button>
+          <SubmitButton className={quiet}>Add body</SubmitButton>
         </form>
       </Card>
 
@@ -139,7 +140,7 @@ export default async function GearPage() {
                       {i.outdoor_only && <span className="text-muted"> (outdoor)</span>}
                     </span>
                     <form action={setChecklistItemActive.bind(null, i.id, !i.active)}>
-                      <button className="text-xs text-muted hover:text-accent">{i.active ? "Drop" : "Restore"}</button>
+                      <SubmitButton className="text-xs text-muted hover:text-accent">{i.active ? "Drop" : "Restore"}</SubmitButton>
                     </form>
                   </li>
                 ))}
@@ -154,7 +155,7 @@ export default async function GearPage() {
           </datalist>
           <input name="name" required maxLength={200} placeholder="Item" className={`${input} w-56`} />
           <label className="flex items-center gap-1 text-muted"><input type="checkbox" name="outdoor_only" /> Outdoor only</label>
-          <button className={quiet}>Add item</button>
+          <SubmitButton className={quiet}>Add item</SubmitButton>
         </form>
         <p className="mt-3 text-xs text-muted">Loaded from the gear files in SNAP OS (February 2026, not re-verified). Returning kits are checked against this list, and outdoor items show only for outdoor or unknown days.</p>
       </Card>

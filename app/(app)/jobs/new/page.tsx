@@ -17,7 +17,7 @@ export default async function NewJobPage({ searchParams }: PageProps<"/jobs/new"
   return (
     <>
       <Link href="/jobs" className="text-sm text-muted underline-offset-2 hover:underline">Back to jobs</Link>
-      <PageHeader eyebrow="Production" title="New job" />
+      <PageHeader eyebrow="Jobs" title="New job" />
       <Card className="max-w-3xl">
         <NewJobForm leagues={leagues ?? []} orgId={orgId} />
         <p className="mt-4 text-xs text-muted">

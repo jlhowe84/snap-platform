@@ -214,7 +214,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
   return (
     <>
-      <PageHeader eyebrow={[season, job.organizations?.name].filter(Boolean).join(" · ") || "Job"} title={job.name}>
+      <PageHeader back={{ href: "/jobs", label: "Jobs" }} eyebrow={[season, job.organizations?.name].filter(Boolean).join(" · ") || "Job"} title={job.name}>
         <StatusDot tone={STATUS_TONE[job.status]} label={STATUS_LABEL[job.status]} />
       </PageHeader>
 

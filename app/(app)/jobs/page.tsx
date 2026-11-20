@@ -33,7 +33,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
 
   return (
     <>
-      <PageHeader eyebrow="Production" title={season ?? "All jobs"}>
+      <PageHeader eyebrow="Jobs" title={season ?? "All jobs"}>
         <form className="flex gap-2">
           {season && <input type="hidden" name="season" value={season} />}
           <input

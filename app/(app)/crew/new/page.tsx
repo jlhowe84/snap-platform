@@ -13,7 +13,7 @@ export default async function NewCrewMemberPage() {
       <p className="mb-2 text-sm">
         <Link href="/crew" className="text-muted hover:text-text">Crew</Link>
       </p>
-      <PageHeader eyebrow="Crew" title="Add a crew member" />
+      <PageHeader eyebrow="People" title="Add a crew member" />
       <Card>
         <DetailsForm crew={null} />
         <p className="mt-4 text-sm text-muted">After saving you can add their photo, home address, emergency contact and pay rates.</p>

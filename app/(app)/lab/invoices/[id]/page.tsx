@@ -39,7 +39,7 @@ export default async function LabInvoicePage({ params }: PageProps<"/lab/invoice
 
   return (
     <>
-      <PageHeader eyebrow={`Lab invoice · ${formatDate(invoice.invoice_date)}`} title={invoice.invoice_number}>
+      <PageHeader back={{ href: "/lab/invoices", label: "Lab invoices" }} eyebrow={`Lab invoice · ${formatDate(invoice.invoice_date)}`} title={invoice.invoice_number}>
         {invoice.drive_file_id && (
           <a
             href={`https://drive.google.com/file/d/${encodeURIComponent(invoice.drive_file_id)}/view`}

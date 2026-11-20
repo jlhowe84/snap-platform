@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/dates";
 import { asSections, formatSections } from "@/lib/agreement/sections";
 import { DraftEditor } from "./draft-editor";
 import { activateDraft, newDraft } from "./actions";
+import { SubmitButton } from "@/components/submit-button";
 
 export const metadata: Metadata = { title: "Agreement" };
 
@@ -31,9 +32,9 @@ export default async function AgreementSettings() {
       <PageHeader eyebrow="Admin" title="Photo day agreement">
         {!draft && (
           <form action={newDraft}>
-            <button className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110">
+            <SubmitButton className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110">
               {active ? "Start a new version" : "Write the agreement"}
-            </button>
+            </SubmitButton>
           </form>
         )}
       </PageHeader>
@@ -45,9 +46,9 @@ export default async function AgreementSettings() {
               title={`Draft, version ${draft.version}`}
               action={
                 <form action={activateDraft.bind(null, draft.id)}>
-                  <button className="rounded-lg border border-accent/60 px-3 py-1.5 text-sm text-accent hover:bg-surface-2">
+                  <SubmitButton className="rounded-lg border border-accent/60 px-3 py-1.5 text-sm text-accent hover:bg-surface-2">
                     Make this the version leagues sign
-                  </button>
+                  </SubmitButton>
                 </form>
               }
             >

@@ -6,6 +6,7 @@ import { formatDate, todayIn } from "@/lib/dates";
 import { equivalentDate, isSeasonLabel, outreachSeason, seasonRange, shiftSeason } from "@/lib/season";
 import { extendHold, setOfferStage } from "./actions";
 import { BuildBoardButton, DraftOffersButton, HoldForm, ReleaseForm } from "./forms";
+import { SubmitButton } from "@/components/submit-button";
 
 type Basis = { subjects?: number | null; teams?: number | null; last_date?: string | null; from_season?: string };
 
@@ -55,7 +56,7 @@ export default async function SeasonBoardPage({ searchParams }: PageProps<"/seas
 
   return (
     <>
-      <PageHeader eyebrow="Season board" title={season}>
+      <PageHeader eyebrow="Jobs · Season board" title={season}>
         <Link href={`/season?season=${encodeURIComponent(shiftSeason(season, -1))}`} className="text-sm text-muted hover:text-text">
           ← {shiftSeason(season, -1)}
         </Link>
@@ -178,22 +179,22 @@ export default async function SeasonBoardPage({ searchParams }: PageProps<"/seas
                         <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted">
                           {o.stage === "not_offered" && (
                             <form action={setOfferStage.bind(null, o.id, "offered")}>
-                              <button className="hover:text-text">Mark offered</button>
+                              <SubmitButton className="hover:text-text">Mark offered</SubmitButton>
                             </form>
                           )}
                           {(o.stage === "not_offered" || o.stage === "offered") && (
                             <form action={setOfferStage.bind(null, o.id, "declined")}>
-                              <button className="hover:text-text">Declined</button>
+                              <SubmitButton className="hover:text-text">Declined</SubmitButton>
                             </form>
                           )}
                           {(o.stage === "declined" || o.stage === "no_reply") && (
                             <form action={setOfferStage.bind(null, o.id, "offered")}>
-                              <button className="hover:text-text">Reopen</button>
+                              <SubmitButton className="hover:text-text">Reopen</SubmitButton>
                             </form>
                           )}
                           {admin && hold?.status === "held" && (
                             <form action={extendHold.bind(null, hold.id)}>
-                              <button className="hover:text-text">Extend 7 days</button>
+                              <SubmitButton className="hover:text-text">Extend 7 days</SubmitButton>
                             </form>
                           )}
                         </div>

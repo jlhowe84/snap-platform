@@ -98,7 +98,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
 
   return (
     <>
-      <PageHeader eyebrow="Calendar" title={monthLabel(month)}>
+      <PageHeader eyebrow="Today · Calendar" title={monthLabel(month)}>
         <div className="flex flex-wrap gap-2">
           <Link href={link(shiftMonth(month, -1))} className={quiet}>Previous</Link>
           <Link href={link(today.slice(0, 7))} className={quiet}>This month</Link>
