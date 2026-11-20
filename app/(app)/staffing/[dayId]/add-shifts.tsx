@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { addShifts, type StaffingState } from "../actions";
 import { POSITION_LABEL, SHIFT_POSITIONS, type ShiftPosition } from "@/lib/staffing/plan";
 
@@ -21,6 +22,7 @@ export function AddShifts({
   stations: number;
 }) {
   const [state, action, pending] = useActionState<StaffingState, FormData>(addShifts.bind(null, dayId), null);
+  useToast(state);
   return (
     <form action={action} className="space-y-3">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

@@ -1,10 +1,12 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useToast } from "@/components/toast";
 import { createPortalLink, type PortalLinkState } from "./portal-actions";
 
 export function PortalLinkForm({ jobId, contacts }: { jobId: string; contacts: { id: string; name: string; email: string }[] }) {
   const [state, action, pending] = useActionState<PortalLinkState, FormData>(createPortalLink.bind(null, jobId), null);
+  useToast(state);
   if (!contacts.length) {
     return <p className="text-sm text-muted">Add a contact with an email to this job to make a portal link.</p>;
   }
@@ -65,6 +67,7 @@ function LinkBox({ url, contact }: { url: string; contact: string }) {
  */
 export function FreshLink({ jobId, contactId }: { jobId: string; contactId: string }) {
   const [state, action, pending] = useActionState<PortalLinkState, FormData>(createPortalLink.bind(null, jobId), null);
+  useToast(state);
   return (
     <form action={action} className="contents">
       <input type="hidden" name="contact_id" value={contactId} />

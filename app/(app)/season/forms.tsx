@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { buildBoard, draftOffers, holdDate, releaseHold, type BoardState } from "./actions";
 
 const field = "rounded-lg border border-line bg-bg px-2 py-1.5 text-sm focus:border-accent focus:outline-none";
@@ -14,6 +15,7 @@ function Note({ state }: { state: BoardState }) {
 
 export function BuildBoardButton({ season }: { season: string }) {
   const [state, action, pending] = useActionState<BoardState, FormData>(() => buildBoard(season), null);
+  useToast(state);
   return (
     <form action={action} className="flex flex-col items-end gap-1">
       <button disabled={pending} className={primary}>
@@ -40,6 +42,7 @@ export function HoldForm({
   canOverride: boolean;
 }) {
   const [state, action, pending] = useActionState<BoardState, FormData>(holdDate, null);
+  useToast(state);
   return (
     <form action={action} className="mt-2 space-y-1">
       <input type="hidden" name="offer_id" value={offerId} />
@@ -65,6 +68,7 @@ export function HoldForm({
 
 export function ReleaseForm({ holdId }: { holdId: string }) {
   const [state, action, pending] = useActionState<BoardState, FormData>(releaseHold, null);
+  useToast(state);
   return (
     <details className="mt-2 text-xs">
       <summary className="cursor-pointer text-muted hover:text-text">Release</summary>
@@ -87,6 +91,7 @@ export function ReleaseForm({ holdId }: { holdId: string }) {
 
 export function DraftOffersButton({ season, offerId, label }: { season: string; offerId?: string; label: string }) {
   const [state, action, pending] = useActionState<BoardState, FormData>(() => draftOffers(season, offerId ?? null), null);
+  useToast(state);
   return (
     <form action={action} className={offerId ? "mt-2" : "flex flex-col items-end gap-1"}>
       <button

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { createJob, type NewJobState } from "./actions";
 
 const field = "mt-1 w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none";
@@ -8,6 +9,7 @@ const label = "block text-sm font-medium";
 
 export function NewJobForm({ leagues, orgId }: { leagues: { id: string; name: string }[]; orgId: string | null }) {
   const [state, action, pending] = useActionState<NewJobState, FormData>(createJob, null);
+  useToast(state);
   return (
     <form action={action} className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -1,10 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { checkInvoices, matchReference, type LabState } from "./actions";
 
 export function CheckInvoices() {
   const [state, action, pending] = useActionState<LabState>(checkInvoices, null);
+  useToast(state);
   return (
     <form action={action} className="flex flex-wrap items-center gap-3">
       {state && (
@@ -24,6 +26,7 @@ export function CheckInvoices() {
 
 export function MatchJob({ reference, jobId, jobs }: { reference: string; jobId: string | null; jobs: { id: string; label: string }[] }) {
   const [state, action, pending] = useActionState<LabState, FormData>(matchReference, null);
+  useToast(state);
   return (
     <form action={action} className="flex flex-wrap items-end gap-3">
       <input type="hidden" name="reference" value={reference} />

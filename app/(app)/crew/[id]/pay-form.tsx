@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { savePayRate, type PayState } from "../actions";
 import { POSITION_LABEL } from "@/lib/staffing/plan";
 
@@ -9,6 +10,7 @@ const label = "block text-xs font-semibold uppercase tracking-[0.14em] text-mute
 
 export function PayForm({ crewId, positions }: { crewId: string; positions: string[] }) {
   const [state, action, pending] = useActionState<PayState, FormData>(savePayRate.bind(null, crewId), null);
+  useToast(state);
   return (
     <form action={action} className="grid items-end gap-3 md:grid-cols-[1.5fr_1fr_1fr_auto]">
       <label className={label}>

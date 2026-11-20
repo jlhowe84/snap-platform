@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { testCapturaConnection, testGmailConnection, type CapturaTestState, type GmailTestState } from "./actions";
 
 function TestButton({
@@ -11,6 +12,7 @@ function TestButton({
   action: () => Promise<CapturaTestState | GmailTestState>;
 }) {
   const [state, action, pending] = useActionState<CapturaTestState | GmailTestState>(run, null);
+  useToast(state);
   return (
     <form action={action} className="space-y-2">
       <button

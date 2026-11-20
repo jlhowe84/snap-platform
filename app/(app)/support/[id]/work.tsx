@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState, useTransition } from "react";
+import { useToast } from "@/components/toast";
 import { addNote, draftReply, saveConversation, sendReply, type SupportState } from "../actions";
 import { fillSavedReply, unfilledNotes } from "@/lib/support/saved";
 import { SUPPORT_STATUSES, SUPPORT_STATUS_LABEL, type SupportStatus } from "@/lib/support/labels";
@@ -33,6 +34,7 @@ export function WorkForm({
   categories: string[];
 }) {
   const [state, action, pending] = useActionState<SupportState, FormData>(saveConversation.bind(null, id), null);
+  useToast(state);
   return (
     <form action={action} className="space-y-4">
       <label className={label}>
@@ -73,6 +75,7 @@ export function WorkForm({
 
 export function NoteForm({ id }: { id: string }) {
   const [state, action, pending] = useActionState<SupportState, FormData>(addNote.bind(null, id), null);
+  useToast(state);
   return (
     <form action={action} className="space-y-2">
       <label className={label}>

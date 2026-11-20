@@ -1,12 +1,14 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useToast } from "@/components/toast";
 import { removeStep, type StepState } from "./actions";
 
 // Two clicks to remove a step, so one slip of the mouse cannot do it.
 export function RemoveStep({ stepId, name }: { stepId: string; name: string }) {
   const [asking, setAsking] = useState(false);
   const [state, action, pending] = useActionState<StepState, FormData>(removeStep.bind(null, stepId), null);
+  useToast(state);
 
   return (
     <div className="mt-3 border-t border-line pt-3 text-sm">

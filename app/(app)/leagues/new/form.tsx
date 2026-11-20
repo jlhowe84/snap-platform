@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { createLeague, type NewState } from "./actions";
 
 const field = "mt-1 w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none";
@@ -12,6 +13,7 @@ const TYPES: [string, string][] = [
 
 export function NewLeagueForm() {
   const [state, action, pending] = useActionState<NewState, FormData>(createLeague, null);
+  useToast(state);
   return (
     <form action={action} className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

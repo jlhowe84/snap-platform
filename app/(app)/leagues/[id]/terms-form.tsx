@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useToast } from "@/components/toast";
 import { saveMoneyTerms, type TermsState } from "./actions";
 
 const field = "mt-1 w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none";
@@ -21,6 +22,7 @@ export const MONEY_TERM_FIELDS: { name: keyof MoneyTerms; label: string; hint: s
 
 export function MoneyTermsForm({ orgId, terms }: { orgId: string; terms: MoneyTerms }) {
   const [state, action, pending] = useActionState<TermsState, FormData>(saveMoneyTerms.bind(null, orgId), null);
+  useToast(state);
   return (
     <form action={action} className="space-y-3">
       {MONEY_TERM_FIELDS.map((f) => (
