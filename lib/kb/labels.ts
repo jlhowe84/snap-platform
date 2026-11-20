@@ -17,3 +17,6 @@ export const STATUS_LABEL: Record<KbStatus, string> = { published: "Published", 
 
 export const isShelf = (v: unknown): v is KbShelf => typeof v === "string" && (KB_SHELVES as readonly string[]).includes(v);
 export const isStatus = (v: unknown): v is KbStatus => typeof v === "string" && (KB_STATUSES as readonly string[]).includes(v);
+
+/** Placeholders like [GALLERY LINK] are for staff to fill in, never for parents. */
+export const SLOT_PATTERN = /\[[A-Z][A-Z0-9 _'/-]{2,}\]/;

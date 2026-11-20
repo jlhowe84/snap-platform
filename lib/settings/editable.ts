@@ -33,6 +33,13 @@ export const EDITABLE_SETTINGS: { group: string; items: EditableSetting[] }[] = 
     ],
   },
   {
+    group: "Crew pay",
+    items: [
+      { key: "pay.mileage_cents_per_mile", label: "Mileage rate", hint: "Paid per mile entered on a pay line. 0 pays no mileage.", min: 0, max: 200, unit: "cents a mile" },
+      { key: "pay.period_days", label: "Pay period", hint: "The payroll report starts with a period this long.", min: 1, max: 31, unit: "days" },
+    ],
+  },
+  {
     group: "Ask SNAP",
     items: [
       { key: "agent.daily_budget_usd", label: "Daily spending cap", hint: "Once a day's questions have cost this much, Ask SNAP waits until tomorrow. 0 turns it off.", min: 0, max: 100, unit: "dollars a day" },

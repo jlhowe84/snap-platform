@@ -18,26 +18,32 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const supabase = await createClient();
   const { count: unread } = await supabase.from("notices").select("id", { count: "exact", head: true }).is("read_at", null);
 
+  const desk = hasAnyRole(viewer, ["owner", "admin", "office", "support"]);
+  const crew = viewer.roles.includes("crew");
+
   const nav = [
-    { href: "/", label: "Today", show: true },
+    { href: "/", label: "Today", show: desk },
+    { href: "/shifts", label: "My shifts", show: crew },
     { href: "/notices", label: unread ? `Notices (${unread})` : "Notices", show: true },
-    { href: "/tasks", label: "Tasks", show: true },
-    { href: "/calendar", label: "Calendar", show: true },
+    { href: "/tasks", label: "Tasks", show: desk },
+    { href: "/calendar", label: "Calendar", show: desk },
     { href: "/ask", label: "Ask SNAP", show: office || viewer.roles.includes("support") },
-    { href: "/jobs", label: "Jobs", show: true },
+    { href: "/jobs", label: "Jobs", show: desk },
     { href: "/queue", label: "Queue", show: office || viewer.roles.includes("support") },
     { href: "/support", label: "Support", show: office || viewer.roles.includes("support") },
     { href: "/season", label: "Season", show: office || viewer.roles.includes("support") },
     { href: "/leagues", label: "Leagues", show: office || viewer.roles.includes("support") },
     { href: "/knowledge", label: "Knowledge", show: office || viewer.roles.includes("support") },
+    { href: "/staffing", label: "Staffing", show: office },
     { href: "/crew", label: "Crew", show: office },
+    { href: "/gear", label: "Gear", show: office },
     { href: "/lab", label: "Lab costs", show: office },
     { href: "/settings", label: "Settings", show: admin },
   ].filter((n) => n.show);
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="border-b border-line bg-surface md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:border-b-0 md:border-r">
+      <aside className="border-b border-line bg-surface print:hidden md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:border-b-0 md:border-r">
         <div className="flex h-full flex-col gap-6 p-4 md:p-5">
           <div>
             <p className="font-display text-2xl font-bold uppercase tracking-wide">
@@ -65,7 +71,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         </div>
       </aside>
       <main className="min-w-0 flex-1 px-4 py-6 md:px-10 md:py-10">{children}</main>
-      {hasAnyRole(viewer, ASK_ROLES) && <AskWidget />}
+      {hasAnyRole(viewer, ASK_ROLES) && <div className="print:hidden"><AskWidget /></div>}
     </div>
   );
 }

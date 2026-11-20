@@ -494,3 +494,124 @@ facts, open policy questions) and `handbook` (staff procedures). Status is
   HTML in an article reaches the page. Links are web or mail addresses only.
 - Support drafts (`lib/support/draft.ts`) add up to six matching published
   articles from the answers and support shelves to the prompt.
+
+## Staffing (Wave B, module 7)
+
+Replaces StaffMate: shift picking, pay rates, pay per shift with mileage, the
+payroll report, and the added or removed notices. Text messages and the
+day-before briefing come with the field view and the clock.
+
+- `shifts`: one row per position needed on a photo day (photographer, poser,
+  coordinator, photo attendant), with an optional station and times. Status is
+  `draft` (crew cannot see it), `open`, `filled` (always with a person) or
+  `cancelled`. A trigger keeps `company_id` and `job_id` in step with the photo
+  day and stamps `published_at` and `filled_at`. One shift per person per day.
+- Waves: Level 1 is asked first. `open_level` is the highest Level that sees an
+  open shift; the office widens it one Level at a time from `/staffing/[dayId]`
+  until it is null (everyone, including crew with no Level). The clock will
+  widen waves on a timer once Josh turns it on.
+- Crew never read photo days or jobs directly. `crew_shift_board()` (security
+  definer) returns their own coming shifts and the offers open to them, with
+  the day's place and times; `respond_to_shift(id, accept)` locks the row,
+  checks the offer is still theirs, refuses an overlapping shift the same day,
+  and fills it or records the decline in `shift_responses`. Postponed and
+  cancelled days are left out.
+- `pay_rates`: per person and position, per shift or per hour. Owner and admin
+  read and write; a crew member reads their own. Pay is kept out of the
+  activity log, which all staff can read.
+- A person given the crew role is linked to the crew record with the same
+  email (`profile_roles` trigger), so their shifts find them.
+- Pages: `/staffing` (coming photo days and how full they are),
+  `/staffing/[dayId]` (add shifts from the station count, publish, widen,
+  assign, take off, cancel), `/shifts` (the crew phone page), `/crew/[id]`
+  (details, coming shifts, pay rates for owner and admin). Crew with no office
+  role land on `/shifts` and see only it and their notices.
+- `pay_lines`: one per filled shift worked (`create_pay_lines(from, to)`,
+  owner and admin only), priced from the person's rate: the rate per shift, or
+  per hour times the shift's length. Miles are entered by hand and paid at
+  `pay.mileage_cents_per_mile` (0 until Josh sets it); a trigger works out the
+  mileage, stamps who approved and when it was paid. Pending, approved, paid;
+  a paid line cannot change or be removed. Crew read their own.
+- `/crew/pay` (owner and admin): a date range that starts as the last
+  `pay.period_days`, totals by person, each line's miles, hours and
+  adjustment, approve and mark paid in bulk, and `/crew/pay/export` (CSV, cells
+  that look like formulas are defused). Payroll is still run where it runs
+  today, from this report.
+- Notices: when the office puts someone on a shift, takes them off or cancels
+  their shift, a `crew.notify` draft to that person goes into the approval
+  queue (`lib/staffing/notices.ts`). It is sent like any other draft, so test
+  mode applies.
+
+## Gear and the field view (Wave B, module 8)
+
+- `kits` (A to K at SNAP: ready, needs service, retired), `kit_checklist_items`
+  (the master checklist, by section, some outdoor only), `camera_bodies`
+  (serial, letter, model, optionally the kit it lives in) and `kit_checkouts`
+  (a kit on a photo day, with its station: planned, out, back, and what came
+  back missing or broken). Staff read; owner, admin and office write.
+- A trigger fills the checkout's company and job from the photo day, refuses a
+  kit on two photo days the same date, and stamps who sent it out and checked
+  it in. A kit that comes back with anything missing or an issue is marked
+  needs service. A checkout that went out cannot be deleted.
+- `field_view(photo_day)` (security definer) returns one day as JSON for its
+  booked crew and for staff: times, place and map, rain plan, notes, league
+  contact, crew and roles, kits with their cameras, the schedule by station and
+  the checklist (outdoor items left off for indoor days). Crew phone numbers
+  are shown to staff only.
+- Pages: `/gear` (kits, problems from recent returns, camera bodies, the master
+  checklist), kits on `/staffing/[dayId]` (add by station, send out, check in
+  against the checklist), and `/field/[dayId]` (phone first; prints as the day
+  sheet). Crew open it from their shifts page. Offline caching and the
+  evening-before push are not built yet.
+- SNAP's 11 kits, the 29-line master checklist and 7 camera bodies were loaded
+  from the SNAP OS gear files (February 2026, not re-verified); bodies are not
+  put in kits until someone confirms which is which.
+
+## Parent photo day page and help center (Wave B, module 13, part one)
+
+- `day_pages` holds one public page per job: an unguessable slug (name words
+  plus five random characters), a published flag, what to wear and bring, a
+  note, and whether to show team times. Office staff make and publish it from
+  the job page. Nothing is public until it is published.
+- Visitors are not signed in. `/day/[slug]` reads `public.public_day_page()`
+  and `/help/[company]` reads `public.public_help_articles()` and
+  `public.public_company()`, all security definer and granted to `anon`. The
+  tables stay closed to `anon`.
+- The day page carries dates, times, place, day status, the shop link and
+  coupon, and, once the schedule is submitted, team names, divisions and
+  times. Never players, coaches, contacts, notes or rosters (a permission test
+  checks this).
+- The help center lists published answers-shelf articles with
+  `kb_articles.on_help_center` set. Office staff turn each one on from the
+  article page. An answer with a staff slot like `[GALLERY LINK]` cannot go on,
+  and comes off if an edit adds one or moves it off the answers shelf.
+- Both pages use the light `.outward` theme (`components/public-shell.tsx`).
+- Part two (not built): gallery link and order lookups that send only to the
+  email or phone on record, rate limited; makeup booking; chat; QR sign and
+  flyer.
+
+### Crew pay follow-ups (owner's answers, 2026-11-19)
+
+- Level 1 is the top crew level; offers go to Level 1 first.
+- Crew are paid by the hour, so a new pay rate defaults to hourly.
+- Mileage is a company setting (`pay.mileage_cents_per_mile`), editable in
+  Settings. It is paid round trip, from the person's home to the photo day and back. Home
+  addresses live in `crew_homes`, owner and admin only, never in the activity
+  log. The pay page links driving directions from home to the day; working
+  out the miles automatically needs a maps service and is not built yet.
+- Each kit keeps its camera body (`camera_bodies.kit_id`), set on the Gear page.
+
+### Crew profiles and direct assignment (owner's ask, 2026-11-20)
+
+- `/crew/[id]` is the crew member's profile: photo, contact details,
+  positions, Level, notes (office edits), home address and emergency contact
+  (`crew_private`, owner and admin only, never logged), pay rates (owner and
+  admin). `/crew/new` adds someone.
+- Photos live in the private `crew-photos` bucket; the server makes one-hour
+  signed links for staff (`lib/staffing/photos.ts`).
+- The office can put someone straight on a photo day from the job page or
+  the staffing page (`assignDirect`): a filled shift in the office's name, with
+  the crew notice queued for approval.
+- Embedding `crew_members` from `shifts` must name the foreign key
+  (`crew_members!shifts_crew_member_id_fkey`): `shift_responses` and
+  `pay_lines` also link the two tables, so PostgREST finds more than one path.

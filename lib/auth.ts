@@ -17,6 +17,7 @@ export type Viewer = {
   name: string;
   companyId: string | null;
   companyName: string | null;
+  companySlug: string | null;
   timeZone: string;
   roles: AppRole[];
 };
@@ -45,14 +46,16 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
     .eq("profile_id", user.id);
 
   let companyName: string | null = null;
+  let companySlug: string | null = null;
   let timeZone = "America/New_York";
   if (profile?.company_id) {
     const { data: company } = await supabase
       .from("companies")
-      .select("name, time_zone")
+      .select("name, slug, time_zone")
       .eq("id", profile.company_id)
       .maybeSingle();
     companyName = company?.name ?? null;
+    companySlug = company?.slug ?? null;
     timeZone = company?.time_zone ?? timeZone;
   }
 
@@ -62,6 +65,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
     name: profile?.full_name ?? user.email ?? "",
     companyId: profile?.company_id ?? null,
     companyName,
+    companySlug,
     timeZone,
     roles: (roleRows ?? []).map((r) => r.role),
   };

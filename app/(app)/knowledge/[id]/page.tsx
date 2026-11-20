@@ -9,6 +9,8 @@ import { KbText } from "@/components/kb-text";
 import { SUPPORT_ROLES } from "@/lib/support/labels";
 import { SHELF_LABEL, STATUS_LABEL, type KbShelf, type KbStatus } from "@/lib/kb/labels";
 import { ArticleForm } from "../forms";
+import { setOnHelpCenter } from "../actions";
+import { SLOT_PATTERN } from "@/lib/kb/labels";
 
 export const metadata: Metadata = { title: "Article" };
 
@@ -19,7 +21,7 @@ export default async function ArticlePage({ params }: PageProps<"/knowledge/[id]
   if (!articleId.success) notFound();
   const supabase = await createClient();
   const [{ data: a }, { data: versions }, { data: sectionRows }] = await Promise.all([
-    supabase.from("kb_articles").select("id, shelf, section, title, body, status, version, updated_at, updated_by").eq("id", articleId.data).maybeSingle(),
+    supabase.from("kb_articles").select("id, shelf, section, title, body, status, version, updated_at, updated_by, on_help_center").eq("id", articleId.data).maybeSingle(),
     supabase.from("kb_article_versions").select("version, title, body, status, edited_at, edited_by").eq("article_id", articleId.data).order("version", { ascending: false }),
     supabase.from("kb_articles").select("section").not("section", "is", null),
   ]);
@@ -40,7 +42,28 @@ export default async function ArticlePage({ params }: PageProps<"/knowledge/[id]
       <div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted">
         <Pill tone={a.status === "published" ? "ok" : "warn"}>{STATUS_LABEL[a.status as KbStatus]}</Pill>
         <span>Version {a.version}, {when.format(new Date(a.updated_at))} by {nameOf(a.updated_by)}</span>
+        {a.shelf === "answers" && a.on_help_center && <Pill tone="ok">On the help center</Pill>}
       </div>
+      {canEdit && a.shelf === "answers" && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
+          {a.on_help_center ? (
+            <form action={setOnHelpCenter.bind(null, a.id, false)}>
+              <button className="rounded-lg border border-line px-3 py-1.5 hover:border-accent">Take off the help center</button>
+            </form>
+          ) : a.status !== "published" ? (
+            <span className="text-muted">Publish this answer before it can go on the parent help center.</span>
+          ) : SLOT_PATTERN.test(a.body) ? (
+            <span className="text-muted">This answer has a [SLOT] for staff to fill in, so it cannot go on the parent help center.</span>
+          ) : (
+            <form action={setOnHelpCenter.bind(null, a.id, true)}>
+              <button className="rounded-lg border border-line px-3 py-1.5 hover:border-accent">Show on the parent help center</button>
+            </form>
+          )}
+          {viewer.companySlug && (
+            <a href={`/help/${viewer.companySlug}`} target="_blank" rel="noreferrer" className="text-accent hover:underline">Open the help center</a>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">

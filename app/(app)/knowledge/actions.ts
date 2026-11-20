@@ -6,7 +6,7 @@ import { z } from "zod";
 import { OFFICE_ROLES, requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { parseKnowledgeMarkdown } from "@/lib/kb/import";
-import { KB_SHELVES, KB_STATUSES } from "@/lib/kb/labels";
+import { KB_SHELVES, KB_STATUSES, SLOT_PATTERN } from "@/lib/kb/labels";
 
 // The knowledge base. Office staff write; RLS says the same, and the database
 // stamps who changed what and keeps every earlier version.
@@ -32,11 +32,14 @@ export async function saveArticle(id: string | null, _prev: KbState, form: FormD
   });
   if (!parsed.success) return { ok: false, message: "An article needs a title, a shelf and some text." };
   const row = { ...parsed.data, section: parsed.data.section || null };
+  // An answer that now has a staff slot in it, or moved off the answers shelf,
+  // comes off the public help center.
+  const offHelp = parsed.data.shelf !== "answers" || SLOT_PATTERN.test(parsed.data.body) ? { on_help_center: false } : {};
   const supabase = await createClient();
   if (id) {
     const articleId = z.uuid().safeParse(id);
     if (!articleId.success) return { ok: false, message: "That article was not found." };
-    const { data, error } = await supabase.from("kb_articles").update(row).eq("id", articleId.data).select("id, version");
+    const { data, error } = await supabase.from("kb_articles").update({ ...row, ...offHelp }).eq("id", articleId.data).select("id, version");
     if (error || !data?.length) return { ok: false, message: "Could not save. Try again." };
     revalidatePath("/knowledge");
     revalidatePath(`/knowledge/${articleId.data}`);
@@ -98,4 +101,19 @@ export async function importArticles(_prev: KbState, form: FormData): Promise<Kb
     ok: true,
     message: `Added ${fresh.length} ${fresh.length === 1 ? "article" : "articles"}${skipped ? `; ${skipped} were already here` : ""}.`,
   };
+}
+
+// Puts a published answer on the public help center, or takes it off.
+export async function setOnHelpCenter(id: string, on: boolean): Promise<void> {
+  await requireStaff(OFFICE_ROLES);
+  const articleId = z.uuid().safeParse(id);
+  if (!articleId.success) return;
+  const supabase = await createClient();
+  if (on) {
+    const { data: a } = await supabase.from("kb_articles").select("shelf, status, body").eq("id", articleId.data).maybeSingle();
+    if (!a || a.shelf !== "answers" || a.status !== "published" || SLOT_PATTERN.test(a.body)) return;
+  }
+  await supabase.from("kb_articles").update({ on_help_center: on }).eq("id", articleId.data);
+  revalidatePath(`/knowledge/${articleId.data}`);
+  revalidatePath("/knowledge");
 }

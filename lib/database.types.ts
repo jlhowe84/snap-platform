@@ -516,6 +516,60 @@ export type Database = {
           },
         ]
       }
+      camera_bodies: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          id: string
+          kit_id: string | null
+          letter: string | null
+          model: string | null
+          notes: string | null
+          serial: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          id?: string
+          kit_id?: string | null
+          letter?: string | null
+          model?: string | null
+          notes?: string | null
+          serial: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          id?: string
+          kit_id?: string | null
+          letter?: string | null
+          model?: string | null
+          notes?: string | null
+          serial?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "camera_bodies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "camera_bodies_kit_id_fkey"
+            columns: ["kit_id"]
+            isOneToOne: false
+            referencedRelation: "kits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clock_log: {
         Row: {
           action_id: string | null
@@ -680,6 +734,7 @@ export type Database = {
           notes: string | null
           notion_page_id: string | null
           phone: string | null
+          photo_path: string | null
           positions: string[]
           profile_id: string | null
           state: string | null
@@ -697,6 +752,7 @@ export type Database = {
           notes?: string | null
           notion_page_id?: string | null
           phone?: string | null
+          photo_path?: string | null
           positions?: string[]
           profile_id?: string | null
           state?: string | null
@@ -714,6 +770,7 @@ export type Database = {
           notes?: string | null
           notion_page_id?: string | null
           phone?: string | null
+          photo_path?: string | null
           positions?: string[]
           profile_id?: string | null
           state?: string | null
@@ -732,6 +789,48 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: true
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_private: {
+        Row: {
+          address: string | null
+          company_id: string
+          crew_member_id: string
+          emergency_name: string | null
+          emergency_phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          company_id: string
+          crew_member_id: string
+          emergency_name?: string | null
+          emergency_phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          company_id?: string
+          crew_member_id?: string
+          emergency_name?: string | null
+          emergency_phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_homes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_homes_crew_member_id_fkey"
+            columns: ["crew_member_id"]
+            isOneToOne: true
+            referencedRelation: "crew_members"
             referencedColumns: ["id"]
           },
         ]
@@ -928,6 +1027,80 @@ export type Database = {
             columns: ["photo_day_id"]
             isOneToOne: true
             referencedRelation: "photo_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      day_pages: {
+        Row: {
+          company_id: string
+          created_at: string
+          job_id: string
+          note: string | null
+          published: boolean
+          published_at: string | null
+          show_team_times: boolean
+          slug: string
+          updated_at: string
+          updated_by: string | null
+          what_to_bring: string | null
+          what_to_wear: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          job_id: string
+          note?: string | null
+          published?: boolean
+          published_at?: string | null
+          show_team_times?: boolean
+          slug: string
+          updated_at?: string
+          updated_by?: string | null
+          what_to_bring?: string | null
+          what_to_wear?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          job_id?: string
+          note?: string | null
+          published?: boolean
+          published_at?: string | null
+          show_team_times?: boolean
+          slug?: string
+          updated_at?: string
+          updated_by?: string | null
+          what_to_bring?: string | null
+          what_to_wear?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "day_pages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_pages_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "job_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_pages_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_pages_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1367,6 +1540,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          on_help_center: boolean
           position: number
           search: unknown
           section: string | null
@@ -1383,6 +1557,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          on_help_center?: boolean
           position?: number
           search?: unknown
           section?: string | null
@@ -1399,6 +1574,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          on_help_center?: boolean
           position?: number
           search?: unknown
           section?: string | null
@@ -1429,6 +1605,212 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kit_checklist_items: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+          outdoor_only: boolean
+          position: number
+          section: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+          outdoor_only?: boolean
+          position?: number
+          section: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          outdoor_only?: boolean
+          position?: number
+          section?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kit_checklist_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kit_checkouts: {
+        Row: {
+          back_at: string | null
+          back_by: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          issues: string | null
+          job_id: string
+          kit_id: string
+          missing: string[]
+          out_at: string | null
+          out_by: string | null
+          photo_day_id: string
+          station: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          back_at?: string | null
+          back_by?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          issues?: string | null
+          job_id: string
+          kit_id: string
+          missing?: string[]
+          out_at?: string | null
+          out_by?: string | null
+          photo_day_id: string
+          station?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          back_at?: string | null
+          back_by?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          issues?: string | null
+          job_id?: string
+          kit_id?: string
+          missing?: string[]
+          out_at?: string | null
+          out_by?: string | null
+          photo_day_id?: string
+          station?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kit_checkouts_back_by_fkey"
+            columns: ["back_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_checkouts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_checkouts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_checkouts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_checkouts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_checkouts_kit_id_fkey"
+            columns: ["kit_id"]
+            isOneToOne: false
+            referencedRelation: "kits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_checkouts_out_by_fkey"
+            columns: ["out_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_checkouts_photo_day_id_fkey"
+            columns: ["photo_day_id"]
+            isOneToOne: false
+            referencedRelation: "photo_day_readiness"
+            referencedColumns: ["photo_day_id"]
+          },
+          {
+            foreignKeyName: "kit_checkouts_photo_day_id_fkey"
+            columns: ["photo_day_id"]
+            isOneToOne: false
+            referencedRelation: "photo_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kits: {
+        Row: {
+          code: string
+          company_id: string
+          created_at: string
+          id: string
+          name: string | null
+          notes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          company_id: string
+          created_at?: string
+          id?: string
+          name?: string | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kits_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -2167,6 +2549,181 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pay_lines: {
+        Row: {
+          adjustment: number
+          approved_at: string | null
+          approved_by: string | null
+          base: number
+          company_id: string
+          created_at: string
+          created_by: string | null
+          crew_member_id: string
+          description: string | null
+          hours: number | null
+          id: string
+          mileage: number
+          miles: number
+          note: string | null
+          paid_at: string | null
+          position: string | null
+          rate: number | null
+          shift_id: string | null
+          status: string
+          total: number | null
+          unit: string | null
+          updated_at: string
+          work_date: string
+        }
+        Insert: {
+          adjustment?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          base?: number
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          crew_member_id: string
+          description?: string | null
+          hours?: number | null
+          id?: string
+          mileage?: number
+          miles?: number
+          note?: string | null
+          paid_at?: string | null
+          position?: string | null
+          rate?: number | null
+          shift_id?: string | null
+          status?: string
+          total?: number | null
+          unit?: string | null
+          updated_at?: string
+          work_date: string
+        }
+        Update: {
+          adjustment?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          base?: number
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          crew_member_id?: string
+          description?: string | null
+          hours?: number | null
+          id?: string
+          mileage?: number
+          miles?: number
+          note?: string | null
+          paid_at?: string | null
+          position?: string | null
+          rate?: number | null
+          shift_id?: string | null
+          status?: string
+          total?: number | null
+          unit?: string | null
+          updated_at?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pay_lines_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_lines_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_lines_crew_member_id_fkey"
+            columns: ["crew_member_id"]
+            isOneToOne: false
+            referencedRelation: "crew_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_lines_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: true
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pay_rates: {
+        Row: {
+          amount: number
+          company_id: string
+          created_at: string
+          crew_member_id: string
+          id: string
+          notes: string | null
+          position: string
+          unit: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          amount: number
+          company_id: string
+          created_at?: string
+          crew_member_id: string
+          id?: string
+          notes?: string | null
+          position: string
+          unit?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          created_at?: string
+          crew_member_id?: string
+          id?: string
+          notes?: string | null
+          position?: string
+          unit?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pay_rates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_rates_crew_member_id_fkey"
+            columns: ["crew_member_id"]
+            isOneToOne: false
+            referencedRelation: "crew_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pay_rates_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -3029,6 +3586,165 @@ export type Database = {
           },
         ]
       }
+      shift_responses: {
+        Row: {
+          company_id: string
+          crew_member_id: string
+          responded_at: string
+          response: string
+          shift_id: string
+        }
+        Insert: {
+          company_id: string
+          crew_member_id: string
+          responded_at?: string
+          response: string
+          shift_id: string
+        }
+        Update: {
+          company_id?: string
+          crew_member_id?: string
+          responded_at?: string
+          response?: string
+          shift_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_responses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_responses_crew_member_id_fkey"
+            columns: ["crew_member_id"]
+            isOneToOne: false
+            referencedRelation: "crew_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_responses_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shifts: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          crew_member_id: string | null
+          end_time: string | null
+          filled_at: string | null
+          filled_by: string | null
+          id: string
+          job_id: string
+          notes: string | null
+          open_level: number | null
+          photo_day_id: string
+          position: string
+          published_at: string | null
+          start_time: string | null
+          station: number | null
+          status: Database["public"]["Enums"]["shift_status"]
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          crew_member_id?: string | null
+          end_time?: string | null
+          filled_at?: string | null
+          filled_by?: string | null
+          id?: string
+          job_id: string
+          notes?: string | null
+          open_level?: number | null
+          photo_day_id: string
+          position: string
+          published_at?: string | null
+          start_time?: string | null
+          station?: number | null
+          status?: Database["public"]["Enums"]["shift_status"]
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          crew_member_id?: string | null
+          end_time?: string | null
+          filled_at?: string | null
+          filled_by?: string | null
+          id?: string
+          job_id?: string
+          notes?: string | null
+          open_level?: number | null
+          photo_day_id?: string
+          position?: string
+          published_at?: string | null
+          start_time?: string | null
+          station?: number | null
+          status?: Database["public"]["Enums"]["shift_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shifts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_crew_member_id_fkey"
+            columns: ["crew_member_id"]
+            isOneToOne: false
+            referencedRelation: "crew_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shifts_photo_day_id_fkey"
+            columns: ["photo_day_id"]
+            isOneToOne: false
+            referencedRelation: "photo_day_readiness"
+            referencedColumns: ["photo_day_id"]
+          },
+          {
+            foreignKeyName: "shifts_photo_day_id_fkey"
+            columns: ["photo_day_id"]
+            isOneToOne: false
+            referencedRelation: "photo_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_invites: {
         Row: {
           company_id: string
@@ -3769,6 +4485,30 @@ export type Database = {
         Returns: string
       }
       clock_due: { Args: { p_company: string; p_today: string }; Returns: Json }
+      create_pay_lines: {
+        Args: { p_from: string; p_to: string }
+        Returns: number
+      }
+      crew_shift_board: {
+        Args: never
+        Returns: {
+          address: string
+          city: string
+          date: string
+          end_time: string
+          indoor: boolean
+          job_name: string
+          kind: string
+          location_name: string
+          notes: string
+          photo_day_id: string
+          position: string
+          shift_id: string
+          start_time: string
+          state: string
+          station: number
+        }[]
+      }
       decide_action: {
         Args: {
           p_action_id: string
@@ -3782,6 +4522,7 @@ export type Database = {
         Args: { p_days?: number; p_hold_id: string }
         Returns: string
       }
+      field_view: { Args: { p_photo_day: string }; Returns: Json }
       hold_date: {
         Args: {
           p_date: string
@@ -3873,6 +4614,17 @@ export type Database = {
           profile_id: string
         }[]
       }
+      public_company: { Args: { p_company_slug: string }; Returns: Json }
+      public_day_page: { Args: { p_slug: string }; Returns: Json }
+      public_help_articles: {
+        Args: { p_company_slug: string; p_query?: string }
+        Returns: {
+          body: string
+          id: string
+          section: string
+          title: string
+        }[]
+      }
       release_hold: {
         Args: {
           p_hold_id: string
@@ -3880,6 +4632,10 @@ export type Database = {
           p_reason?: string
         }
         Returns: undefined
+      }
+      respond_to_shift: {
+        Args: { p_accept: boolean; p_shift_id: string }
+        Returns: string
       }
       save_planning_form: {
         Args: { p_answers: Json; p_job_id: string; p_submit: boolean }
@@ -3991,6 +4747,7 @@ export type Database = {
         | "gallery_prep"
         | "qa_marketing"
         | "complete"
+      shift_status: "draft" | "open" | "filled" | "cancelled"
       support_status:
         | "new"
         | "open"
@@ -4177,6 +4934,7 @@ export const Constants = {
         "qa_marketing",
         "complete",
       ],
+      shift_status: ["draft", "open", "filled", "cancelled"],
       support_status: [
         "new",
         "open",
