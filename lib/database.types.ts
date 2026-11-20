@@ -4656,6 +4656,10 @@ export type Database = {
         Returns: string
       }
       clock_due: { Args: { p_company: string; p_today: string }; Returns: Json }
+      combine_jobs: {
+        Args: { p_keep: string; p_other: string }
+        Returns: undefined
+      }
       create_pay_lines: {
         Args: { p_from: string; p_to: string }
         Returns: number

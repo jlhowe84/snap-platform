@@ -1349,5 +1349,40 @@ select t.count_is($$select count(*) from public.shifts s join public.photo_days 
 select t.login('support');
 select t.fails($$insert into public.shifts (company_id, job_id, photo_day_id, position, status, crew_member_id, filled_by) select company_id, job_id, id, 'poser', 'filled', (select id from public.crew_members where full_name = 'Crew A'), 'office' from public.photo_days where job_id = '40000000-0000-0000-0000-0000000000a2'$$, 'support cannot assign staff');
 reset role;
+-- Combining jobs: photo days kept as separate jobs become one job.
+insert into public.jobs (id, company_id, org_id, name, status) values
+  ('4f000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-0000000000a1', 'Job A3', 'planning'),
+  ('4f000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-0000000000a1', 'Job A4', 'cancelled');
+insert into public.photo_days (id, company_id, job_id, date) values
+  ('4f100000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-00000000000a', '4f000000-0000-0000-0000-000000000001', '2027-05-01'),
+  ('4f100000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-00000000000a', '4f000000-0000-0000-0000-000000000002', '2027-05-02');
+insert into public.job_links (job_id, company_id, captura_gallery_id) values
+  ('4f000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-00000000000a', 888);
+insert into public.job_contacts (job_id, contact_id, company_id) values
+  ('4f000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a');
+insert into public.shifts (company_id, job_id, photo_day_id, position, status) values
+  ('a0000000-0000-0000-0000-00000000000a', '4f000000-0000-0000-0000-000000000002', '4f100000-0000-0000-0000-000000000002', 'poser', 'draft');
+insert into public.tasks (company_id, job_id, title) values
+  ('a0000000-0000-0000-0000-00000000000a', '4f000000-0000-0000-0000-000000000002', 'Task of the absorbed job');
+select t.login('support');
+select t.fails($$select public.combine_jobs('4f000000-0000-0000-0000-000000000001', '4f000000-0000-0000-0000-000000000002')$$, 'support cannot combine jobs');
+select t.login('coord');
+select t.fails($$select public.combine_jobs('4f000000-0000-0000-0000-000000000001', '4f000000-0000-0000-0000-000000000002')$$, 'a coordinator cannot combine jobs');
+select t.login('office');
+select t.fails($$select public.combine_jobs('4f000000-0000-0000-0000-000000000001', '4f000000-0000-0000-0000-000000000001')$$, 'a job cannot be combined with itself');
+select t.fails($$select public.combine_jobs('4f000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-0000000000b1')$$, 'another company''s job cannot be combined');
+select t.fails($$select public.combine_jobs('4f000000-0000-0000-0000-000000000002', '4f000000-0000-0000-0000-000000000001')$$, 'a cancelled job cannot absorb a live one');
+select t.fails($$select public.combine_jobs('4f000000-0000-0000-0000-000000000001', '40000000-0000-0000-0000-0000000000a1')$$, 'a job with planning of its own is not absorbed');
+select t.works($$select public.combine_jobs('4f000000-0000-0000-0000-000000000001', '4f000000-0000-0000-0000-000000000002')$$, 'office combines two jobs of one league');
+select t.count_is($$select count(*) from public.jobs where id = '4f000000-0000-0000-0000-000000000002'$$, 0, 'the absorbed job is gone');
+select t.count_is($$select count(*) from public.photo_days where job_id = '4f000000-0000-0000-0000-000000000001'$$, 2, 'the kept job holds both photo days');
+select t.count_is($$select count(*) from public.photo_days where id = '4f100000-0000-0000-0000-000000000002' and status = 'cancelled' and label = 'Job A4'$$, 1, 'a cancelled job''s day stays cancelled and keeps its name');
+select t.count_is($$select count(*) from public.shifts where photo_day_id = '4f100000-0000-0000-0000-000000000002' and job_id = '4f000000-0000-0000-0000-000000000001'$$, 1, 'shifts follow their photo day');
+select t.count_is($$select count(*) from public.tasks where title = 'Task of the absorbed job' and job_id = '4f000000-0000-0000-0000-000000000001'$$, 1, 'tasks move to the kept job');
+select t.count_is($$select count(*) from public.job_links where job_id = '4f000000-0000-0000-0000-000000000001' and captura_gallery_id = 888$$, 1, 'the kept job takes the gallery it lacked');
+select t.count_is($$select count(*) from public.job_contacts where job_id = '4f000000-0000-0000-0000-000000000001'$$, 1, 'contacts come along');
+select t.count_is($$select count(*) from public.jobs where id = '4f000000-0000-0000-0000-000000000001' and notes like 'Combined with Job A4 (May 2, 2027)%'$$, 1, 'the kept job notes what was combined');
+reset role;
+reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;
 rollback;
