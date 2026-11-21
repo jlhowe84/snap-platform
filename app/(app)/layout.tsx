@@ -46,6 +46,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       label: "Today",
       items: [
         { href: "/", label: "Today", show: desk },
+        { href: "/owner", label: "Owner home", show: admin },
         { href: "/shifts", label: "My shifts", show: crew },
         { href: "/pay", label: "My pay", show: crew },
         { href: "/notices", label: "Notices", show: true, badge: unread ?? 0 },

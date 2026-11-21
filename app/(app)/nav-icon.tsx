@@ -109,6 +109,13 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M8.5 8V5.5a1.5 1.5 0 0 1 1.5-1.5h4a1.5 1.5 0 0 1 1.5 1.5V8M3.5 13h17" />
     </>
   ),
+  // Owner home: a gauge
+  "/owner": (
+    <>
+      <path d="M4 16a8 8 0 1 1 16 0" />
+      <path d="M12 16l4-5M3.5 19.5h17" />
+    </>
+  ),
   // Orders: a shopping bag
   "/orders": (
     <>
