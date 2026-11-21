@@ -4,6 +4,8 @@ import { requireStaff, hasAnyRole, ADMIN_ROLES, OFFICE_ROLES } from "@/lib/auth"
 import { liveSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill, ReadinessStrip, StatusDot } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
+import { startProduction } from "../../production/actions";
 import { formatDate, formatTime, todayIn } from "@/lib/dates";
 import { MoneyTermsList } from "@/components/money-terms";
 import { seasonForDate } from "@/lib/season";
@@ -246,6 +248,13 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
   const season = seasonForDate(days?.[0]?.date);
   const stageIndex = job.production_stage ? STAGES.indexOf(job.production_stage) : -1;
+  // Production can start once the last photo day is here; a job already in
+  // production without the platform's tasks can be given them.
+  const lastDay = days?.length ? days[days.length - 1].date : null;
+  const canStartProduction =
+    office &&
+    !job.production_started_at &&
+    ((job.status === "planning" && lastDay !== null && lastDay <= todayIn(viewer.timeZone)) || job.status === "in_production");
 
   return (
     <>
@@ -282,10 +291,35 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
 
       <JumpBar sections={sections} />
 
-      {stageIndex >= 0 && (
-        <Card className="mb-6" title="Production">
-          <ReadinessStrip steps={STAGES.map((s) => STAGE_LABEL[s])} current={stageIndex} />
-          <p className="mt-2 text-sm text-muted">Current stage: {STAGE_LABEL[job.production_stage!]}</p>
+      {(stageIndex >= 0 || canStartProduction) && (
+        <Card
+          className="mb-6"
+          title="Production"
+          action={office ? <Link href="/production" className="text-sm text-accent hover:underline">Production board</Link> : undefined}
+        >
+          {stageIndex >= 0 && (
+            <>
+              <ReadinessStrip steps={STAGES.map((s) => STAGE_LABEL[s])} current={stageIndex} />
+              <p className="mt-2 text-sm text-muted">
+                Current stage: {STAGE_LABEL[job.production_stage!]}
+                {job.production_started_at ? ". The stage follows the production tasks below: finish a stage's tasks and the job moves on." : ""}
+              </p>
+            </>
+          )}
+          {canStartProduction && (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted">
+                {job.status === "planning"
+                  ? "The photo days are over. Starting production gives this job its production tasks."
+                  : "This job has no production tasks from the platform yet."}
+              </p>
+              <form action={startProduction.bind(null, job.id)}>
+                <SubmitButton className="min-h-12 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-ink hover:brightness-110 sm:min-h-0 sm:py-1.5">
+                  {job.status === "planning" ? "Start production" : "Add the production tasks"}
+                </SubmitButton>
+              </form>
+            </div>
+          )}
         </Card>
       )}
 

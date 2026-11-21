@@ -1416,6 +1416,40 @@ select t.count_is($$select count(*) from public.job_notes where body = 'Admin wr
 delete from public.job_notes where body = 'Office wrote this';
 select t.count_is($$select count(*) from public.job_notes where body = 'Office wrote this'$$, 0, 'an admin can delete anyone''s note');
 reset role;
+
+-- Production board: tasks from the production playbook, and the stage worked out from them.
+select set_config('request.jwt.claim.sub', '', true);
+insert into public.playbooks (id, company_id, key, name, kind) values
+  ('50000000-0000-0000-0000-0000000000a2', 'a0000000-0000-0000-0000-00000000000a', 'production_test', 'Production', 'production'),
+  ('50000000-0000-0000-0000-0000000000b2', 'b0000000-0000-0000-0000-00000000000b', 'production_test', 'Production', 'production');
+insert into public.playbook_steps (company_id, playbook_id, position, name, stage, offset_days) values
+  ('a0000000-0000-0000-0000-00000000000a', '50000000-0000-0000-0000-0000000000a2', 1, 'Data entry', null, 7),
+  ('a0000000-0000-0000-0000-00000000000a', '50000000-0000-0000-0000-0000000000a2', 2, 'Import photos', 'Import', 2),
+  ('a0000000-0000-0000-0000-00000000000a', '50000000-0000-0000-0000-0000000000a2', 3, 'Upload and sort', 'Upload', 6),
+  ('a0000000-0000-0000-0000-00000000000a', '50000000-0000-0000-0000-0000000000a2', 4, 'Release orders', 'QA/Marketing', 14),
+  ('b0000000-0000-0000-0000-00000000000b', '50000000-0000-0000-0000-0000000000b2', 1, 'Other company step', 'Import', 2);
+update public.jobs set status = 'planning', production_stage = null where id = '40000000-0000-0000-0000-0000000000a1';
+select t.login('support');
+select t.fails($$select public.start_production('40000000-0000-0000-0000-0000000000a1')$$, 'support cannot start production');
+select t.login('owner_b');
+select t.fails($$select public.start_production('40000000-0000-0000-0000-0000000000a1')$$, 'another company cannot start production on the job');
+select t.login('anon');
+select t.fails($$select public.start_production('40000000-0000-0000-0000-0000000000a1')$$, 'anon cannot start production');
+select t.login('office');
+select t.count_is($$select public.start_production('40000000-0000-0000-0000-0000000000a1')$$, 4, 'the office starts production and the job gains its own company''s steps');
+select t.count_is($$select public.start_production('40000000-0000-0000-0000-0000000000a1')$$, 0, 'starting again adds nothing');
+select t.count_is($$select count(*) from public.jobs where id = '40000000-0000-0000-0000-0000000000a1' and status = 'in_production' and production_stage = 'import' and production_started_at is not null$$, 1, 'the job is in production at the first open stage');
+select t.count_is($$select count(*) from public.tasks t join public.playbook_steps s on s.id = t.playbook_step_id where t.job_id = '40000000-0000-0000-0000-0000000000a1' and s.name = 'Import photos' and t.due_on = (select max(date) + 2 from public.photo_days where job_id = t.job_id)$$, 1, 'due dates count from the last photo day');
+update public.tasks set status = 'done' where job_id = '40000000-0000-0000-0000-0000000000a1' and title = 'Import photos';
+select t.count_is($$select count(*) from public.jobs where id = '40000000-0000-0000-0000-0000000000a1' and production_stage = 'upload'$$, 1, 'closing a stage''s tasks moves the job to the next stage');
+update public.tasks set status = 'done' where job_id = '40000000-0000-0000-0000-0000000000a1' and title = 'Release orders';
+select t.count_is($$select count(*) from public.jobs where id = '40000000-0000-0000-0000-0000000000a1' and production_stage = 'upload' and status = 'in_production'$$, 1, 'a later task done early does not skip an open stage');
+update public.tasks set status = 'done' where job_id = '40000000-0000-0000-0000-0000000000a1' and title = 'Upload and sort';
+select t.count_is($$select count(*) from public.jobs where id = '40000000-0000-0000-0000-0000000000a1' and production_stage = 'complete' and status = 'at_lab'$$, 1, 'with every staged task done the job is complete and at the lab, even with an unstaged task open');
+update public.tasks set status = 'todo' where job_id = '40000000-0000-0000-0000-0000000000a1' and title = 'Upload and sort';
+select t.count_is($$select count(*) from public.jobs where id = '40000000-0000-0000-0000-0000000000a1' and production_stage = 'upload' and status = 'in_production'$$, 1, 'reopening a task brings the job back into production');
+select t.fails($$select public.start_production('40000000-0000-0000-0000-0000000000b1')$$, 'the office cannot start production on another company''s job');
+reset role;
 reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;
 rollback;

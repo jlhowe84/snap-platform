@@ -1609,6 +1609,8 @@ export type Database = {
           production_stage:
             | Database["public"]["Enums"]["production_stage"]
             | null
+          production_stage_since: string | null
+          production_started_at: string | null
           program: string
           promo: string | null
           sale_mode: string
@@ -1639,6 +1641,8 @@ export type Database = {
           production_stage?:
             | Database["public"]["Enums"]["production_stage"]
             | null
+          production_stage_since?: string | null
+          production_started_at?: string | null
           program?: string
           promo?: string | null
           sale_mode?: string
@@ -1669,6 +1673,8 @@ export type Database = {
           production_stage?:
             | Database["public"]["Enums"]["production_stage"]
             | null
+          production_stage_since?: string | null
+          production_started_at?: string | null
           program?: string
           promo?: string | null
           sale_mode?: string
@@ -4941,6 +4947,7 @@ export type Database = {
         Args: { p_company: string; p_galleries: number[] }
         Returns: undefined
       }
+      start_production: { Args: { p_job: string }; Returns: number }
       submit_schedule: { Args: { p_schedule_id: string }; Returns: string }
       support_drop_quiet: {
         Args: { p_company: string; p_senders: string[] }

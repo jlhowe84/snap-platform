@@ -58,6 +58,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       label: "Jobs",
       items: [
         { href: "/jobs", label: "Jobs", show: desk },
+        { href: "/production", label: "Production", show: office },
         { href: "/season", label: "Season", show: support },
         { href: "/leagues", label: "Leagues", show: support },
       ],

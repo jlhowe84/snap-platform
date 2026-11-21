@@ -24,6 +24,14 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M8 12.5l3 3 5-6.5" />
     </>
   ),
+  // Production: columns of a board
+  "/production": (
+    <>
+      <rect x="3.5" y="4" width="4.5" height="16" rx="1.5" />
+      <rect x="9.75" y="4" width="4.5" height="10" rx="1.5" />
+      <rect x="16" y="4" width="4.5" height="13" rx="1.5" />
+    </>
+  ),
   // Calendar
   "/calendar": (
     <>
