@@ -4817,6 +4817,14 @@ export type Database = {
           year: number
         }[]
       }
+      lab_gallery_totals: {
+        Args: never
+        Returns: {
+          gallery_id: number
+          lab_orders: number
+          lab_total: number
+        }[]
+      }
       lab_invoice_store: {
         Args: { p_company: string; p_invoice: Json }
         Returns: boolean

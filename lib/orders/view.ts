@@ -129,3 +129,28 @@ export function sum(lines: GalleryLine[]) {
   );
   return { ...t, gross: cents(t.gross), refunded: cents(t.refunded), netPay: cents(t.netPay) };
 }
+
+export type LabTotal = { gallery_id: number | null; lab_orders: number; lab_total: number | string };
+
+/** What the lab charged for each gallery, from public.lab_gallery_totals(). */
+export function labByGallery(rows: LabTotal[]): Map<number, { orders: number; total: number }> {
+  const m = new Map<number, { orders: number; total: number }>();
+  for (const r of rows) {
+    if (r.gallery_id === null) continue;
+    m.set(Number(r.gallery_id), { orders: r.lab_orders, total: n(r.lab_total) });
+  }
+  return m;
+}
+
+/** Lab orders and charges over the galleries shown. */
+export function labSum(lines: { galleryId: number }[], lab: Map<number, { orders: number; total: number }>) {
+  let orders = 0;
+  let total = 0;
+  for (const l of lines) {
+    const x = lab.get(l.galleryId);
+    if (!x) continue;
+    orders += x.orders;
+    total += x.total;
+  }
+  return { orders, total: cents(total) };
+}
