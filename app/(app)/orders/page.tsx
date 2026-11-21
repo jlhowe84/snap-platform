@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Stat, Table, cx } from "@/components/ui";
 import { formatDate, todayIn } from "@/lib/dates";
 import { shiftDay } from "@/lib/orders/plan";
-import { change, comparisons, galleryLines, seasonsOf, sum, type DayTotal, type GalleryTotal } from "@/lib/orders/view";
+import { change, comparisons, galleryLines, labByGallery, labSum, seasonsOf, sum, type DayTotal, type GalleryTotal, type LabTotal } from "@/lib/orders/view";
 import { likelyJobs, likelyOptions, type JobChoice } from "@/lib/orders/match";
 import { CheckOrders, LinkGallery, UnlinkJob } from "./forms";
 
@@ -41,9 +41,11 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
   const rows = (galleries ?? []) as GalleryTotal[];
   // Every job's first photo day: it sets a linked gallery's season and tells
   // apart the jobs of one league, which share a name.
-  const [{ data: allDays }, { data: links }] = await Promise.all([
+  const [{ data: allDays }, { data: links }, { data: labRows }, { data: firstInvoice }] = await Promise.all([
     supabase.from("photo_days").select("job_id, date").order("date").limit(10000),
     supabase.from("job_links").select("job_id, captura_gallery_id").not("captura_gallery_id", "is", null).limit(5000),
+    supabase.rpc("lab_gallery_totals"),
+    supabase.from("lab_invoices").select("invoice_date").order("invoice_date").limit(1).maybeSingle(),
   ]);
   const firstDayOfJob = new Map<string, string>();
   for (const d of allDays ?? []) if (!firstDayOfJob.has(d.job_id)) firstDayOfJob.set(d.job_id, d.date);
@@ -62,6 +64,9 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
   const picked = typeof sp.season === "string" && seasons.includes(sp.season) ? sp.season : (seasons[0] ?? null);
   const shown = picked ? lines.filter((l) => l.season === picked) : lines;
   const totals = sum(shown);
+  const lab = labByGallery((labRows ?? []) as LabTotal[]);
+  const labTotals = labSum(shown, lab);
+  const labSince = firstInvoice?.invoice_date ?? null;
   const unlinked = shown.filter((l) => !l.jobId).length;
   const historyLoading = !state?.history_done;
   // The ledger holds every day from its oldest order once the history is in.
@@ -128,10 +133,21 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
             ))}
           </nav>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <Stat label="Orders" value={count(totals.orders)} hint={`${count(totals.prepay)} prepay (${totals.orders ? Math.round((totals.prepay / totals.orders) * 100) : 0}%)`} />
             <Stat label="Gross" value={usd(totals.gross)} hint={`${usd(totals.orders ? totals.gross / totals.orders : 0)} an order`} />
             <Stat label="Net pay" value={usd(totals.netPay)} hint="What Captura pays SNAP after its fees" />
+            <Stat
+              label="Lab cost"
+              value={usd(labTotals.total)}
+              hint={
+                labTotals.orders
+                  ? `${count(labTotals.orders)} lab orders. ${usd(totals.netPay - labTotals.total)} left of net pay.`
+                  : labSince
+                    ? `No lab invoices for these galleries. Invoices on file start ${formatDate(labSince)}.`
+                    : "No lab invoices on file yet"
+              }
+            />
             <Stat label="Refunded" value={usd(totals.refunded)} hint="Shown apart, not taken off the gross" />
           </div>
 
@@ -141,7 +157,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
                 {unlinked} {unlinked === 1 ? "gallery is" : "galleries are"} not linked to a job yet. Each job shows its photo day, and the ones that look like the gallery&apos;s are listed first. Linking puts the gallery&apos;s orders on that job.
               </p>
             )}
-            <Table head={["Gallery", "Job", "Orders", "Prepay", "Gross", "Net pay", "Refunded", "Buyers", "Last order"]}>
+            <Table head={["Gallery", "Job", "Orders", "Prepay", "Gross", "Net pay", "Lab cost", "Refunded", "Buyers", "Last order"]}>
               {shown.map((l) => (
                 <tr key={l.galleryId} className="align-top">
                   <td className="px-3 py-2">
@@ -183,6 +199,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
                   <td className="px-3 py-2">{l.orders ? `${Math.round((l.prepay / l.orders) * 100)}%` : ""}</td>
                   <td className="px-3 py-2 font-semibold">{usd(l.gross)}</td>
                   <td className="px-3 py-2">{usd(l.netPay)}</td>
+                  <td className="px-3 py-2">{lab.get(l.galleryId) ? usd(lab.get(l.galleryId)!.total) : <span className="text-muted">None</span>}</td>
                   <td className="px-3 py-2">{l.refunded ? <span className="text-risk">{usd(l.refunded)}</span> : <span className="text-muted">None</span>}</td>
                   <td className="px-3 py-2">{count(l.buyers)}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{formatDate(l.lastOrder)}</td>
@@ -191,7 +208,8 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
             </Table>
             <p className="mt-3 text-xs text-muted">
               A gallery linked to a job counts in the season of the job&apos;s first photo day. One that is not counts in the season of its first order. Buyers are
-              distinct billing emails, counted without storing them.
+              distinct billing emails, counted without storing them. Lab cost is what the lab&apos;s invoices charged for the gallery&apos;s orders, SNAP&apos;s own
+              orders included{labSince ? `; invoices on file start ${formatDate(labSince)}` : ""}. <Link href="/lab" className="text-accent hover:underline">Lab costs</Link> has the detail.
             </p>
           </Card>
         </div>

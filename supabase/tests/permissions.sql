@@ -1146,15 +1146,21 @@ select t.count_is($$select count(*) from public.lab_invoice_orders where company
 select t.login('support');
 select t.fails($$select public.lab_assign_reference('2027 League A1', null)$$, 'support cannot match invoices to a job');
 select t.count_is($$select count(*) from public.lab_cost_summary()$$, 0, 'support sees no lab costs');
+select t.count_is($$select count(*) from public.lab_gallery_totals()$$, 0, 'support sees no lab costs by gallery');
 select t.login('office');
 -- A PO the lab charged for twice counts its earnings once and both charges.
 select t.count_is($$select count(*) from public.lab_cost_summary() where reference = '2027 League A1' and year = 2027 and invoices = 2 and orders = 3 and total = 23.87 and priced = 3 and order_total = 50 and fees = 5.48 and net_pay = 44.52 and priced_lab_total = 23.87 and job_name is not null$$, 1, 'the office sees lab costs and earnings added up by job and year');
+select t.count_is($$select sum(lab_orders) from public.lab_gallery_totals()$$, 3, 'the office sees every lab order counted under a gallery');
+select t.count_is($$select (sum(lab_total) * 100)::bigint from public.lab_gallery_totals()$$, 2387, 'and what the lab charged adds up across galleries');
 select t.fails($$select public.lab_assign_reference('2027 League A1', '40000000-0000-0000-0000-0000000000b1')$$, 'invoices cannot be matched to another company''s job');
 select t.count_is($$select public.lab_assign_reference('2027 League A1', null)$$, 3, 'the office clears a match');
 select t.count_is($$select public.lab_assign_reference('2027 League A1', '40000000-0000-0000-0000-0000000000a1')$$, 3, 'the office matches a lab job name to a job');
 select t.login('owner_b');
 select t.count_is($$select public.lab_assign_reference('2027 League A1', null)$$, 0, 'another company''s match touches nothing');
 select t.count_is($$select count(*) from public.lab_cost_summary()$$, 1, 'another company sees only its own lab costs');
+select t.count_is($$select coalesce(sum(lab_orders), 0) - (select count(*) from public.lab_invoice_orders) from public.lab_gallery_totals()$$, 0, 'and only its own lab orders by gallery');
+select t.login('anon');
+select t.fails($$select * from public.lab_gallery_totals()$$, 'anon cannot read lab costs by gallery');
 
 -- Knowledge base.
 select t.login('support');
