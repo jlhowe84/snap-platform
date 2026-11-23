@@ -1,8 +1,9 @@
+import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { OFFICE_ROLES, requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { Card, Empty, PageHeader, Pill, Stat } from "@/components/ui";
+import { PageHeader, Pill, Stat } from "@/components/ui";
 import { ConfirmButton } from "@/components/confirm-button";
 import { SubmitButton } from "@/components/submit-button";
 import { formatDate, todayIn } from "@/lib/dates";
@@ -65,97 +66,93 @@ export default async function ProductionPage() {
         <Stat label="At the lab" value={board.atLab.length} hint="Released and not yet delivered" />
       </div>
 
-      <div className="space-y-6">
-        {board.ready.length > 0 && (
-          <Card title={`Ready to start (${board.ready.length})`}>
-            <p className="mb-3 text-sm text-muted">
-              Starting production gives the job its production tasks, with due dates counted from its last photo day.
-            </p>
-            <ul className="divide-y divide-line">
-              {board.ready.map((c) => (
-                <li key={c.job.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
-                  <div className="min-w-0">
-                    <Link href={`/jobs/${c.job.id}`} className="font-medium hover:text-accent">
-                      {c.job.name}
-                    </Link>
-                    <p className="text-muted">Last photo day {formatDate(c.lastDay)}</p>
-                  </div>
-                  <form action={startProduction.bind(null, c.job.id)}>
-                    <SubmitButton className={primary}>Start production</SubmitButton>
-                  </form>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        )}
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {board.stages.map(({ stage, cards }) => (
-            <section key={stage} className="min-w-0 rounded-xl border border-line bg-surface p-4">
-              <h2 className="mb-3 flex items-baseline justify-between font-display text-lg font-semibold uppercase tracking-wider text-muted">
-                {STAGE_LABEL[stage]}
-                <span className="text-sm">{cards.length}</span>
-              </h2>
-              {cards.length ? (
-                <ul className="space-y-3">
-                  {cards.map((c) => (
-                    <StageCard key={c.job.id} card={c} />
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted">No jobs here.</p>
-              )}
-            </section>
+      {/* One row of columns on a wide screen, each scrolling on its own; the
+          columns stack on a phone, where a sideways board is hard to use. */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:overflow-x-auto md:pb-4">
+        <Column title="Ready to start" count={board.ready.length} empty="No jobs are waiting to start.">
+          {board.ready.map((c) => (
+            <li key={c.job.id} className="rounded-lg border border-line bg-surface p-3 text-sm">
+              <Link href={`/jobs/${c.job.id}`} className="font-medium hover:text-accent">
+                {c.job.name}
+              </Link>
+              <p className="mt-0.5 text-muted">Last photo day {formatDate(c.lastDay)}</p>
+              <form action={startProduction.bind(null, c.job.id)} className="mt-3">
+                <SubmitButton className={primary + " w-full"}>Start production</SubmitButton>
+              </form>
+            </li>
           ))}
-        </div>
+        </Column>
 
-        <Card title={`At the lab (${board.atLab.length})`}>
-          {board.atLab.length ? (
-            <div className="space-y-3">
-              {labs.map((lab) => {
-                const rows = board.atLab.filter((c) => (c.job.lab ?? "") === lab);
-                return (
-                  <details key={lab || "none"} className="rounded-lg border border-line">
-                    <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-3 px-4 font-medium hover:text-accent">
-                      <span>{lab ? (LAB_LABEL[lab] ?? lab) : "No lab set"}</span>
-                      <span className="text-sm text-muted">{rows.length} {rows.length === 1 ? "job" : "jobs"}</span>
-                    </summary>
-                    <ul className="divide-y divide-line border-t border-line px-4">
-                      {rows.map((c) => (
-                        <li key={c.job.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
-                          <div className="min-w-0">
-                            <Link href={`/jobs/${c.job.id}`} className="font-medium hover:text-accent">
-                              {c.job.name}
-                            </Link>
-                            <p className="text-muted">
-                              {c.lastDay ? `Photo day ${formatDate(c.lastDay)}` : "No photo day"}
-                              {c.daysInStage !== null ? ` · at the lab ${c.daysInStage} ${c.daysInStage === 1 ? "day" : "days"}` : ""}
-                            </p>
-                          </div>
-                          <form action={markDelivered.bind(null, c.job.id)}>
-                            <ConfirmButton ask="Mark this job delivered?" className={quiet}>
-                              Mark delivered
-                            </ConfirmButton>
-                          </form>
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                );
-              })}
-            </div>
-          ) : (
-            <Empty>No jobs are at the lab.</Empty>
-          )}
-        </Card>
+        {board.stages.map(({ stage, cards }) => (
+          <Column key={stage} title={STAGE_LABEL[stage]} count={cards.length}>
+            {cards.map((c) => (
+              <StageCard key={c.job.id} card={c} />
+            ))}
+          </Column>
+        ))}
+
+        <Column title="At the lab" count={board.atLab.length} empty="No jobs are at the lab.">
+          {labs.map((lab) => {
+            const rows = board.atLab.filter((c) => (c.job.lab ?? "") === lab);
+            return (
+              <li key={lab || "none"}>
+                <details className="rounded-lg border border-line bg-surface">
+                  <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-3 px-3 text-sm font-medium hover:text-accent">
+                    <span>{lab ? (LAB_LABEL[lab] ?? lab) : "No lab set"}</span>
+                    <span className="text-muted">{rows.length}</span>
+                  </summary>
+                  <ul className="divide-y divide-line border-t border-line px-3">
+                    {rows.map((c) => (
+                      <li key={c.job.id} className="py-3 text-sm">
+                        <Link href={`/jobs/${c.job.id}`} className="font-medium hover:text-accent">
+                          {c.job.name}
+                        </Link>
+                        <p className="mt-0.5 text-muted">
+                          {c.lastDay ? `Photo day ${formatDate(c.lastDay)}` : "No photo day"}
+                          {c.daysInStage !== null ? ` · at the lab ${c.daysInStage} ${c.daysInStage === 1 ? "day" : "days"}` : ""}
+                        </p>
+                        <form action={markDelivered.bind(null, c.job.id)} className="mt-2">
+                          <ConfirmButton ask="Mark this job delivered?" className={quiet}>
+                            Mark delivered
+                          </ConfirmButton>
+                        </form>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              </li>
+            );
+          })}
+        </Column>
       </div>
+      <p className="mt-3 text-xs text-muted">
+        A job moves to the next column when the tasks of its stage are done, and to At the lab when its last task is done. Press Done on a card to finish
+        its next task.
+      </p>
     </>
+  );
+}
+
+/** One column of the board: a heading with its count, then its cards. */
+function Column({ title, count, empty = "No jobs here.", children }: { title: string; count: number; empty?: string; children: ReactNode }) {
+  return (
+    <section className="flex min-w-0 flex-col rounded-xl border border-line bg-surface-2/40 md:max-h-[calc(100dvh-16rem)] md:w-72 md:shrink-0">
+      <h2 className="flex items-baseline justify-between gap-2 border-b border-line px-3 py-3 font-display text-base font-semibold uppercase tracking-wider text-muted">
+        <span>{title}</span>
+        <span className="rounded-full border border-line px-2 text-sm">{count}</span>
+      </h2>
+      {count ? (
+        <ul className="space-y-3 p-3 md:overflow-y-auto">{children}</ul>
+      ) : (
+        <p className="p-3 text-sm text-muted">{empty}</p>
+      )}
+    </section>
   );
 }
 
 function StageCard({ card: c }: { card: BoardCard }) {
   return (
-    <li className="rounded-lg border border-line p-3 text-sm">
+    <li className="rounded-lg border border-line bg-surface p-3 text-sm">
       <Link href={`/jobs/${c.job.id}#tasks`} className="font-medium hover:text-accent">
         {c.job.name}
       </Link>
