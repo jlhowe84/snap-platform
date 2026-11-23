@@ -22,7 +22,8 @@ const quiet = "min-h-12 rounded-lg border border-line px-4 text-sm font-semibold
  * A job's stage comes from its production tasks, so the way to move a job is
  * to finish its next task.
  */
-export default async function ProductionPage() {
+export default async function ProductionPage({ searchParams }: PageProps<"/production">) {
+  const showAll = (await searchParams).all === "1";
   const viewer = await requireStaff(OFFICE_ROLES);
   const supabase = await createClient();
   const today = todayIn(viewer.timeZone);
@@ -76,7 +77,7 @@ export default async function ProductionPage() {
       {/* One row of columns on a wide screen, each scrolling on its own; the
           columns stack on a phone, where a sideways board is hard to use. */}
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:overflow-x-auto md:pb-4">
-        <Column title="Ready to start" count={board.ready.length}>
+        <Column title="Ready to start" count={board.ready.length} showEmpty={showAll}>
           {board.ready.map((c) => (
             <li key={c.job.id} className="rounded-lg border border-line bg-surface p-3 text-sm">
               <Link href={`/jobs/${c.job.id}`} className="font-medium hover:text-accent">
@@ -91,14 +92,14 @@ export default async function ProductionPage() {
         </Column>
 
         {board.stages.map(({ stage, cards }) => (
-          <Column key={stage} title={STAGE_LABEL[stage]} count={cards.length}>
+          <Column key={stage} title={STAGE_LABEL[stage]} count={cards.length} showEmpty={showAll}>
             {cards.map((c) => (
               <StageCard key={c.job.id} card={c} />
             ))}
           </Column>
         ))}
 
-        <Column title="At the lab" count={board.atLab.length}>
+        <Column title="At the lab" count={board.atLab.length} showEmpty={showAll}>
           {labs.map((lab) => {
             const rows = board.atLab.filter((c) => (c.job.lab ?? "") === lab);
             return (
@@ -132,9 +133,17 @@ export default async function ProductionPage() {
           })}
         </Column>
       </div>
-      {emptyColumns.length === columnCount && <Empty>No jobs are in production or at the lab.</Empty>}
-      {emptyColumns.length > 0 && emptyColumns.length < columnCount && (
-        <p className="mt-3 text-sm text-muted">Nothing in: {emptyColumns.join(", ")}.</p>
+      {!showAll && emptyColumns.length === columnCount && <Empty>No jobs are in production or at the lab.</Empty>}
+      {emptyColumns.length > 0 && (
+        <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted">
+          {!showAll && emptyColumns.length < columnCount && <span>Nothing in: {emptyColumns.join(", ")}.</span>}
+          <Link
+            href={showAll ? "/production" : "/production?all=1"}
+            className="inline-flex min-h-12 items-center rounded-lg border border-line px-3 font-semibold text-text hover:border-accent hover:text-accent sm:min-h-0 sm:py-1.5"
+          >
+            {showAll ? "Hide empty columns" : "Show all columns"}
+          </Link>
+        </p>
       )}
       <p className="mt-3 text-xs text-muted">
         A job moves to the next column when the tasks of its stage are done, and to At the lab when its last task is done. Press Done on a card to finish
@@ -145,16 +154,16 @@ export default async function ProductionPage() {
 }
 
 /** One column of the board: a heading with its count, then its cards. */
-function Column({ title, count, children }: { title: string; count: number; children: ReactNode }) {
-  // An empty column is left off the board; the line under it names them.
-  if (!count) return null;
+function Column({ title, count, showEmpty, children }: { title: string; count: number; showEmpty: boolean; children: ReactNode }) {
+  // An empty column is left off the board unless every column was asked for.
+  if (!count && !showEmpty) return null;
   return (
     <section className="flex min-w-0 flex-col rounded-xl border border-line bg-surface-2/40 md:max-h-[calc(100dvh-16rem)] md:w-72 md:shrink-0">
       <h2 className="flex items-baseline justify-between gap-2 border-b border-line px-3 py-3 font-display text-base font-semibold uppercase tracking-wider text-muted">
         <span>{title}</span>
         <span className="rounded-full border border-line px-2 text-sm">{count}</span>
       </h2>
-      <ul className="space-y-3 p-3 md:overflow-y-auto">{children}</ul>
+      {count ? <ul className="space-y-3 p-3 md:overflow-y-auto">{children}</ul> : <p className="p-3 text-sm text-muted">No jobs here.</p>}
     </section>
   );
 }
