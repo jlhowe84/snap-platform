@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { OFFICE_ROLES, requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader, Pill, Stat } from "@/components/ui";
+import { Empty, PageHeader, Pill, Stat } from "@/components/ui";
 import { ConfirmButton } from "@/components/confirm-button";
 import { SubmitButton } from "@/components/submit-button";
 import { formatDate, todayIn } from "@/lib/dates";
@@ -54,6 +54,13 @@ export default async function ProductionPage() {
   const board = buildBoard(jobs, tasks, today);
   const inProduction = board.stages.reduce((n, s) => n + s.cards.length, 0);
   const late = board.stages.reduce((n, s) => n + s.cards.filter((c) => c.late > 0).length, 0);
+  // Columns with no jobs are hidden so the board is only as wide as it needs to be.
+  const emptyColumns = [
+    ...(board.ready.length ? [] : ["Ready to start"]),
+    ...board.stages.filter((s) => !s.cards.length).map((s) => STAGE_LABEL[s.stage]),
+    ...(board.atLab.length ? [] : ["At the lab"]),
+  ];
+  const columnCount = board.stages.length + 2;
   const labs = [...new Set(board.atLab.map((c) => c.job.lab ?? ""))].sort();
 
   return (
@@ -69,7 +76,7 @@ export default async function ProductionPage() {
       {/* One row of columns on a wide screen, each scrolling on its own; the
           columns stack on a phone, where a sideways board is hard to use. */}
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:overflow-x-auto md:pb-4">
-        <Column title="Ready to start" count={board.ready.length} empty="No jobs are waiting to start.">
+        <Column title="Ready to start" count={board.ready.length}>
           {board.ready.map((c) => (
             <li key={c.job.id} className="rounded-lg border border-line bg-surface p-3 text-sm">
               <Link href={`/jobs/${c.job.id}`} className="font-medium hover:text-accent">
@@ -91,7 +98,7 @@ export default async function ProductionPage() {
           </Column>
         ))}
 
-        <Column title="At the lab" count={board.atLab.length} empty="No jobs are at the lab.">
+        <Column title="At the lab" count={board.atLab.length}>
           {labs.map((lab) => {
             const rows = board.atLab.filter((c) => (c.job.lab ?? "") === lab);
             return (
@@ -125,6 +132,10 @@ export default async function ProductionPage() {
           })}
         </Column>
       </div>
+      {emptyColumns.length === columnCount && <Empty>No jobs are in production or at the lab.</Empty>}
+      {emptyColumns.length > 0 && emptyColumns.length < columnCount && (
+        <p className="mt-3 text-sm text-muted">Nothing in: {emptyColumns.join(", ")}.</p>
+      )}
       <p className="mt-3 text-xs text-muted">
         A job moves to the next column when the tasks of its stage are done, and to At the lab when its last task is done. Press Done on a card to finish
         its next task.
@@ -134,18 +145,16 @@ export default async function ProductionPage() {
 }
 
 /** One column of the board: a heading with its count, then its cards. */
-function Column({ title, count, empty = "No jobs here.", children }: { title: string; count: number; empty?: string; children: ReactNode }) {
+function Column({ title, count, children }: { title: string; count: number; children: ReactNode }) {
+  // An empty column is left off the board; the line under it names them.
+  if (!count) return null;
   return (
     <section className="flex min-w-0 flex-col rounded-xl border border-line bg-surface-2/40 md:max-h-[calc(100dvh-16rem)] md:w-72 md:shrink-0">
       <h2 className="flex items-baseline justify-between gap-2 border-b border-line px-3 py-3 font-display text-base font-semibold uppercase tracking-wider text-muted">
         <span>{title}</span>
         <span className="rounded-full border border-line px-2 text-sm">{count}</span>
       </h2>
-      {count ? (
-        <ul className="space-y-3 p-3 md:overflow-y-auto">{children}</ul>
-      ) : (
-        <p className="p-3 text-sm text-muted">{empty}</p>
-      )}
+      <ul className="space-y-3 p-3 md:overflow-y-auto">{children}</ul>
     </section>
   );
 }
