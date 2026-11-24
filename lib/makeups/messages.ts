@@ -37,6 +37,32 @@ export function parentConfirmation(b: BookingFacts, o: { company: string; place:
   };
 }
 
+/** What the parent gets when the office moves their session to another time. */
+export function parentMoved(b: BookingFacts, o: { company: string; place: string; details: string; manageUrl: string }) {
+  const lines = [
+    `Hi ${firstName(b.parentName)},`,
+    `The ${KIND_LABEL[b.kind].toLowerCase()} session for ${b.player} has a new time: ${whenLine(b)}.`,
+    o.place ? `Where: ${o.place}` : null,
+    o.details || null,
+    `If the new time does not work, cancel here any time before the session starts and book another:\n${o.manageUrl}`,
+    `Thank you,\n${o.company}`,
+  ];
+  return { subject: `New time for ${b.player}'s ${KIND_LABEL[b.kind].toLowerCase()} session: ${whenLine(b)}`, body: lines.filter(Boolean).join("\n\n") };
+}
+
+/** What the parent gets when the office cancels their session. */
+export function parentCancelled(b: BookingFacts, o: { company: string; bookUrl: string }) {
+  return {
+    subject: `${KIND_LABEL[b.kind]} session cancelled for ${b.player}`,
+    body: [
+      `Hi ${firstName(b.parentName)},`,
+      `The ${KIND_LABEL[b.kind].toLowerCase()} session for ${b.player} on ${whenLine(b)} has been cancelled.`,
+      `You can book another time here:\n${o.bookUrl}`,
+      `Thank you,\n${o.company}`,
+    ].join("\n\n"),
+  };
+}
+
 function factLines(b: BookingFacts) {
   return [
     `Player: ${b.player}`,

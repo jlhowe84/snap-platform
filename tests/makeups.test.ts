@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { findSubject } from "@/lib/makeups/captura";
 import { parseBlackout, parseScheduleForm } from "@/lib/makeups/form";
-import { officeAlert, officeDigest, parentConfirmation } from "@/lib/makeups/messages";
+import { officeAlert, officeDigest, parentCancelled, parentConfirmation, parentMoved } from "@/lib/makeups/messages";
 import {
   bookingProblem,
   canCancel,
@@ -132,6 +132,16 @@ describe("makeup messages", () => {
     expect(m.body).toContain("Where: 1 Main St");
     expect(m.body).toContain("https://example.com/x");
     expect(m.body).not.toContain("—");
+  });
+
+  it("tells the parent of a new time or a cancellation by the office", () => {
+    const moved = parentMoved(b, { company: "Photo Co", place: "1 Main St", details: "", manageUrl: "https://example.com/x" });
+    expect(moved.subject).toBe("New time for Sam Example's makeup session: Mon, Mar 1, 2027 at 10:20 AM");
+    expect(moved.body).toContain("https://example.com/x");
+    const gone = parentCancelled(b, { company: "Photo Co", bookUrl: "https://example.com/book" });
+    expect(gone.subject).toBe("Makeup session cancelled for Sam Example");
+    expect(gone.body).toContain("Mon, Mar 1, 2027 at 10:20 AM has been cancelled");
+    expect(gone.body).toContain("https://example.com/book");
   });
 
   it("tells the office who booked or cancelled", () => {

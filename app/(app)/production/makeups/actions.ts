@@ -9,7 +9,7 @@ import { newPortalToken } from "@/lib/portal/token";
 import { liveSiteUrl } from "@/lib/site-url";
 import { sendSystemMail } from "@/lib/mail/system";
 import { findSubject } from "@/lib/makeups/captura";
-import { parentConfirmation } from "@/lib/makeups/messages";
+import { parentCancelled, parentConfirmation, parentMoved } from "@/lib/makeups/messages";
 import { BOOKING_STATUSES, FOLLOW_UP, isDate, isTime, KINDS, MAKEUP_SETTING, readSchedule } from "@/lib/makeups/schedule";
 import { factsOf, insertBooking } from "@/lib/makeups/server";
 
@@ -155,6 +155,91 @@ export async function addBooking(_prev: MakeupState, form: FormData): Promise<Ma
   }
   refresh();
   return { ok: true, message: mailed ? "Booked. A confirmation was emailed." : "Booked." };
+}
+
+const Move = z.object({ date: z.string().refine(isDate), time: z.string().refine(isTime) });
+
+// The office moves a booking to another date or time. Like booking for a
+// parent, any time may be used; only the seats of a time are enforced.
+export async function moveBooking(id: string, _prev: MakeupState, form: FormData): Promise<MakeupState> {
+  const viewer = await requireStaff(OFFICE_ROLES);
+  const parsed = Move.safeParse({ date: form.get("date") ?? "", time: form.get("time") ?? "" });
+  if (!z.uuid().safeParse(id).success || !parsed.success) return { ok: false, message: "Pick the new date and time." };
+  const supabase = await createClient();
+  const { data: b } = await supabase.from("makeup_bookings").select("id, status, date, start_time, email").eq("id", id).maybeSingle();
+  if (!b) return { ok: false, message: "That booking was not found." };
+  if (b.status !== "booked") return { ok: false, message: "Only a booked session can be moved. Set it back to Booked first." };
+  const { date, time } = parsed.data;
+  if (b.date === date && b.start_time.slice(0, 5) === time) return { ok: false, message: "That is the time it already has." };
+
+  const { data: setting } = await supabase.from("settings").select("value").eq("key", MAKEUP_SETTING).maybeSingle();
+  const schedule = readSchedule(setting?.value);
+  // A new link is made only when the parent is being emailed it; otherwise the one they hold keeps working.
+  const telling = !!b.email && form.get("tell") === "on";
+  const { token, hash } = newPortalToken();
+  let moved = null;
+  let full = true;
+  for (let seat = 1; seat <= schedule.perSlot; seat++) {
+    const { data, error } = await supabase
+      .from("makeup_bookings")
+      .update({ date, start_time: time, seat, reminded_on: null, updated_by: viewer.id, ...(telling ? { token_hash: hash } : {}) })
+      .eq("id", id)
+      .select("*")
+      .maybeSingle();
+    if (data) {
+      moved = data;
+      break;
+    }
+    if (error?.code !== "23505") {
+      full = false;
+      break;
+    }
+  }
+  if (!moved) return { ok: false, message: full ? "That time is full. Pick another." : "The session could not be moved." };
+
+  let mailed = false;
+  if (telling && moved.email) {
+    const base = liveSiteUrl(await headers());
+    mailed = await sendSystemMail(viewer.companyId, {
+      to: [moved.email],
+      ...parentMoved(factsOf(moved), {
+        company: viewer.companyName ?? "The photo team",
+        place: schedule.place,
+        details: schedule.details,
+        manageUrl: `${base}/help/${viewer.companySlug}/makeup/b/${token}`,
+      }),
+    });
+  }
+  refresh();
+  return { ok: true, message: mailed ? "Moved. The parent was emailed the new time." : "Moved." };
+}
+
+/** The office cancels a booking. Its time opens up again, and its order goes back on the no-photos list. */
+export async function cancelBooking(id: string, _prev: MakeupState, form: FormData): Promise<MakeupState> {
+  const viewer = await requireStaff(OFFICE_ROLES);
+  if (!z.uuid().safeParse(id).success) return { ok: false, message: "That booking was not found." };
+  const supabase = await createClient();
+  const { data: rows } = await supabase
+    .from("makeup_bookings")
+    .update({ status: "cancelled", cancelled_at: new Date().toISOString(), cancelled_by: "staff", updated_by: viewer.id })
+    .eq("id", id)
+    .eq("status", "booked")
+    .select("*");
+  const b = rows?.[0];
+  if (!b) return { ok: false, message: "This session is not booked any more." };
+  if (b.case_id) {
+    await supabase.from("prepay_photo_cases").update({ status: "offered", updated_by: viewer.id }).eq("id", b.case_id).eq("status", "makeup_booked");
+  }
+  let mailed = false;
+  if (b.email && form.get("tell") === "on") {
+    const base = liveSiteUrl(await headers());
+    mailed = await sendSystemMail(viewer.companyId, {
+      to: [b.email],
+      ...parentCancelled(factsOf(b), { company: viewer.companyName ?? "The photo team", bookUrl: `${base}/help/${viewer.companySlug}/makeup` }),
+    });
+  }
+  refresh();
+  return { ok: true, message: mailed ? "Cancelled. The parent was emailed." : "Cancelled." };
 }
 
 // Reads the player's online code from Captura (read-only) so the photo slip

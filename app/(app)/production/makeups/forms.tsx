@@ -3,7 +3,8 @@
 import { useActionState, useRef } from "react";
 import { useToast } from "@/components/toast";
 import { BOOKING_STATUSES, BOOKING_STATUS_LABEL, FOLLOW_UP, type BookingStatus, type FollowUpKey } from "@/lib/makeups/schedule";
-import { addBooking, findOnlineCode, saveBooking, type MakeupState } from "./actions";
+import { ConfirmButton } from "@/components/confirm-button";
+import { addBooking, cancelBooking, findOnlineCode, moveBooking, saveBooking, type MakeupState } from "./actions";
 
 const field = "min-h-12 w-full min-w-0 rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none sm:min-h-0";
 const label = "block text-xs font-medium text-muted";
@@ -73,6 +74,49 @@ export function BookingForm({ booking, canFind }: { booking: BookingEdit; canFin
           {found && !found.ok && <p className="text-sm text-risk">{found.message}</p>}
         </form>
       )}
+    </div>
+  );
+}
+
+/** Move a booked session to another date or time, or cancel it. */
+export function MoveOrCancel({ id, date, time, hasEmail }: { id: string; date: string; time: string; hasEmail: boolean }) {
+  const [moved, move, moving] = useActionState<MakeupState, FormData>(moveBooking.bind(null, id), null);
+  const [cancelled, cancel] = useActionState<MakeupState, FormData>(cancelBooking.bind(null, id), null);
+  useToast(moved);
+  useToast(cancelled);
+  const tell = (
+    <label className="flex min-h-12 items-center gap-2 text-sm sm:min-h-8">
+      <input type="checkbox" name="tell" defaultChecked={hasEmail} disabled={!hasEmail} className="h-5 w-5 accent-[var(--accent)]" />
+      {hasEmail ? "Email the parent" : "No email on file to tell the parent"}
+    </label>
+  );
+  return (
+    <div className="mt-3 grid grid-cols-1 gap-4 rounded-lg border border-line p-3 lg:grid-cols-2">
+      <form action={move} className="space-y-2">
+        <p className="text-sm font-semibold">Change the time</p>
+        <div className="grid grid-cols-2 gap-2">
+          <label className={label}>
+            New date
+            <input name="date" type="date" required defaultValue={date} className={field} />
+          </label>
+          <label className={label}>
+            New time
+            <input name="time" type="time" required step={300} defaultValue={time} className={field} />
+          </label>
+        </div>
+        {tell}
+        <button disabled={moving} className={quiet}>{moving ? "Moving…" : "Move the session"}</button>
+        {moved && !moved.ok && <p className="text-sm text-risk">{moved.message}</p>}
+      </form>
+      <form action={cancel} className="space-y-2">
+        <p className="text-sm font-semibold">Cancel the session</p>
+        <p className="text-xs text-muted">The time opens up for someone else. The booking stays on the Cancelled list.</p>
+        {tell}
+        <ConfirmButton ask="Cancel this session?" yes="Yes, cancel it" className={quiet + " hover:border-risk hover:text-risk"}>
+          Cancel the session
+        </ConfirmButton>
+        {cancelled && !cancelled.ok && <p className="text-sm text-risk">{cancelled.message}</p>}
+      </form>
     </div>
   );
 }

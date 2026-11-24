@@ -15,7 +15,7 @@ import {
   type BookingStatus,
   type Kind,
 } from "@/lib/makeups/schedule";
-import { AddBooking, BookingForm } from "./forms";
+import { AddBooking, BookingForm, MoveOrCancel } from "./forms";
 
 export const metadata: Metadata = { title: "Makeups and retakes" };
 
@@ -158,6 +158,12 @@ export default async function MakeupsPage({ searchParams }: PageProps<"/producti
                       )}
                       {!b.online_code && status === "booked" && <span className="text-xs text-warn">No online code yet</span>}
                     </div>
+                    {canEdit && status === "booked" && (
+                      <details className="mt-2">
+                        <summary className="flex min-h-12 cursor-pointer items-center text-sm text-accent hover:underline sm:min-h-8">Change the time or cancel</summary>
+                        <MoveOrCancel id={b.id} date={b.date} time={b.start_time.slice(0, 5)} hasEmail={!!b.email} />
+                      </details>
+                    )}
                     {canEdit && (
                       <details className="mt-2">
                         <summary className="flex min-h-12 cursor-pointer items-center text-sm text-accent hover:underline sm:min-h-8">
