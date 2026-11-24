@@ -41,7 +41,7 @@ export default async function CrewMemberPage({ params }: PageProps<"/crew/[id]">
       .limit(200),
     pay ? supabase.from("pay_rates").select("id, position, amount, unit").eq("crew_member_id", id).order("position") : Promise.resolve({ data: null }),
     pay
-      ? supabase.from("crew_private").select("address, emergency_name, emergency_phone").eq("crew_member_id", id).maybeSingle()
+      ? supabase.from("crew_private").select("address, emergency_name, emergency_phone, self_updated_at").eq("crew_member_id", id).maybeSingle()
       : Promise.resolve({ data: null }),
     crewPhotoUrls([c.photo_path]),
   ]);
@@ -123,7 +123,10 @@ export default async function CrewMemberPage({ params }: PageProps<"/crew/[id]">
           {pay && (
             <Card title="Home and emergency contact">
               <PrivateForm crewId={c.id} current={priv ?? null} />
-              <p className="mt-3 text-xs text-muted">Only the owner and admins see this.</p>
+              <p className="mt-3 text-xs text-muted">
+                Only the owner and admins see this.
+                {priv?.self_updated_at && ` They last changed it themselves on ${formatDate(priv.self_updated_at.slice(0, 10))}.`}
+              </p>
             </Card>
           )}
         </div>
