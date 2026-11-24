@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { findSubject } from "@/lib/makeups/captura";
 import { parseBlackout, parseScheduleForm } from "@/lib/makeups/form";
-import { officeAlert, officeDigest, parentCancelled, parentConfirmation, parentMoved } from "@/lib/makeups/messages";
+import { officeAlert, officeDigest, parentCancelled, parentConfirmation, parentMoved, parentReminder } from "@/lib/makeups/messages";
 import {
   bookingProblem,
   canCancel,
@@ -135,6 +135,10 @@ describe("makeup messages", () => {
   });
 
   it("tells the parent of a new time or a cancellation by the office", () => {
+    const reminder = parentReminder(b, { company: "Photo Co", place: "1 Main St", details: "Bring the uniform.", manageUrl: "https://example.com/r" });
+    expect(reminder.subject).toContain("tomorrow");
+    expect(reminder.body).toContain("https://example.com/r");
+    expect(reminder.body).toContain("Where: 1 Main St");
     const moved = parentMoved(b, { company: "Photo Co", place: "1 Main St", details: "", manageUrl: "https://example.com/x" });
     expect(moved.subject).toBe("New time for Sam Example's makeup session: Mon, Mar 1, 2027 at 10:20 AM");
     expect(moved.body).toContain("https://example.com/x");

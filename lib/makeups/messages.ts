@@ -37,6 +37,19 @@ export function parentConfirmation(b: BookingFacts, o: { company: string; place:
   };
 }
 
+/** What the parent gets the morning before their session. */
+export function parentReminder(b: BookingFacts, o: { company: string; place: string; details: string; manageUrl: string }) {
+  const lines = [
+    `Hi ${firstName(b.parentName)},`,
+    `A reminder that ${b.player} has a ${KIND_LABEL[b.kind].toLowerCase()} session tomorrow, ${whenLine(b)}.`,
+    o.place ? `Where: ${o.place}` : null,
+    o.details || null,
+    `If you can no longer make it, please cancel here so the time opens up for another family:\n${o.manageUrl}`,
+    `See you then,\n${o.company}`,
+  ];
+  return { subject: `Reminder: ${b.player}'s ${KIND_LABEL[b.kind].toLowerCase()} session is tomorrow at ${formatTime(b.time)}`, body: lines.filter(Boolean).join("\n\n") };
+}
+
 /** What the parent gets when the office moves their session to another time. */
 export function parentMoved(b: BookingFacts, o: { company: string; place: string; details: string; manageUrl: string }) {
   const lines = [

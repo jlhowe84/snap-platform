@@ -69,7 +69,10 @@ export async function insertBooking(
 export async function bookingByToken(token: string): Promise<{ booking: BookingRow; company: PublicCompany } | null> {
   if (!looksLikePortalToken(token)) return null;
   const admin = createAdminClient();
-  const { data: booking } = await admin.from("makeup_bookings").select("*").eq("token_hash", hashPortalToken(token)).maybeSingle();
+  // The confirmation and the day-before reminder each carry their own link.
+  const hash = hashPortalToken(token);
+  const { data: rows } = await admin.from("makeup_bookings").select("*").or(`token_hash.eq.${hash},reminder_token_hash.eq.${hash}`).limit(1);
+  const booking = rows?.[0];
   if (!booking) return null;
   const { data: company } = await admin.from("companies").select("id, name, slug, time_zone").eq("id", booking.company_id).maybeSingle();
   if (!company) return null;

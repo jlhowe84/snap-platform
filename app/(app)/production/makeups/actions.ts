@@ -182,7 +182,7 @@ export async function moveBooking(id: string, _prev: MakeupState, form: FormData
   for (let seat = 1; seat <= schedule.perSlot; seat++) {
     const { data, error } = await supabase
       .from("makeup_bookings")
-      .update({ date, start_time: time, seat, reminded_on: null, updated_by: viewer.id, ...(telling ? { token_hash: hash } : {}) })
+      .update({ date, start_time: time, seat, reminded_on: null, parent_reminded_on: null, updated_by: viewer.id, ...(telling ? { token_hash: hash } : {}) })
       .eq("id", id)
       .select("*")
       .maybeSingle();

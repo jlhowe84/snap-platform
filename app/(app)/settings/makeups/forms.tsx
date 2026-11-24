@@ -88,6 +88,10 @@ export function ScheduleForm({ schedule }: { schedule: Schedule }) {
           <input type="checkbox" name="emailParent" defaultChecked={schedule.emailParent} className="h-5 w-5 accent-[var(--accent)]" />
           Email the parent a confirmation with their cancel link
         </label>
+        <label className="flex min-h-12 items-center gap-3 text-sm sm:min-h-8">
+          <input type="checkbox" name="remindParent" defaultChecked={schedule.remindParent} className="h-5 w-5 accent-[var(--accent)]" />
+          Email the parent a reminder the morning before their session
+        </label>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

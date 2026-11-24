@@ -84,7 +84,8 @@ row of `agent_actions` through Gmail from an allowed mailbox
 `send.ts` and the support desk's `reply.ts`). It carries the platform's own
 receipts and alerts, which a person caused by doing something and which do
 not wait in the approval queue: today the makeup scheduler's confirmation to
-the parent, its alert to the office and the office's morning list. It passes
+the parent, the day-before reminder to the parent, its alert to the office
+and the office's morning list. It passes
 the guard like every send and never throws, so a message that cannot go out
 does not undo the booking behind it.
 

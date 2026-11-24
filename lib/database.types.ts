@@ -2525,9 +2525,11 @@ export type Database = {
           order_number: number | null
           parent_name: string | null
           parent_note: string | null
+          parent_reminded_on: string | null
           phone: string | null
           player: string
           reminded_on: string | null
+          reminder_token_hash: string | null
           seat: number
           source: string
           staff_note: string | null
@@ -2561,9 +2563,11 @@ export type Database = {
           order_number?: number | null
           parent_name?: string | null
           parent_note?: string | null
+          parent_reminded_on?: string | null
           phone?: string | null
           player: string
           reminded_on?: string | null
+          reminder_token_hash?: string | null
           seat?: number
           source?: string
           staff_note?: string | null
@@ -2597,9 +2601,11 @@ export type Database = {
           order_number?: number | null
           parent_name?: string | null
           parent_note?: string | null
+          parent_reminded_on?: string | null
           phone?: string | null
           player?: string
           reminded_on?: string | null
+          reminder_token_hash?: string | null
           seat?: number
           source?: string
           staff_note?: string | null
