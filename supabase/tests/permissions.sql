@@ -116,6 +116,8 @@ insert into public.jobs (id, company_id, org_id, name) values
   ('40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-0000000000a1', 'Job A1'),
   ('40000000-0000-0000-0000-0000000000a2', 'a0000000-0000-0000-0000-00000000000a', '20000000-0000-0000-0000-0000000000a1', 'Job A2'),
   ('40000000-0000-0000-0000-0000000000b1', 'b0000000-0000-0000-0000-00000000000b', '20000000-0000-0000-0000-0000000000b1', 'Job B1');
+insert into public.prepay_photo_cases (company_id, order_id, gallery_id, job_id, reason, player) values
+  ('a0000000-0000-0000-0000-00000000000a', 9001, 501, '40000000-0000-0000-0000-0000000000a1', 'no_images', 'Test Player');
 insert into public.job_notes (company_id, job_id, body) values
   ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'A note on job A1');
 insert into public.photo_days (company_id, job_id, date) values
@@ -286,6 +288,7 @@ declare
     array['league_notes',          '1','1','1','1','0','0','0','0'],
     array['jobs',                  '2','2','2','2','0','1','0','1'],
     array['job_notes',             '1','1','1','1','0','0','0','0'],
+    array['prepay_photo_cases',    '1','1','1','0','0','0','0','0'],
     array['photo_days',            '2','2','2','2','0','1','0','1'],
     array['job_links',             '1','1','1','1','0','1','0','0'],
     array['job_contacts',          '1','1','1','1','0','1','0','0'],
@@ -1450,6 +1453,30 @@ update public.tasks set status = 'todo' where job_id = '40000000-0000-0000-0000-
 select t.count_is($$select count(*) from public.jobs where id = '40000000-0000-0000-0000-0000000000a1' and production_stage = 'upload' and status = 'in_production'$$, 1, 'reopening a task brings the job back into production');
 select t.fails($$select public.start_production('40000000-0000-0000-0000-0000000000b1')$$, 'the office cannot start production on another company''s job');
 reset role;
+
+-- ---------------------------------------------------------------------------
+-- Prepay orders with no photos
+-- ---------------------------------------------------------------------------
+select t.login('office');
+select t.works($$insert into public.prepay_photo_cases (company_id, order_id, gallery_id, job_id, reason) values ('a0000000-0000-0000-0000-00000000000a', 9002, 501, '40000000-0000-0000-0000-0000000000a1', 'no_player')$$, 'office records an order with no photos');
+select t.fails($$insert into public.prepay_photo_cases (company_id, order_id, gallery_id, reason) values ('a0000000-0000-0000-0000-00000000000a', 9002, 501, 'no_images')$$, 'one order is listed once');
+select t.fails($$insert into public.prepay_photo_cases (company_id, order_id, gallery_id, job_id, reason) values ('a0000000-0000-0000-0000-00000000000a', 9003, 501, '40000000-0000-0000-0000-0000000000b1', 'no_images')$$, 'a case cannot point at another company''s job');
+select t.fails($$insert into public.prepay_photo_cases (company_id, order_id, gallery_id, reason) values ('b0000000-0000-0000-0000-00000000000b', 9004, 501, 'no_images')$$, 'office cannot record a case for another company');
+select t.fails($$update public.prepay_photo_cases set status = 'emailed' where order_id = 9001$$, 'a case takes only the known statuses');
+select t.works($$update public.prepay_photo_cases set status = 'makeup_booked', note = 'Booked for Tuesday' where order_id = 9001$$, 'office moves a case along');
+delete from public.prepay_photo_cases where order_id = 9002;
+select t.count_is($$select count(*) from public.prepay_photo_cases where order_id = 9002$$, 1, 'office cannot delete a case');
+select t.login('support');
+update public.prepay_photo_cases set status = 'closed' where order_id = 9001;
+select t.fails($$insert into public.prepay_photo_cases (company_id, order_id, gallery_id, reason) values ('a0000000-0000-0000-0000-00000000000a', 9005, 501, 'no_images')$$, 'support cannot record a case');
+select t.login('coord');
+select t.fails($$insert into public.prepay_photo_cases (company_id, order_id, gallery_id, reason) values ('a0000000-0000-0000-0000-00000000000a', 9006, 501, 'no_images')$$, 'a coordinator cannot record a case');
+select t.login('owner_b');
+update public.prepay_photo_cases set status = 'closed' where order_id = 9001;
+select t.login('admin');
+select t.count_is($$select count(*) from public.prepay_photo_cases where order_id = 9001 and status = 'makeup_booked'$$, 1, 'support and another company cannot change a case');
+delete from public.prepay_photo_cases where order_id = 9002;
+select t.count_is($$select count(*) from public.prepay_photo_cases where order_id = 9002$$, 0, 'an admin can delete a case');
 reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;
 rollback;

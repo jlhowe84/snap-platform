@@ -32,6 +32,8 @@ import { AddNoteForm, DeleteNote } from "./notes-form";
 import { CombineForm } from "./combine-form";
 import { ConfirmButton } from "@/components/confirm-button";
 import { DayEditor, JobDetailsEditor, LinksEditor } from "./edit-forms";
+import { CheckNoPhotos } from "../../production/no-photos/forms";
+import { CaseList } from "../../production/no-photos/case-list";
 import { JOB_TYPE_LABEL, LAB_LABEL, PROGRAM_LABEL, SALE_MODE_LABEL, TEAM_PHOTO_LABEL, VENUE_LABEL } from "@/lib/jobs/edit";
 
 const READY: Record<string, string> = {
@@ -234,6 +236,18 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     .sort((x, y) => dayGap(x.first) - dayGap(y.first))
     .map(({ id: jobId, label }) => ({ id: jobId, label }));
 
+  const { data: photoCases } =
+    office && links?.captura_gallery_id
+      ? await supabase
+          .from("prepay_photo_cases")
+          .select("id, order_id, reason, player, team, order_date, total, status, note, cleared_at, last_checked_at")
+          .eq("gallery_id", links.captura_gallery_id)
+          .order("cleared_at", { ascending: true, nullsFirst: true })
+          .order("player")
+      : { data: null };
+  const openCases = (photoCases ?? []).filter((c) => !c.cleared_at);
+  const lastCheck = (photoCases ?? []).reduce<string | null>((m, c) => (!m || c.last_checked_at > m ? c.last_checked_at : m), null);
+
   const { data: leagueList } = office
     ? await supabase.from("organizations").select("id, name, active").order("name").limit(2000)
     : { data: null };
@@ -246,6 +260,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     ["planning", "Planning"],
     ["captura", "Captura"],
     ["tasks", "Tasks"],
+    ...(office && links?.captura_gallery_id ? ([["nophotos", "No photos"]] as const) : []),
     ...(office ? ([["notes", "Notes"]] as const) : []),
     ["details", "Details"],
     ["portal", "Portal"],
@@ -606,6 +621,21 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
         </div>
 
         <div className="min-w-0 space-y-6">
+          {office && links?.captura_gallery_id && (
+            <Card
+              id="nophotos"
+              title={`Prepay orders with no photos (${openCases.length})`}
+              action={<Link href="/production/no-photos" className="text-sm text-accent hover:underline">All jobs</Link>}
+            >
+              <p className="mb-3 text-sm text-muted">
+                Once this job&apos;s images are uploaded and assigned, the check reads the gallery in Captura and lists every prepay order whose
+                player has no photos. It sends nothing.
+                {lastCheck ? ` Last listed ${noteStamp.format(new Date(lastCheck))}.` : ""}
+              </p>
+              <CheckNoPhotos jobId={id} checkedBefore={!!photoCases?.length} />
+              {photoCases?.length ? <div className="mt-3"><CaseList cases={photoCases} /></div> : null}
+            </Card>
+          )}
           {office && (
             <Card id="notes" title={`Notes (${jobNotes?.length ?? 0})`}>
               <AddNoteForm key={jobNotes?.[0]?.id ?? "first"} jobId={id} />

@@ -52,6 +52,12 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     position: Number(t.playbook_steps.position),
   }));
 
+  const { count: noPhotos } = await supabase
+    .from("prepay_photo_cases")
+    .select("id", { count: "exact", head: true })
+    .is("cleared_at", null)
+    .in("status", ["open", "offered", "makeup_booked"]);
+
   const board = buildBoard(jobs, tasks, today);
   const inProduction = board.stages.reduce((n, s) => n + s.cards.length, 0);
   const late = board.stages.reduce((n, s) => n + s.cards.filter((c) => c.late > 0).length, 0);
@@ -72,6 +78,9 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         <Stat label="Ready to start" value={board.ready.length} hint="Photo days over, production not started" />
         <Stat label="In production" value={inProduction} hint={late ? `${late} with a task past due` : "None with a task past due"} />
         <Stat label="At the lab" value={board.atLab.length} hint="Released and not yet delivered" />
+        <Link href="/production/no-photos" className="rounded-xl hover:ring-1 hover:ring-accent">
+          <Stat label="Orders with no photos" value={noPhotos ?? 0} hint="Prepay orders waiting on a makeup or refund" />
+        </Link>
       </div>
 
       {/* One row of columns on a wide screen, each scrolling on its own; the
