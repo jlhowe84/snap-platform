@@ -58,6 +58,8 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
     .is("cleared_at", null)
     .in("status", ["open", "offered", "makeup_booked"]);
 
+  const { count: makeups } = await supabase.from("makeup_bookings").select("id", { count: "exact", head: true }).eq("status", "booked").gte("date", today);
+
   const board = buildBoard(jobs, tasks, today);
   const inProduction = board.stages.reduce((n, s) => n + s.cards.length, 0);
   const late = board.stages.reduce((n, s) => n + s.cards.filter((c) => c.late > 0).length, 0);
@@ -72,7 +74,11 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
 
   return (
     <>
-      <PageHeader eyebrow="Jobs" title="Production" />
+      <PageHeader eyebrow="Jobs" title="Production">
+        <Link href="/production/makeups" className={quiet + " inline-flex items-center"}>
+          Makeups and retakes{makeups ? ` (${makeups})` : ""}
+        </Link>
+      </PageHeader>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Ready to start" value={board.ready.length} hint="Photo days over, production not started" />

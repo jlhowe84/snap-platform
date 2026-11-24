@@ -2502,6 +2502,160 @@ export type Database = {
           },
         ]
       }
+      makeup_bookings: {
+        Row: {
+          added_to_team: boolean
+          cancelled_at: string | null
+          cancelled_by: string | null
+          case_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          date: string
+          email: string | null
+          email_sent: boolean
+          id: string
+          imported: boolean
+          job_id: string | null
+          kind: string
+          lab_sent: boolean
+          league: string | null
+          minutes: number
+          online_code: string | null
+          order_number: number | null
+          parent_name: string | null
+          parent_note: string | null
+          phone: string | null
+          player: string
+          reminded_on: string | null
+          seat: number
+          source: string
+          staff_note: string | null
+          start_time: string
+          status: string
+          team: string | null
+          token_hash: string | null
+          updated_at: string
+          updated_by: string | null
+          uploaded: boolean
+        }
+        Insert: {
+          added_to_team?: boolean
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          case_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          date: string
+          email?: string | null
+          email_sent?: boolean
+          id?: string
+          imported?: boolean
+          job_id?: string | null
+          kind?: string
+          lab_sent?: boolean
+          league?: string | null
+          minutes?: number
+          online_code?: string | null
+          order_number?: number | null
+          parent_name?: string | null
+          parent_note?: string | null
+          phone?: string | null
+          player: string
+          reminded_on?: string | null
+          seat?: number
+          source?: string
+          staff_note?: string | null
+          start_time: string
+          status?: string
+          team?: string | null
+          token_hash?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          uploaded?: boolean
+        }
+        Update: {
+          added_to_team?: boolean
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          case_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          email?: string | null
+          email_sent?: boolean
+          id?: string
+          imported?: boolean
+          job_id?: string | null
+          kind?: string
+          lab_sent?: boolean
+          league?: string | null
+          minutes?: number
+          online_code?: string | null
+          order_number?: number | null
+          parent_name?: string | null
+          parent_note?: string | null
+          phone?: string | null
+          player?: string
+          reminded_on?: string | null
+          seat?: number
+          source?: string
+          staff_note?: string | null
+          start_time?: string
+          status?: string
+          team?: string | null
+          token_hash?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          uploaded?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "makeup_bookings_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "prepay_photo_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "makeup_bookings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "makeup_bookings_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "makeup_bookings_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "makeup_bookings_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "makeup_bookings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notice_mutes: {
         Row: {
           company_id: string
@@ -4928,6 +5082,10 @@ export type Database = {
       link_gallery_to_job: {
         Args: { p_gallery: number; p_job: string }
         Returns: undefined
+      }
+      makeup_reminders: {
+        Args: { p_company: string; p_today: string }
+        Returns: number
       }
       open_schedule: { Args: { p_photo_day_id: string }; Returns: string }
       order_daily_totals: {

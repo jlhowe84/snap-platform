@@ -162,6 +162,17 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
 
         {tab === "planning" && (
         <Card
+          title="Makeups and retakes"
+          action={<Link href="/settings/makeups" className="text-sm text-accent hover:underline">Edit</Link>}
+        >
+          <p className="text-sm text-muted">
+            When parents can book a makeup or retake: open days and hours, session length, blackout dates and the words on the booking page.
+          </p>
+        </Card>
+        )}
+
+        {tab === "planning" && (
+        <Card
           title="Planning steps"
           action={<Link href="/settings/steps" className="text-sm text-accent hover:underline">Edit</Link>}
         >

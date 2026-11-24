@@ -34,6 +34,8 @@ export type OfferFacts = {
   parentFirstName: string | null;
   orderId: number;
   to: string[];
+  /** The booking page, with this order filled in. Empty when the company has no page. */
+  bookingUrl?: string | null;
 };
 
 export function buildMakeupOffer(template: OfferTemplate, f: OfferFacts) {
@@ -43,8 +45,9 @@ export function buildMakeupOffer(template: OfferTemplate, f: OfferFacts) {
     player: f.player ?? "your player",
     parent: f.parentFirstName ?? "there",
     order: String(f.orderId),
+    booking: f.bookingUrl ?? "",
   };
-  const fill = (s: string) => s.replace(/\{(company|league|player|parent|order)\}/g, (_, k: string) => words[k]);
+  const fill = (s: string) => s.replace(/\{(company|league|player|parent|order|booking)\}/g, (_, k: string) => words[k]);
   return { to: f.to, subject: fill(template.subject).replace(/\s+/g, " ").trim().slice(0, 300), body: fill(template.body) };
 }
 
