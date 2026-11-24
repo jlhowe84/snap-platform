@@ -10,7 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // read with the service role. The grant technically reaches every mailbox in
 // the Workspace, so this client refuses any mailbox that is not listed in the
 // company's mail.mailboxes setting. Outgoing mail must pass
-// lib/mail/guard.ts first; lib/mail/send.ts and lib/mail/reply.ts are the only callers of sendRaw.
+// lib/mail/guard.ts first; lib/mail/send.ts, lib/mail/reply.ts and lib/mail/system.ts are the only callers of sendRaw.
 
 const ServiceAccountSchema = z.object({
   client_email: z.string().email(),

@@ -88,4 +88,11 @@ describe("makeup offer", () => {
     expect(orderBuyer({ billTo: { email: "not an address" } }, 7)).toEqual({ email: null, firstName: null });
     expect(orderBuyer(null, 7)).toEqual({ email: null, firstName: null });
   });
+
+  it("puts the booking page link where the wording asks for it", () => {
+    const template = { subject: "Book for {player}", body: "Pick a time: {booking}" };
+    const facts = { company: "Photo Co", league: null, player: "Sam", parentFirstName: null, orderId: 42, to: ["a@example.com"] };
+    expect(buildMakeupOffer(template, { ...facts, bookingUrl: "https://example.com/help/co/makeup?order=42" }).body).toBe("Pick a time: https://example.com/help/co/makeup?order=42");
+    expect(buildMakeupOffer(template, facts).body).toBe("Pick a time: ");
+  });
 });

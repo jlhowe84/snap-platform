@@ -12,7 +12,7 @@ const VIEWS = { all: "Everything", mine: "My tasks only", days: "Photo days only
 type View = keyof typeof VIEWS;
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-type Item = { key: string; href: string; text: string; sub?: string; tone: "day" | "held" | "release" | "task" | "late" };
+type Item = { key: string; href: string; text: string; sub?: string; tone: "day" | "held" | "release" | "task" | "late" | "makeup" };
 
 const TONE: Record<Item["tone"], string> = {
   day: "border-accent/60 bg-accent/15",
@@ -20,10 +20,11 @@ const TONE: Record<Item["tone"], string> = {
   release: "border-line text-muted",
   task: "border-line",
   late: "border-risk/60 text-risk",
+  makeup: "border-info/60 bg-info/10",
 };
 
-// One calendar: photo days, held dates, the day each hold releases, and task
-// due dates. Every read is the signed-in person's, so RLS decides what shows.
+// One calendar: photo days, held dates, the day each hold releases, task due
+// dates, and the makeup and retake sessions booked for each day. Every read is the signed-in person's, so RLS decides what shows.
 export default async function CalendarPage({ searchParams }: PageProps<"/calendar">) {
   const viewer = await requireStaff();
   const sp = await searchParams;
@@ -43,7 +44,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     .limit(400);
   if (view === "mine") tasksQuery = tasksQuery.eq("assignee_id", viewer.id);
 
-  const [{ data: days }, { data: holds }, { data: tasks }, { data: capacity }, { data: capSetting }] = await Promise.all([
+  const [{ data: days }, { data: holds }, { data: tasks }, { data: capacity }, { data: capSetting }, { data: makeups }] = await Promise.all([
     view === "mine"
       ? Promise.resolve({ data: [] as never[] })
       : supabase
@@ -60,6 +61,10 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
     view === "days" ? Promise.resolve({ data: [] as never[] }) : tasksQuery,
     supabase.from("date_capacity").select("date, stations_used").gte("date", grid.from).lte("date", grid.to),
     supabase.from("settings").select("value").eq("key", "capacity.stations_per_date").maybeSingle(),
+    // Only the office and support can read bookings; for anyone else this is empty.
+    view === "all"
+      ? supabase.from("makeup_bookings").select("date, start_time").eq("status", "booked").gte("date", grid.from).lte("date", grid.to).order("start_time").limit(2000)
+      : Promise.resolve({ data: [] as never[] }),
   ]);
 
   const cap = typeof capSetting?.value === "number" ? capSetting.value : 10;
@@ -81,6 +86,20 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   for (const h of holds ?? []) {
     const job = h.jobs as { name: string } | null;
     add(h.expires_on, { key: `h${h.id}`, href: `/jobs/${h.job_id}`, text: `Hold releases: ${job?.name ?? "job"}`, tone: "release" });
+  }
+  const sessions = new Map<string, { count: number; first: string }>();
+  for (const m of makeups ?? []) {
+    const seen = sessions.get(m.date);
+    sessions.set(m.date, { count: (seen?.count ?? 0) + 1, first: seen?.first ?? m.start_time });
+  }
+  for (const [date, m] of sessions) {
+    add(date, {
+      key: `m${date}`,
+      href: `/production/makeups?date=${date}`,
+      text: `${m.count} makeup or retake session${m.count === 1 ? "" : "s"}`,
+      sub: `First at ${formatTime(m.first)}`,
+      tone: "makeup",
+    });
   }
   for (const t of tasks ?? []) {
     if (!t.due_on) continue;
@@ -181,7 +200,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       </Card>
 
       <p className="mt-3 text-xs text-muted">
-        Filled boxes are photo days, dashed boxes are held dates, and plain boxes are tasks due. The count in each day is
+        Filled boxes are photo days, dashed boxes are held dates, blue boxes are makeup and retake sessions, and plain boxes are tasks due. The count in each day is
         photo stations in use out of {cap}. Postponed and cancelled photo days are left off.
       </p>
     </>

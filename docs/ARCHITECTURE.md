@@ -80,6 +80,14 @@ row of `agent_actions` through Gmail from an allowed mailbox
 
 `mail.test_mode` and `mail.test_recipient` are not editable in the app.
 
+`lib/mail/system.ts` is the third place that may call Gmail's send (after
+`send.ts` and the support desk's `reply.ts`). It carries the platform's own
+receipts and alerts, which a person caused by doing something and which do
+not wait in the approval queue: today the makeup scheduler's confirmation to
+the parent, its alert to the office and the office's morning list. It passes
+the guard like every send and never throws, so a message that cannot go out
+does not undo the booking behind it.
+
 ## Integrations
 
 Credentials are stored in Supabase Vault, mapped per company in
@@ -654,3 +662,43 @@ Line items are not stored, because the order list does not carry them.
 - **Pages:** `/orders` (comparisons with the same days a year earlier,
   totals and galleries by season, linking) and an Orders card on the job
   page when the job has a gallery.
+
+## Makeup and retake scheduler
+
+Parents book a makeup or retake themselves; the office sees the bookings,
+prints a photo slip for each and ticks off the follow-up.
+
+- **Schedule** (`lib/makeups/schedule.ts`, no network): one company setting,
+  `makeup.schedule`: open or closed, hours for each weekday (up to two
+  spans), session length, bookings per time, booking notice in hours, how
+  far ahead dates are offered, blackout dates, and the place and details
+  parents read. A company with no setting is closed; hours and the place
+  are company facts and never live in code. Dates and times are wall-clock
+  values in the company time zone. Owner and admin edit it at
+  `/settings/makeups`.
+- **Bookings** (`makeup_bookings`): one row per session with the player,
+  parent contact, optional order number, status (booked, photographed, did
+  not come, cancelled), the online code for the slip and five follow-up
+  boxes. A unique index on (company, date, time, seat) for rows that are not
+  cancelled is what stops a double booking: each seat is tried in turn.
+  Owner, admin and office work the rows, support reads them, crew and
+  coordinators see nothing. The parent's own link holds a token whose hash
+  is the only thing stored.
+- **Public page** (`/help/[company]/makeup`, no sign-in): the server reads
+  the schedule and the counts of taken times with the service role, checks
+  the chosen time against the schedule again on submit, and writes the row.
+  Nothing a parent sends is trusted, and no other family's booking is read.
+  An order number that is on the prepay-no-photos list ties the booking to
+  that case and moves it to makeup booked. `/help/[company]/makeup/b/[token]`
+  shows the booking and lets the parent cancel until it starts.
+- **Alerts:** a trigger writes a `makeup.booked` notice to owners, admins
+  and office staff for each booking and each cancellation, and the daily job
+  (`lib/makeups/reminders.ts`, `makeup_reminders()`) writes one
+  `makeup.upcoming` notice on a morning with sessions. Emails for the same
+  events go through `lib/mail/system.ts` when the schedule asks for them.
+- **Staff pages:** `/production/makeups` (the list, status and follow-up,
+  booking for a parent, finding the online code in Captura read-only),
+  `/slip/[id]` (the printable photo slip with a Code 128 barcode of the
+  online code and the order's details), and a count on each calendar day.
+- **Makeup offer:** the offer wording may use `{booking}`, which becomes the
+  booking page with the order number filled in.

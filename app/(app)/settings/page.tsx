@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill, StatusDot } from "@/components/ui";
 import { ROLE_LABEL } from "@/lib/labels";
 import { InviteForm } from "./invite-form";
+import { RoleForm } from "./role-form";
+import { editableRoles } from "@/lib/team/roles";
 import { CapturaTest } from "./captura-test";
 import { CompanySettingsForm } from "./company-settings";
 import { InvoiceFolder } from "./invoice-folder";
@@ -41,7 +43,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
       supabase.from("settings").select("key, value").order("key"),
     ]);
 
-  const never = (actionTypes ?? []).filter((a) => a.kind === "never");
+  const editable = editableRoles(viewer.roles);
+  const never =(actionTypes ?? []).filter((a) => a.kind === "never");
   const earned = (actionTypes ?? []).filter((a) => a.kind !== "never");
 
   return (
@@ -79,6 +82,14 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
                     </Pill>
                   ))}
                 </span>
+                {editable.length > 0 && (
+                  <RoleForm
+                    profileId={p.id}
+                    name={p.full_name ?? p.email ?? "this person"}
+                    current={(p.profile_roles as { role: string }[]).map((r) => r.role)}
+                    editable={editable}
+                  />
+                )}
               </li>
             ))}
             {(invites ?? []).map((i) => (
@@ -156,6 +167,17 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         >
           <p className="text-sm text-muted">
             The text league coordinators read, initial and sign in the portal. Signing confirms their held date.
+          </p>
+        </Card>
+        )}
+
+        {tab === "planning" && (
+        <Card
+          title="Makeups and retakes"
+          action={<Link href="/settings/makeups" className="text-sm text-accent hover:underline">Edit</Link>}
+        >
+          <p className="text-sm text-muted">
+            When parents can book a makeup or retake: open days and hours, session length, blackout dates and the words on the booking page.
           </p>
         </Card>
         )}

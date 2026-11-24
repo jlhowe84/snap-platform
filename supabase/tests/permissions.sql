@@ -1478,5 +1478,48 @@ select t.count_is($$select count(*) from public.prepay_photo_cases where order_i
 delete from public.prepay_photo_cases where order_id = 9002;
 select t.count_is($$select count(*) from public.prepay_photo_cases where order_id = 9002$$, 0, 'an admin can delete a case');
 reset role;
+-- ---------------------------------------------------------------------------
+-- Makeup and retake bookings
+-- ---------------------------------------------------------------------------
+select t.login('office');
+select t.works($$insert into public.makeup_bookings (company_id, date, start_time, player, source) values ('a0000000-0000-0000-0000-00000000000a', '2027-03-01', '10:00', 'Test Player', 'staff')$$, 'office books a makeup');
+select t.fails($$insert into public.makeup_bookings (company_id, date, start_time, player) values ('a0000000-0000-0000-0000-00000000000a', '2027-03-01', '10:00', 'Second Player')$$, 'one seat of a time is booked once');
+select t.works($$insert into public.makeup_bookings (company_id, date, start_time, seat, player, kind) values ('a0000000-0000-0000-0000-00000000000a', '2027-03-01', '10:00', 2, 'Second Player', 'retake')$$, 'a second seat of the same time can be booked');
+select t.fails($$insert into public.makeup_bookings (company_id, date, start_time, player) values ('b0000000-0000-0000-0000-00000000000b', '2027-03-01', '11:00', 'Other Company')$$, 'office cannot book for another company');
+select t.fails($$insert into public.makeup_bookings (company_id, date, start_time, player, job_id) values ('a0000000-0000-0000-0000-00000000000a', '2027-03-01', '11:10', 'Wrong Job', '40000000-0000-0000-0000-0000000000b1')$$, 'a booking cannot point at another company''s job');
+select t.fails($$update public.makeup_bookings set status = 'maybe' where player = 'Test Player'$$, 'a booking takes only the known statuses');
+select t.works($$update public.makeup_bookings set status = 'cancelled', cancelled_by = 'staff' where player = 'Test Player'$$, 'office cancels a booking');
+select t.works($$insert into public.makeup_bookings (company_id, date, start_time, player) values ('a0000000-0000-0000-0000-00000000000a', '2027-03-01', '10:00', 'Third Player')$$, 'a cancelled booking frees its seat');
+select t.count_is($$select count(*) from public.notices where kind = 'makeup.booked'$$, 0, 'the person who booked gets no notice of it');
+delete from public.makeup_bookings where player = 'Third Player';
+select t.count_is($$select count(*) from public.makeup_bookings where player = 'Third Player'$$, 1, 'office cannot delete a booking');
+select t.fails($$select public.makeup_reminders('a0000000-0000-0000-0000-00000000000a', '2027-03-01')$$, 'a signed-in person cannot run the morning reminder');
+select t.login('support');
+select t.count_is($$select count(*) from public.makeup_bookings$$, 3, 'support reads the bookings');
+select t.fails($$insert into public.makeup_bookings (company_id, date, start_time, player) values ('a0000000-0000-0000-0000-00000000000a', '2027-03-01', '12:00', 'By Support')$$, 'support cannot book');
+update public.makeup_bookings set status = 'done' where player = 'Third Player';
+select t.login('crew');
+select t.count_is($$select count(*) from public.makeup_bookings$$, 0, 'crew see no bookings');
+select t.login('coord');
+select t.count_is($$select count(*) from public.makeup_bookings$$, 0, 'a coordinator sees no bookings');
+select t.login('anon');
+select t.fails($$select count(*) from public.makeup_bookings$$, 'anon cannot read bookings');
+select t.fails($$insert into public.makeup_bookings (company_id, date, start_time, player) values ('a0000000-0000-0000-0000-00000000000a', '2027-03-01', '12:10', 'By Anon')$$, 'anon cannot book straight into the table');
+select t.login('owner_b');
+select t.count_is($$select count(*) from public.makeup_bookings$$, 0, 'another company sees no bookings');
+select t.login('admin');
+select t.count_is($$select count(*) from public.makeup_bookings where player = 'Third Player' and status = 'booked'$$, 1, 'support cannot change a booking');
+select t.count_is($$select count(*) from public.notices where kind = 'makeup.booked' and title like '% booked: %'$$, 3, 'an admin is told of each booking');
+select t.count_is($$select count(*) from public.notices where kind = 'makeup.booked' and title = 'Makeup cancelled: Test Player' and href = '/production/makeups?date=2027-03-01'$$, 1, 'an admin is told of a cancelled booking');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+select t.count_is($$select public.makeup_reminders('a0000000-0000-0000-0000-00000000000a', '2027-03-01')$$, 2, 'the morning reminder covers the day''s open bookings');
+select t.count_is($$select public.makeup_reminders('a0000000-0000-0000-0000-00000000000a', '2027-03-01')$$, 0, 'the reminder goes out once a day');
+select t.login('office');
+select t.count_is($$select count(*) from public.notices where kind = 'makeup.upcoming' and title = '2 makeups and retakes today'$$, 1, 'the office is reminded of today''s bookings');
+select t.login('admin');
+delete from public.makeup_bookings where player = 'Third Player';
+select t.count_is($$select count(*) from public.makeup_bookings where player = 'Third Player'$$, 0, 'an admin can delete a booking');
+reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;
 rollback;

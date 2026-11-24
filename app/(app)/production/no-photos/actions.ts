@@ -1,9 +1,11 @@
 "use server";
 
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { OFFICE_ROLES, requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { liveSiteUrl } from "@/lib/site-url";
 import { CASE_STATUSES, findNoPhotoOrders, readGalleryPlayers, type PrepayOrder } from "@/lib/production/no-photos";
 import { buildMakeupOffer, MAKEUP_OFFER_KEY, MAKEUP_OFFER_SETTING, orderBuyer, readOfferTemplate } from "@/lib/production/makeup-offer";
 
@@ -165,6 +167,7 @@ export async function draftMakeupOffer(caseId: string): Promise<NoPhotoState> {
     parentFirstName: buyer.firstName,
     orderId: row.order_id,
     to: [buyer.email],
+    bookingUrl: viewer.companySlug ? `${liveSiteUrl(await headers())}/help/${viewer.companySlug}/makeup?order=${row.order_id}` : null,
   });
   const { error } = await supabase.from("agent_actions").insert({
     company_id: viewer.companyId,
