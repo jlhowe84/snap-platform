@@ -32,7 +32,36 @@ export async function inviteStaff(_prev: InviteState, form: FormData): Promise<I
   return { ok: true, message: `Invited ${parsed.data.email}. They can sign in with Google now.` };
 }
 
-export type CapturaTestState = { ok: boolean; message: string } | null;
+// Owner and admin change the roles a team member holds. The rows are written
+// as the signed-in person, so RLS has the last word on who may grant what.
+export async function saveRoles(profileId: string, _prev: InviteState, form: FormData): Promise<InviteState> {
+  const viewer = await requireStaff(ADMIN_ROLES);
+  if (!viewer.companyId || !z.uuid().safeParse(profileId).success) return { ok: false, message: "That person was not found." };
+  const { roleChange } = await import("@/lib/team/roles");
+  const supabase = await createClient();
+  const { data: rows } = await supabase.from("profile_roles").select("role").eq("profile_id", profileId).eq("company_id", viewer.companyId);
+  const current = (rows ?? []).map((r) => r.role);
+  if (!current.some((r) => r !== "coordinator")) return { ok: false, message: "That person was not found." };
+  const change = roleChange({ viewerRoles: viewer.roles, self: profileId === viewer.id, current, wanted: form.getAll("roles").map(String) });
+  if ("problem" in change) return { ok: false, message: change.problem };
+  if (!change.add.length && !change.remove.length) return { ok: true, message: "Nothing changed." };
+
+  // Add before removing, so a failure never leaves the person with less than they had.
+  if (change.add.length) {
+    const { error } = await supabase
+      .from("profile_roles")
+      .insert(change.add.map((role) => ({ profile_id: profileId, company_id: viewer.companyId!, role, granted_by: viewer.id })));
+    if (error) return { ok: false, message: "The roles could not be saved." };
+  }
+  if (change.remove.length) {
+    const { error } = await supabase.from("profile_roles").delete().eq("profile_id", profileId).eq("company_id", viewer.companyId).in("role", change.remove);
+    if (error) return { ok: false, message: "The new roles were added, but the old ones could not be removed." };
+  }
+  revalidatePath("/settings");
+  return { ok: true, message: "Roles saved." };
+}
+
+export type CapturaTestState ={ ok: boolean; message: string } | null;
 
 // One read-only call to Captura (the first gallery in the account) to prove
 // the stored credentials work. Records the outcome on integration_status.
