@@ -32,11 +32,20 @@ export default async function SupportPage({ searchParams }: PageProps<"/support"
     if (view.key === "unassigned") q = q.is("assignee_id", null);
   }
 
-  const [{ data: rows }, { data: people }, { count: needs }] = await Promise.all([
+  // How many conversations sit in each list, shown beside its name.
+  const countFor = (v: (typeof SUPPORT_VIEWS)[number]) => {
+    let c = supabase.from("support_conversations").select("id", { count: "exact", head: true }).in("status", [...v.statuses]);
+    if (v.key === "mine") c = c.eq("assignee_id", viewer.id);
+    if (v.key === "unassigned") c = c.is("assignee_id", null);
+    return c;
+  };
+  const [{ data: rows }, { data: people }, ...counts] = await Promise.all([
     q,
     supabase.from("profiles").select("id, full_name"),
-    supabase.from("support_conversations").select("id", { count: "exact", head: true }).in("status", ["new", "open"]),
+    ...SUPPORT_VIEWS.map(countFor),
   ]);
+  const countOf = new Map(SUPPORT_VIEWS.map((v, i) => [v.key, counts[i]?.count ?? 0]));
+  const needs = countOf.get("needs") ?? 0;
   // The opening of each customer's latest message, so rows with the same
   // subject can be told apart without opening them.
   const lastIn = [...new Set((rows ?? []).map((r) => r.last_inbound_at).filter((x): x is string => !!x))];
@@ -58,6 +67,9 @@ export default async function SupportPage({ searchParams }: PageProps<"/support"
   return (
     <>
       <PageHeader eyebrow="Customers · Support" title={needs ? `${needs} need a reply` : "All answered"}>
+        <Link href="/support/reports" className="rounded-lg border border-line px-3 py-1.5 text-sm font-semibold hover:border-accent hover:text-accent">
+          Reports
+        </Link>
         <Link href="/support/replies" className="rounded-lg border border-line px-3 py-1.5 text-sm font-semibold hover:border-accent hover:text-accent">
           Saved replies
         </Link>
@@ -93,7 +105,7 @@ export default async function SupportPage({ searchParams }: PageProps<"/support"
               !term && v.key === view.key ? "border-accent bg-accent text-accent-ink" : "border-line text-muted hover:border-accent hover:text-accent",
             )}
           >
-            {v.label}
+            {v.label} <span className="tabular-nums opacity-80">({countOf.get(v.key) ?? 0})</span>
           </Link>
         ))}
       </nav>

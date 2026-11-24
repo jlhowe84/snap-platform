@@ -62,7 +62,11 @@ export default async function ShiftsPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <PageHeader eyebrow="Crew" title="My shifts" />
+      <PageHeader eyebrow="Crew" title="My shifts">
+        <Link href="/shifts/me" className="inline-flex min-h-12 items-center rounded-lg border border-line px-3 text-sm hover:bg-surface-2">
+          My details
+        </Link>
+      </PageHeader>
       {error && <Empty>Could not load your shifts. Try again in a minute.</Empty>}
       <section className="mb-8">
         <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold uppercase tracking-wider text-muted">

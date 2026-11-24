@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { useToast } from "@/components/toast";
 import { formatTime } from "@/lib/dates";
@@ -172,6 +173,21 @@ export function PlanningForm({
             </button>
           )}
           {state && <p className={state.ok ? "text-sm text-ok" : "text-sm text-risk"}>{state.message}</p>}
+        </div>
+      )}
+      {submitted && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/40 bg-surface p-4">
+          <p className="text-sm">
+            <span className="font-semibold">Your planning form is in.</span> Next up: your rosters.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/portal/${jobId}/rosters`} className="flex min-h-12 items-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-ink hover:brightness-110">
+              Next: upload rosters
+            </Link>
+            <Link href={`/portal/${jobId}`} className="flex min-h-12 items-center rounded-lg border border-line px-4 text-sm font-semibold hover:border-accent hover:text-accent">
+              All steps
+            </Link>
+          </div>
         </div>
       )}
     </form>

@@ -971,6 +971,7 @@ export type Database = {
           crew_member_id: string
           emergency_name: string | null
           emergency_phone: string | null
+          self_updated_at: string | null
           updated_at: string
         }
         Insert: {
@@ -979,6 +980,7 @@ export type Database = {
           crew_member_id: string
           emergency_name?: string | null
           emergency_phone?: string | null
+          self_updated_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -987,6 +989,7 @@ export type Database = {
           crew_member_id?: string
           emergency_name?: string | null
           emergency_phone?: string | null
+          self_updated_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -5093,6 +5096,7 @@ export type Database = {
         Args: { p_company: string; p_today: string }
         Returns: number
       }
+      my_crew_details: { Args: never; Returns: Json }
       open_schedule: { Args: { p_photo_day_id: string }; Returns: string }
       order_daily_totals: {
         Args: { p_from: string; p_to: string }
@@ -5168,6 +5172,17 @@ export type Database = {
       respond_to_shift: {
         Args: { p_accept: boolean; p_shift_id: string }
         Returns: string
+      }
+      save_my_crew_details: {
+        Args: {
+          p_address: string
+          p_city: string
+          p_emergency_name: string
+          p_emergency_phone: string
+          p_phone: string
+          p_state: string
+        }
+        Returns: undefined
       }
       save_planning_form: {
         Args: { p_answers: Json; p_job_id: string; p_submit: boolean }

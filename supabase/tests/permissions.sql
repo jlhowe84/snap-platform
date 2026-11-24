@@ -1358,6 +1358,18 @@ select t.login('office');
 select t.fails($$insert into public.crew_private (crew_member_id, company_id, address) select id, company_id, '4 Test Road, Town' from public.crew_members where full_name = 'Crew A'$$, 'office cannot save a home address');
 select t.login('crew');
 select t.count_is($$select count(*) from public.crew_private$$, 0, 'crew do not read home addresses');
+select t.count_is($$select count(*) from (select public.my_crew_details() d) x where d ->> 'address' = '1 Test Lane, Town' and d ->> 'full_name' = 'Crew A'$$, 1, 'a crew member reads their own details');
+select t.works($$select public.save_my_crew_details('555-0142', 'Town', 'PA', '9 New Street, Town', 'Sam', '555-0143')$$, 'a crew member updates their own details');
+select t.fails($$select public.save_my_crew_details('555-0142', 'Town', 'PA', 'x', null, null)$$, 'a home address has to be a real one');
+select t.count_is($$select count(*) from public.crew_private$$, 0, 'crew still cannot read the private table');
+select t.login('office');
+select t.fails($$select public.save_my_crew_details('1', 'a', 'b', '9 Other Street, Town', null, null)$$, 'only crew use the own-details save');
+select t.count_is($$select count(*) from (select public.my_crew_details() d) x where d is not null$$, 0, 'someone who is not crew has no own details');
+select t.login('admin');
+select t.count_is($$select count(*) from public.crew_private p join public.crew_members c on c.id = p.crew_member_id where c.full_name = 'Crew A' and p.address = '9 New Street, Town' and p.emergency_name = 'Sam' and p.self_updated_at is not null and c.phone = '555-0142'$$, 1, 'the admin sees what the crew member saved');
+select t.count_is($$select count(*) from public.crew_private where address = '2 Test Road, Town' and self_updated_at is null$$, 1, 'another crew member''s details are untouched');
+select t.works($$update public.crew_private set address = '1 Test Lane, Town', emergency_name = null, emergency_phone = null where address = '9 New Street, Town'$$, 'the admin can set it back');
+select t.login('crew');
 reset role;
 select t.count_is($$select count(*) from public.activity_log where table_name in ('crew_homes', 'crew_private')$$, 0, 'home addresses never reach the activity log');
 
