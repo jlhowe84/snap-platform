@@ -115,7 +115,7 @@ export function BookingForm({
           {pending ? "Booking…" : "Book this time"}
         </button>
         <p className="mt-2 text-xs text-muted">
-          We will email you a confirmation with a link to cancel. {leadHours > 0 ? `Times can be booked up to ${leadHours} hours ahead.` : ""}
+          We will email you a confirmation with a link to cancel. {leadHours > 0 ? `A time must be booked at least ${leadHours} hours before it starts.` : ""}
         </p>
       </div>
     </form>
