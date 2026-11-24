@@ -72,7 +72,7 @@ export function JobDetailsEditor({ job, leagues, children }: { job: Job; leagues
         </label>
         <label className={label + " sm:col-span-2"}>
           League
-          <select name="org_id" defaultValue={job.org_id ?? ""} className={field}>
+          <select key={String(job.org_id ?? "")} name="org_id" defaultValue={job.org_id ?? ""} className={field}>
             <option value="">Not linked</option>
             {leagues.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
@@ -87,14 +87,14 @@ export function JobDetailsEditor({ job, leagues, children }: { job: Job; leagues
               </select>
             </>
           ) : (
-            <select name="status" defaultValue={job.status} className={field}>
+            <select key={String(job.status)} name="status" defaultValue={job.status} className={field}>
               <Options values={HAND_STATUSES} labels={STATUS_LABEL} />
             </select>
           )}
         </label>
         <label className={label}>
           Production stage
-          <select name={byTasks ? undefined : "production_stage"} disabled={byTasks} defaultValue={job.production_stage ?? ""} className={field}>
+          <select key={String(job.production_stage ?? "")} name={byTasks ? undefined : "production_stage"} disabled={byTasks} defaultValue={job.production_stage ?? ""} className={field}>
             <option value="">None</option>
             <Options values={STAGE_VALUES} labels={STAGE_LABEL} />
           </select>
@@ -111,28 +111,28 @@ export function JobDetailsEditor({ job, leagues, children }: { job: Job; leagues
       <div className={grid}>
         <label className={label}>
           Lab
-          <select name="lab" defaultValue={job.lab ?? ""} className={field}>
+          <select key={String(job.lab ?? "")} name="lab" defaultValue={job.lab ?? ""} className={field}>
             <option value="">Not set</option>
             <Options values={LABS} labels={LAB_LABEL} />
           </select>
         </label>
         <label className={label}>
           Delivery
-          <select name="delivery_method" defaultValue={job.delivery_method ?? ""} className={field}>
+          <select key={String(job.delivery_method ?? "")} name="delivery_method" defaultValue={job.delivery_method ?? ""} className={field}>
             <option value="">Not set</option>
             <Options values={DELIVERY_METHODS} labels={DELIVERY_LABEL} />
           </select>
         </label>
         <label className={label}>
           Team photo
-          <select name="team_photo_type" defaultValue={job.team_photo_type ?? ""} className={field}>
+          <select key={String(job.team_photo_type ?? "")} name="team_photo_type" defaultValue={job.team_photo_type ?? ""} className={field}>
             <option value="">Not set</option>
             <Options values={TEAM_PHOTO_TYPES} labels={TEAM_PHOTO_LABEL} />
           </select>
         </label>
         <label className={label}>
           Sale
-          <select name="sale_mode" defaultValue={job.sale_mode} className={field}>
+          <select key={String(job.sale_mode)} name="sale_mode" defaultValue={job.sale_mode} className={field}>
             <Options values={SALE_MODES} labels={SALE_MODE_LABEL} />
           </select>
         </label>
@@ -142,19 +142,19 @@ export function JobDetailsEditor({ job, leagues, children }: { job: Job; leagues
       <div className={grid}>
         <label className={label}>
           Type
-          <select name="job_type" defaultValue={job.job_type} className={field}>
+          <select key={String(job.job_type)} name="job_type" defaultValue={job.job_type} className={field}>
             <Options values={JOB_TYPES} labels={JOB_TYPE_LABEL} />
           </select>
         </label>
         <label className={label}>
           Program
-          <select name="program" defaultValue={job.program} className={field}>
+          <select key={String(job.program)} name="program" defaultValue={job.program} className={field}>
             <Options values={PROGRAMS} labels={PROGRAM_LABEL} />
           </select>
         </label>
         <label className={label}>
           Where
-          <select name="venue" defaultValue={job.venue} className={field}>
+          <select key={String(job.venue)} name="venue" defaultValue={job.venue} className={field}>
             <Options values={VENUES} labels={VENUE_LABEL} />
           </select>
         </label>
@@ -172,7 +172,7 @@ export function JobDetailsEditor({ job, leagues, children }: { job: Job; leagues
         </label>
         <label className={label}>
           Sponsors
-          <select name="sponsors" defaultValue={job.sponsors == null ? "" : job.sponsors ? "yes" : "no"} className={field}>
+          <select key={String(job.sponsors == null ? "" : job.sponsors ? "yes" : "no")} name="sponsors" defaultValue={job.sponsors == null ? "" : job.sponsors ? "yes" : "no"} className={field}>
             <option value="">Unknown</option>
             <option value="yes">Yes</option>
             <option value="no">No</option>
@@ -241,7 +241,7 @@ export function DayEditor({ jobId, day }: { jobId: string; day: Day }) {
         </div>
         <label className={label}>
           Indoor or outdoor
-          <select name="indoor" defaultValue={day.indoor == null ? "" : day.indoor ? "indoor" : "outdoor"} className={field}>
+          <select key={String(day.indoor == null ? "" : day.indoor ? "indoor" : "outdoor")} name="indoor" defaultValue={day.indoor == null ? "" : day.indoor ? "indoor" : "outdoor"} className={field}>
             <option value="">Unknown</option>
             <option value="indoor">Indoor</option>
             <option value="outdoor">Outdoor</option>

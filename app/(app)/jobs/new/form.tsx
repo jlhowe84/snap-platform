@@ -15,7 +15,7 @@ export function NewJobForm({ leagues, orgId }: { leagues: { id: string; name: st
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className={label}>
           League
-          <select name="org_id" required defaultValue={orgId ?? ""} className={field}>
+          <select key={String(orgId ?? "")} name="org_id" required defaultValue={orgId ?? ""} className={field}>
             <option value="" disabled>Choose a league</option>
             {leagues.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>

@@ -72,7 +72,7 @@ export function DetailsForm({ crew }: { crew: CrewDetails | null }) {
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={label}>
           Level (1 is asked first)
-          <select name="level" defaultValue={crew?.level == null ? "" : String(crew.level)} className={field}>
+          <select key={String(crew?.level == null ? "" : String(crew.level))} name="level" defaultValue={crew?.level == null ? "" : String(crew.level)} className={field}>
             <option value="">No Level</option>
             {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>Level {n}</option>)}
           </select>

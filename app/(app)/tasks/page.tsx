@@ -87,7 +87,7 @@ export default async function TasksPage({ searchParams }: PageProps<"/tasks">) {
                     ) : (
                       <>
                         <form action={assignTask.bind(null, t.id)} className="flex items-center gap-1">
-                          <select name="assignee_id" defaultValue={t.assignee_id ?? ""} aria-label="Assigned to" className="rounded-lg border border-line bg-surface px-2 py-1 text-sm">
+                          <select key={String(t.assignee_id ?? "")} name="assignee_id" defaultValue={t.assignee_id ?? ""} aria-label="Assigned to" className="rounded-lg border border-line bg-surface px-2 py-1 text-sm">
                             <option value="">Nobody yet</option>
                             {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                           </select>

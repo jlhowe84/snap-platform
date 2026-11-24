@@ -26,7 +26,7 @@ export function NewTask({ people, me }: { people: { id: string; name: string }[]
       </label>
       <label className="flex flex-col gap-1 text-xs text-muted">
         For
-        <select name="assignee_id" defaultValue={me} className={input}>
+        <select key={String(me)} name="assignee_id" defaultValue={me} className={input}>
           <option value="">Nobody yet</option>
           {people.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>

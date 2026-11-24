@@ -28,7 +28,7 @@ export function CaseForm({ caseId, status, note }: { caseId: string; status: Cas
   useToast(state);
   return (
     <form action={action} className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[11rem_1fr_auto]">
-      <select name="status" defaultValue={status} aria-label="Status" className={field}>
+      <select key={String(status)} name="status" defaultValue={status} aria-label="Status" className={field}>
         {CASE_STATUSES.map((s) => <option key={s} value={s}>{CASE_STATUS_LABEL[s]}</option>)}
       </select>
       <input name="note" maxLength={1000} defaultValue={note ?? ""} placeholder="Note: who was told, makeup date, refund asked" aria-label="Note" className={field} />

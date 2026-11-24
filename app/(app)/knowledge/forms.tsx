@@ -32,7 +32,7 @@ export function ArticleForm({ article, sections, shelf }: { article?: ArticleFie
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={label}>
           Shelf
-          <select name="shelf" defaultValue={article?.shelf ?? shelf ?? "answers"} className={field}>
+          <select key={String(article?.shelf ?? shelf ?? "answers")} name="shelf" defaultValue={article?.shelf ?? shelf ?? "answers"} className={field}>
             {KB_SHELVES.map((s) => (
               <option key={s} value={s}>{SHELF_LABEL[s]}</option>
             ))}
@@ -47,7 +47,7 @@ export function ArticleForm({ article, sections, shelf }: { article?: ArticleFie
         </label>
         <label className={label}>
           Status
-          <select name="status" defaultValue={article?.status ?? "published"} className={field}>
+          <select key={String(article?.status ?? "published")} name="status" defaultValue={article?.status ?? "published"} className={field}>
             {KB_STATUSES.map((s) => (
               <option key={s} value={s}>{STATUS_LABEL[s]}</option>
             ))}
