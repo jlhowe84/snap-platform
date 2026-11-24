@@ -1,6 +1,8 @@
 import { formatDate } from "@/lib/dates";
+import { renderMessage, type SavedMessages } from "@/lib/messages/catalog";
 
-// Drafts for the approval queue. These are plain templates: the same facts in
+// Drafts for the approval queue. The wording is in lib/messages/catalog.ts (or
+// the company's own, from Settings, Messages). These are plain templates: the same facts in
 // the same order every time, so a person can approve them at a glance. The
 // agent rewrites them in the league's voice once playbooks land (Dec 12).
 // Nothing here sends: a draft is a row in agent_actions until a person
@@ -47,91 +49,26 @@ export function missingLines(missing: string[] = []) {
 
 const day = (iso?: string | null) => (iso ? formatDate(iso, { weekday: true }) : "your photo day");
 
-export function buildDraft(kind: DraftKind, f: DraftFacts): Draft {
-  const hi = `Hi ${f.contactFirstName ?? "there"},`;
-  const sign = `Thank you,\n${f.companyName}`;
-  const todo = missingLines(f.missing);
-  const where = `Everything is in one place: ${PORTAL_LINK}`;
-  const lastDay = f.deadlineOn
-    ? ` The last day we can take a roster and schedule is ${day(f.deadlineOn)}. After that we may need to move your photo day.`
-    : "";
-
-  switch (kind) {
-    case "offers.send":
-      return {
-        to: f.to,
-        subject: `${f.leagueName}: your ${f.season} photo day`,
-        body: [
-          hi,
-          `We are planning ${f.season} and would love to photograph ${f.leagueName} again.` +
-            (f.lastPhotoDay ? ` Last season your photo day was ${day(f.lastPhotoDay)}.` : ""),
-          "Reply with the date you would like, or a couple of options, and we will hold it for you while you confirm.",
-          sign,
-        ].join("\n\n"),
-      };
-    case "holds.remind":
-      return {
-        to: f.to,
-        subject: `${f.leagueName}: your held date releases ${f.holdExpires ? formatDate(f.holdExpires) : "soon"}`,
-        body: [
-          hi,
-          `We are holding ${day(f.photoDay)} for ${f.leagueName}. The hold releases on ${f.holdExpires ? formatDate(f.holdExpires, { weekday: true }) : "its release date"} so the date can go to the next league waiting.`,
-          `To keep it, sign the photo day agreement here: ${PORTAL_LINK}`,
-          "If you need a few more days, reply and let us know.",
-          sign,
-        ].join("\n\n"),
-      };
-    case "chase.request":
-      return {
-        to: f.to,
-        subject: `${f.leagueName}: getting ready for photo day on ${day(f.photoDay)}`,
-        body: [
-          hi,
-          `Photo day for ${f.leagueName} is ${day(f.photoDay)}. To have everything ready, we need the following by ${day(f.dueOn)}:`,
-          todo,
-          where,
-          sign,
-        ].join("\n\n"),
-      };
-    case "chase.reminder":
-      return {
-        to: f.to,
-        subject: `${f.leagueName}: still needed for photo day`,
-        body: [
-          hi,
-          `A quick reminder for photo day on ${day(f.photoDay)}. We still need:`,
-          todo,
-          `These are due by ${day(f.dueOn)}. ${where}`,
-          sign,
-        ].join("\n\n"),
-      };
-    case "chase.due_soon":
-      return {
-        to: f.to,
-        subject: `${f.leagueName}: due in one week`,
-        body: [
-          hi,
-          `Photo day is ${day(f.photoDay)}, and the items below are due in one week, by ${day(f.dueOn)}:`,
-          todo,
-          ...(lastDay ? [lastDay.trim()] : []),
-          `${where}\n\nWe will also give you a call this week in case it is easier to sort out by phone.`,
-          sign,
-        ].join("\n\n"),
-      };
-    case "chase.at_risk":
-      return {
-        to: f.to,
-        subject: `${f.leagueName}: your photo day on ${day(f.photoDay)} is at risk`,
-        body: [
-          hi,
-          `Photo day for ${f.leagueName} is ${day(f.photoDay)}, and we are still missing:`,
-          todo,
-          "Without these we cannot prepare your teams and schedule in time. Please send them today, or reply so we can talk through options." + lastDay,
-          where,
-          sign,
-        ].join("\n\n"),
-      };
-  }
+export function buildDraft(kind: DraftKind, f: DraftFacts, saved?: SavedMessages | null): Draft {
+  const message = renderMessage(
+    kind,
+    {
+      contact: f.contactFirstName ?? "there",
+      league: f.leagueName,
+      company: f.companyName,
+      season: f.season ?? "next season",
+      last_season: f.lastPhotoDay ? `Last season your photo day was ${day(f.lastPhotoDay)}.` : "",
+      photo_day: day(f.photoDay),
+      hold_date: f.holdExpires ? (formatDate(f.holdExpires) ?? "soon") : "soon",
+      hold_day: f.holdExpires ? (formatDate(f.holdExpires, { weekday: true }) ?? "its release date") : "its release date",
+      due: day(f.dueOn),
+      todo: missingLines(f.missing),
+      deadline_note: f.deadlineOn ? `The last day we can take a roster and schedule is ${day(f.deadlineOn)}. After that we may need to move your photo day.` : "",
+      portal_link: PORTAL_LINK,
+    },
+    saved,
+  );
+  return { to: f.to, ...message };
 }
 
 export const DRAFT_LABEL: Record<DraftKind, string> = {

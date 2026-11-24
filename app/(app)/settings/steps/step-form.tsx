@@ -76,7 +76,7 @@ export function StepForm({
         </label>
         <label className={label}>
           <span className="sr-only">Before or after photo day</span>
-          <select name="when" defaultValue={(values.offset_days ?? -1) > 0 ? "after" : "before"} className={field}>
+          <select key={String((values.offset_days ?? -1) > 0 ? "after" : "before")} name="when" defaultValue={(values.offset_days ?? -1) > 0 ? "after" : "before"} className={field}>
             <option value="before">days before photo day</option>
             <option value="after">days after photo day</option>
           </select>

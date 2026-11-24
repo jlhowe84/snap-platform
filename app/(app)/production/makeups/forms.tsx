@@ -33,7 +33,7 @@ export function BookingForm({ booking, canFind }: { booking: BookingEdit; canFin
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <label className={label}>
             Status
-            <select name="status" defaultValue={booking.status} className={field}>
+            <select key={String(booking.status)} name="status" defaultValue={booking.status} className={field}>
               {BOOKING_STATUSES.map((s) => <option key={s} value={s}>{BOOKING_STATUS_LABEL[s]}</option>)}
             </select>
           </label>

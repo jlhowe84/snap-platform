@@ -59,6 +59,7 @@ export function parseScheduleForm(input: Input, current: Schedule): FormResult<S
       details,
       emailStaff: input.emailStaff === "on",
       emailParent: input.emailParent === "on",
+      remindParent: input.remindParent === "on",
     },
   };
 }

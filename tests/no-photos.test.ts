@@ -93,6 +93,7 @@ describe("makeup offer", () => {
     const template = { subject: "Book for {player}", body: "Pick a time: {booking}" };
     const facts = { company: "Photo Co", league: null, player: "Sam", parentFirstName: null, orderId: 42, to: ["a@example.com"] };
     expect(buildMakeupOffer(template, { ...facts, bookingUrl: "https://example.com/help/co/makeup?order=42" }).body).toBe("Pick a time: https://example.com/help/co/makeup?order=42");
-    expect(buildMakeupOffer(template, facts).body).toBe("Pick a time: ");
+    // A line whose only field is empty is left out.
+    expect(buildMakeupOffer(template, facts).body).toBe("");
   });
 });

@@ -61,7 +61,7 @@ export default async function GearPage() {
                       ))}
                   </div>
                   <form action={setKitStatus.bind(null, k.id)} className="flex flex-wrap items-center gap-2 md:justify-end">
-                    <select name="status" defaultValue={k.status} aria-label={`Kit ${k.code} status`} className={input}>
+                    <select key={String(k.status)} name="status" defaultValue={k.status} aria-label={`Kit ${k.code} status`} className={input}>
                       {Object.entries(KIT_STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
                     <input name="notes" defaultValue={k.notes ?? ""} placeholder="Notes" maxLength={1000} className={`${input} w-56`} />
@@ -108,7 +108,7 @@ export default async function GearPage() {
                 <input name="serial" defaultValue={b.serial} required maxLength={40} aria-label="Serial" className={`${input} w-28 font-mono`} />
                 <input name="letter" defaultValue={b.letter ?? ""} maxLength={4} placeholder="Letter" aria-label="Letter" className={`${input} w-20`} />
                 <input name="model" defaultValue={b.model ?? ""} maxLength={60} placeholder="Model" aria-label="Model" className={`${input} w-36`} />
-                <select name="kit_id" defaultValue={b.kit_id ?? ""} aria-label="Kit" className={input}>
+                <select key={String(b.kit_id ?? "")} name="kit_id" defaultValue={b.kit_id ?? ""} aria-label="Kit" className={input}>
                   <option value="">No kit</option>
                   {(kits ?? []).map((k) => <option key={k.id} value={k.id}>Kit {k.code}</option>)}
                 </select>

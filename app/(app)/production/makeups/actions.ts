@@ -1,5 +1,6 @@
 "use server";
 
+import { savedMessages } from "@/lib/messages/server";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -150,7 +151,7 @@ export async function addBooking(_prev: MakeupState, form: FormData): Promise<Ma
         place: schedule.place,
         details: schedule.details,
         manageUrl: `${base}/help/${viewer.companySlug}/makeup/b/${token}`,
-      }),
+      }, await savedMessages(supabase)),
     });
   }
   refresh();
@@ -182,7 +183,7 @@ export async function moveBooking(id: string, _prev: MakeupState, form: FormData
   for (let seat = 1; seat <= schedule.perSlot; seat++) {
     const { data, error } = await supabase
       .from("makeup_bookings")
-      .update({ date, start_time: time, seat, reminded_on: null, updated_by: viewer.id, ...(telling ? { token_hash: hash } : {}) })
+      .update({ date, start_time: time, seat, reminded_on: null, parent_reminded_on: null, updated_by: viewer.id, ...(telling ? { token_hash: hash } : {}) })
       .eq("id", id)
       .select("*")
       .maybeSingle();
@@ -207,7 +208,7 @@ export async function moveBooking(id: string, _prev: MakeupState, form: FormData
         place: schedule.place,
         details: schedule.details,
         manageUrl: `${base}/help/${viewer.companySlug}/makeup/b/${token}`,
-      }),
+      }, await savedMessages(supabase)),
     });
   }
   refresh();
@@ -235,7 +236,7 @@ export async function cancelBooking(id: string, _prev: MakeupState, form: FormDa
     const base = liveSiteUrl(await headers());
     mailed = await sendSystemMail(viewer.companyId, {
       to: [b.email],
-      ...parentCancelled(factsOf(b), { company: viewer.companyName ?? "The photo team", bookUrl: `${base}/help/${viewer.companySlug}/makeup` }),
+      ...parentCancelled(factsOf(b), { company: viewer.companyName ?? "The photo team", bookUrl: `${base}/help/${viewer.companySlug}/makeup` }, await savedMessages(supabase)),
     });
   }
   refresh();

@@ -65,6 +65,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             {label}
           </Link>
         ))}
+        <Link href="/settings/messages" className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-muted hover:border-accent hover:text-accent">
+          Messages
+        </Link>
       </nav>
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 [&>*]:min-w-0">
         {tab === "team" && (

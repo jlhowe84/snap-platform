@@ -1,5 +1,6 @@
 "use server";
 
+import { savedMessages } from "@/lib/messages/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStaff, ADMIN_ROLES } from "@/lib/auth";
@@ -60,7 +61,7 @@ export async function changePhotoDay(jobId: string, photoDayId: string, _prev: D
           to: addressesOf(contacts),
           fromDate: day.date,
           toDate: d.newDate ?? null,
-        })
+        }, await savedMessages(supabase))
       : null;
 
   const { error } = await supabase.rpc("change_photo_day", {

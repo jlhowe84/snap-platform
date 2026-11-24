@@ -1,5 +1,6 @@
 "use server";
 
+import { savedMessages } from "@/lib/messages/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStaff, OFFICE_ROLES, ADMIN_ROLES } from "@/lib/auth";
@@ -128,6 +129,7 @@ export async function draftOffers(season: string, offerId: string | null): Promi
     .is("ended_on", null)
     .order("is_primary", { ascending: false });
 
+  const saved = await savedMessages(supabase);
   const rows = todo.map((o) => {
     const contact = (people ?? [])
       .filter((p) => p.org_id === o.org_id)
@@ -147,7 +149,7 @@ export async function draftOffers(season: string, offerId: string | null): Promi
         to: splitAddresses(contact?.email),
         season,
         lastPhotoDay: basis.last_date ?? null,
-      }),
+      }, saved),
       record_refs: { offer_id: o.id, org_id: o.org_id },
     };
   });

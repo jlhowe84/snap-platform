@@ -31,6 +31,8 @@ export type Schedule = {
   details: string;
   emailStaff: boolean;
   emailParent: boolean;
+  /** Email the parent a reminder the day before their session. */
+  remindParent: boolean;
 };
 
 export const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
@@ -47,6 +49,7 @@ export const CLOSED_SCHEDULE: Schedule = {
   details: "",
   emailStaff: true,
   emailParent: true,
+  remindParent: true,
 };
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -94,6 +97,7 @@ export function readSchedule(value: unknown): Schedule {
     details: text(v.details, 2000),
     emailStaff: v.emailStaff !== false,
     emailParent: v.emailParent !== false,
+    remindParent: v.remindParent !== false,
   };
 }
 

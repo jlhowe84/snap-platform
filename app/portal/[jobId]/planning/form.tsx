@@ -73,7 +73,7 @@ export function PlanningForm({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className={label}>
             When should the first group be ready?
-            <select name="first_group_time" defaultValue={answers.first_group_time ?? ""} disabled={off} className={field}>
+            <select key={String(answers.first_group_time ?? "")} name="first_group_time" defaultValue={answers.first_group_time ?? ""} disabled={off} className={field}>
               <option value="">Choose a time</option>
               {timeChoices().map((t) => (
                 <option key={t} value={t}>

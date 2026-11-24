@@ -188,7 +188,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
               </label>
               <label className="flex items-center gap-2">
                 Block
-                <select name="default_block_minutes" defaultValue={schedule.default_block_minutes} className={input}>
+                <select key={String(schedule.default_block_minutes)} name="default_block_minutes" defaultValue={schedule.default_block_minutes} className={input}>
                   {MINUTES.map((m) => <option key={m} value={m}>{m} min</option>)}
                 </select>
               </label>
@@ -215,10 +215,10 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                           <div className="mt-2 flex flex-wrap items-center gap-1">
                             <form action={updateSlot.bind(null, jobId, day.id, s.id)} className="flex flex-wrap items-center gap-1">
                               <input name="starts_at" type="time" step={300} defaultValue={s.starts_at.slice(0, 5)} required aria-label="Start time" className={input} />
-                              <select name="minutes" defaultValue={s.minutes} aria-label="Minutes" className={input}>
+                              <select key={String(s.minutes)} name="minutes" defaultValue={s.minutes} aria-label="Minutes" className={input}>
                                 {MINUTES.map((m) => <option key={m} value={m}>{m} min</option>)}
                               </select>
-                              <select name="station" defaultValue={s.station} aria-label="Station" className={input}>
+                              <select key={String(s.station)} name="station" defaultValue={s.station} aria-label="Station" className={input}>
                                 {Array.from({ length: Math.max(stations, s.station) }, (_, k) => k + 1).map((k) => <option key={k} value={k}>Station {k}</option>)}
                               </select>
                               <SubmitButton className={quiet}>Move</SubmitButton>
@@ -253,11 +253,11 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                     <select name="team_id" required aria-label="Team" className={cx(input, "min-w-40")}>
                       {unplaced.map((t) => <option key={t.id} value={t.id}>{teamName.get(t.id)}</option>)}
                     </select>
-                    <select name="station" defaultValue={soonest + 1} aria-label="Station" className={input}>
+                    <select key={String(soonest + 1)} name="station" defaultValue={soonest + 1} aria-label="Station" className={input}>
                       {Array.from({ length: stations }, (_, k) => k + 1).map((k) => <option key={k} value={k}>Station {k}</option>)}
                     </select>
                     <input name="starts_at" type="time" step={300} defaultValue={toClock(free[soonest])} required aria-label="Start time" className={input} />
-                    <select name="minutes" defaultValue={schedule.default_block_minutes} aria-label="Minutes" className={input}>
+                    <select key={String(schedule.default_block_minutes)} name="minutes" defaultValue={schedule.default_block_minutes} aria-label="Minutes" className={input}>
                       {MINUTES.map((m) => <option key={m} value={m}>{m} min</option>)}
                     </select>
                     <SubmitButton className={quiet}>Add slot</SubmitButton>
@@ -266,11 +266,11 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
               )}
               <form action={addSlot.bind(null, jobId, day.id, schedule.id, "break")} className="flex flex-wrap items-end gap-2">
                 <input name="label" maxLength={80} placeholder="Break" aria-label="Break label" className={cx(input, "w-40")} />
-                <select name="station" defaultValue={soonest + 1} aria-label="Station" className={input}>
+                <select key={String(soonest + 1)} name="station" defaultValue={soonest + 1} aria-label="Station" className={input}>
                   {Array.from({ length: stations }, (_, k) => k + 1).map((k) => <option key={k} value={k}>Station {k}</option>)}
                 </select>
                 <input name="starts_at" type="time" step={300} defaultValue={toClock(free[soonest])} required aria-label="Start time" className={input} />
-                <select name="minutes" defaultValue={15} aria-label="Minutes" className={input}>
+                <select key={String(15)} name="minutes" defaultValue={15} aria-label="Minutes" className={input}>
                   {MINUTES.map((m) => <option key={m} value={m}>{m} min</option>)}
                 </select>
                 <SubmitButton className={quiet}>Add break</SubmitButton>

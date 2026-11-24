@@ -15,7 +15,7 @@ export function PayForm({ crewId, positions }: { crewId: string; positions: stri
     <form action={action} className="grid items-end gap-3 md:grid-cols-[1.5fr_1fr_1fr_auto]">
       <label className={label}>
         Position
-        <select name="position" className={field} defaultValue={positions[0] ?? "photographer"}>
+        <select key={String(positions[0] ?? "photographer")} name="position" className={field} defaultValue={positions[0] ?? "photographer"}>
           {Object.entries(POSITION_LABEL).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}

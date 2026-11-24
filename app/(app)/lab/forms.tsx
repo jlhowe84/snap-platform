@@ -32,7 +32,7 @@ export function MatchJob({ reference, jobId, jobs }: { reference: string; jobId:
       <input type="hidden" name="reference" value={reference} />
       <label className="flex min-w-0 flex-col gap-1 text-sm">
         <span className="font-medium">Job these invoices belong to</span>
-        <select name="job" defaultValue={jobId ?? ""} className="max-w-full rounded-lg border border-line bg-surface px-3 py-2">
+        <select key={String(jobId ?? "")} name="job" defaultValue={jobId ?? ""} className="max-w-full rounded-lg border border-line bg-surface px-3 py-2">
           <option value="">Not matched</option>
           {jobs.map((j) => (
             <option key={j.id} value={j.id}>

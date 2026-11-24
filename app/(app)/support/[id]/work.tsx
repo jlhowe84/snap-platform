@@ -39,7 +39,7 @@ export function WorkForm({
     <form action={action} className="space-y-4">
       <label className={label}>
         Status
-        <select name="status" defaultValue={status} className={field}>
+        <select key={String(status)} name="status" defaultValue={status} className={field}>
           {SUPPORT_STATUSES.map((s) => (
             <option key={s} value={s}>{SUPPORT_STATUS_LABEL[s]}</option>
           ))}
@@ -47,7 +47,7 @@ export function WorkForm({
       </label>
       <label className={label}>
         Assigned to
-        <select name="assignee" defaultValue={assigneeId ?? ""} className={field}>
+        <select key={String(assigneeId ?? "")} name="assignee" defaultValue={assigneeId ?? ""} className={field}>
           <option value="">Nobody yet</option>
           {people.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>

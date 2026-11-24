@@ -1,5 +1,6 @@
 "use server";
 
+import { savedMessages } from "@/lib/messages/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -107,14 +108,15 @@ export async function bookMakeup(slug: string, _prev: BookState, form: FormData)
 
   const base = liveSiteUrl(await headers());
   const facts = factsOf(made.booking);
+  const saved = await savedMessages(admin, company.id);
   if (schedule.emailParent) {
     await sendSystemMail(company.id, {
       to: [b.email],
-      ...parentConfirmation(facts, { company: company.name, place: schedule.place, details: schedule.details, manageUrl: `${base}/help/${company.slug}/makeup/b/${token}` }),
+      ...parentConfirmation(facts, { company: company.name, place: schedule.place, details: schedule.details, manageUrl: `${base}/help/${company.slug}/makeup/b/${token}` }, saved),
     });
   }
   if (schedule.emailStaff) {
-    await sendSystemMail(company.id, { to: await officeAddresses(company.id), ...officeAlert(facts, "booked", `${base}/production/makeups?date=${b.date}`) });
+    await sendSystemMail(company.id, { to: await officeAddresses(company.id), ...officeAlert(facts, "booked", `${base}/production/makeups?date=${b.date}`, saved) });
   }
   revalidatePath(`/help/${company.slug}/makeup`);
   redirect(`/help/${company.slug}/makeup/b/${token}?new=1`);
@@ -146,7 +148,7 @@ export async function cancelMakeup(token: string): Promise<BookState> {
     const base = liveSiteUrl(await headers());
     await sendSystemMail(company.id, {
       to: await officeAddresses(company.id),
-      ...officeAlert(factsOf(booking), "cancelled", `${base}/production/makeups?date=${booking.date}`),
+      ...officeAlert(factsOf(booking), "cancelled", `${base}/production/makeups?date=${booking.date}`, await savedMessages(admin, company.id)),
     });
   }
   revalidatePath(`/help/${company.slug}/makeup`);

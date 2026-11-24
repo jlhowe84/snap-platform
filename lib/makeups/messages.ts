@@ -1,6 +1,9 @@
-// The words of the scheduler's own messages. Plain text, no network.
+// The scheduler's own messages: the facts of a booking, put into the wording
+// in lib/messages/catalog.ts (or the company's own, from Settings, Messages).
+// Plain text, no network.
 
 import { formatDate, formatTime } from "@/lib/dates";
+import { renderMessage, type SavedMessages } from "@/lib/messages/catalog";
 import { KIND_LABEL, type Kind } from "./schedule";
 
 export type BookingFacts = {
@@ -21,46 +24,41 @@ export const whenLine = (b: Pick<BookingFacts, "date" | "time">) => `${formatDat
 
 const firstName = (name: string | null) => name?.trim().split(/\s+/)[0] || "there";
 
-/** What the parent gets after booking: when, where, and their own link to cancel. */
-export function parentConfirmation(b: BookingFacts, o: { company: string; place: string; details: string; manageUrl: string }) {
-  const lines = [
-    `Hi ${firstName(b.parentName)},`,
-    `${b.player} is booked for a ${KIND_LABEL[b.kind].toLowerCase()} session on ${whenLine(b)}.`,
-    o.place ? `Where: ${o.place}` : null,
-    o.details || null,
-    `If you can no longer make it, cancel here any time before the session starts:\n${o.manageUrl}`,
-    `Thank you,\n${o.company}`,
-  ];
+type Saved = SavedMessages | null;
+
+function parentWords(b: BookingFacts, o: { company: string; place?: string; details?: string; link: string }) {
   return {
-    subject: `${KIND_LABEL[b.kind]} session booked for ${b.player}: ${whenLine(b)}`,
-    body: lines.filter(Boolean).join("\n\n"),
+    parent: firstName(b.parentName),
+    player: b.player,
+    kind: KIND_LABEL[b.kind].toLowerCase(),
+    Kind: KIND_LABEL[b.kind],
+    when: whenLine(b),
+    time: formatTime(b.time) ?? "",
+    place: o.place ?? "",
+    details: o.details ?? "",
+    link: o.link,
+    company: o.company,
   };
+}
+
+/** What the parent gets after booking: when, where, and their own link to cancel. */
+export function parentConfirmation(b: BookingFacts, o: { company: string; place: string; details: string; manageUrl: string }, saved?: Saved) {
+  return renderMessage("makeup.confirmation", parentWords(b, { ...o, link: o.manageUrl }), saved);
+}
+
+/** What the parent gets the morning before their session. */
+export function parentReminder(b: BookingFacts, o: { company: string; place: string; details: string; manageUrl: string }, saved?: Saved) {
+  return renderMessage("makeup.reminder", parentWords(b, { ...o, link: o.manageUrl }), saved);
 }
 
 /** What the parent gets when the office moves their session to another time. */
-export function parentMoved(b: BookingFacts, o: { company: string; place: string; details: string; manageUrl: string }) {
-  const lines = [
-    `Hi ${firstName(b.parentName)},`,
-    `The ${KIND_LABEL[b.kind].toLowerCase()} session for ${b.player} has a new time: ${whenLine(b)}.`,
-    o.place ? `Where: ${o.place}` : null,
-    o.details || null,
-    `If the new time does not work, cancel here any time before the session starts and book another:\n${o.manageUrl}`,
-    `Thank you,\n${o.company}`,
-  ];
-  return { subject: `New time for ${b.player}'s ${KIND_LABEL[b.kind].toLowerCase()} session: ${whenLine(b)}`, body: lines.filter(Boolean).join("\n\n") };
+export function parentMoved(b: BookingFacts, o: { company: string; place: string; details: string; manageUrl: string }, saved?: Saved) {
+  return renderMessage("makeup.moved", parentWords(b, { ...o, link: o.manageUrl }), saved);
 }
 
 /** What the parent gets when the office cancels their session. */
-export function parentCancelled(b: BookingFacts, o: { company: string; bookUrl: string }) {
-  return {
-    subject: `${KIND_LABEL[b.kind]} session cancelled for ${b.player}`,
-    body: [
-      `Hi ${firstName(b.parentName)},`,
-      `The ${KIND_LABEL[b.kind].toLowerCase()} session for ${b.player} on ${whenLine(b)} has been cancelled.`,
-      `You can book another time here:\n${o.bookUrl}`,
-      `Thank you,\n${o.company}`,
-    ].join("\n\n"),
-  };
+export function parentCancelled(b: BookingFacts, o: { company: string; bookUrl: string }, saved?: Saved) {
+  return renderMessage("makeup.cancelled", parentWords(b, { company: o.company, link: o.bookUrl }), saved);
 }
 
 function factLines(b: BookingFacts) {
@@ -79,22 +77,27 @@ function factLines(b: BookingFacts) {
 }
 
 /** What the office gets when a booking is made or cancelled. */
-export function officeAlert(b: BookingFacts, what: "booked" | "cancelled", listUrl: string) {
-  return {
-    subject: `${KIND_LABEL[b.kind]} ${what}: ${b.player}, ${whenLine(b)}`,
-    body: [`A ${KIND_LABEL[b.kind].toLowerCase()} session was ${what} for ${whenLine(b)}.`, factLines(b), `Bookings and photo slips:\n${listUrl}`].join("\n\n"),
-  };
+export function officeAlert(b: BookingFacts, what: "booked" | "cancelled", listUrl: string, saved?: Saved) {
+  return renderMessage(
+    "makeup.office_alert",
+    { kind: KIND_LABEL[b.kind].toLowerCase(), Kind: KIND_LABEL[b.kind], what, player: b.player, when: whenLine(b), facts: factLines(b), link: listUrl },
+    saved,
+  );
 }
 
 /** The morning list for the office. */
-export function officeDigest(date: string, rows: Pick<BookingFacts, "kind" | "player" | "team" | "league" | "time">[], listUrl: string) {
+export function officeDigest(date: string, rows: Pick<BookingFacts, "kind" | "player" | "team" | "league" | "time">[], listUrl: string, saved?: Saved) {
   const n = rows.length;
-  return {
-    subject: `${n} makeup or retake session${n === 1 ? "" : "s"} today, ${formatDate(date, { weekday: true })}`,
-    body: [
-      `On the list for today:`,
-      rows.map((r) => `${formatTime(r.time)}  ${r.player} (${KIND_LABEL[r.kind]})${[r.league, r.team].filter(Boolean).length ? `, ${[r.league, r.team].filter(Boolean).join(", ")}` : ""}`).join("\n"),
-      `Bookings and photo slips:\n${listUrl}`,
-    ].join("\n\n"),
-  };
+  return renderMessage(
+    "makeup.office_digest",
+    {
+      count: `${n} makeup or retake session${n === 1 ? "" : "s"}`,
+      date: formatDate(date, { weekday: true }) ?? "",
+      sessions: rows
+        .map((r) => `${formatTime(r.time)}  ${r.player} (${KIND_LABEL[r.kind]})${[r.league, r.team].filter(Boolean).length ? `, ${[r.league, r.team].filter(Boolean).join(", ")}` : ""}`)
+        .join("\n"),
+      link: listUrl,
+    },
+    saved,
+  );
 }
