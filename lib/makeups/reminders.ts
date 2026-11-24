@@ -3,6 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { todayIn } from "@/lib/dates";
 import { officeAddresses, sendSystemMail } from "@/lib/mail/system";
+import { savedMessages } from "@/lib/messages/server";
 import { newPortalToken } from "@/lib/portal/token";
 import { officeDigest, parentReminder } from "./messages";
 import { addDays, MAKEUP_SETTING, readSchedule, type Kind } from "./schedule";
@@ -38,6 +39,7 @@ export async function runMakeupReminders(baseUrl: string): Promise<{ company: st
         today,
         rows.map((r) => ({ kind: r.kind as Kind, player: r.player, team: r.team, league: r.league, time: r.start_time.slice(0, 5) })),
         `${baseUrl}/production/makeups?date=${today}`,
+        await savedMessages(admin, company.id),
       ),
     });
   }
@@ -67,6 +69,7 @@ export async function runParentReminders(baseUrl: string): Promise<{ company: st
       .is("parent_reminded_on", null)
       .order("start_time")
       .limit(200);
+    const saved = rows?.length ? await savedMessages(admin, company.id) : null;
     let sent = 0;
     for (const row of rows ?? []) {
       const { token, hash } = newPortalToken();
@@ -86,7 +89,7 @@ export async function runParentReminders(baseUrl: string): Promise<{ company: st
           place: schedule.place,
           details: schedule.details,
           manageUrl: `${baseUrl}/help/${company.slug}/makeup/b/${token}`,
-        }),
+        }, saved),
       });
       if (ok) sent++;
     }

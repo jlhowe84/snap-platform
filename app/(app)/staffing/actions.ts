@@ -1,5 +1,6 @@
 "use server";
 
+import { savedMessages } from "@/lib/messages/server";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
@@ -51,7 +52,7 @@ async function queueCrewNotice(viewer: Viewer, shiftId: string, crewMemberId: st
     place: [s.photo_days.location_name, s.photo_days.city, s.photo_days.state].filter(Boolean).join(", ") || null,
     shiftsUrl: `${base}/shifts`,
     companyName: viewer.companyName,
-  });
+  }, await savedMessages(supabase));
   await supabase.from("agent_actions").insert({
     company_id: viewer.companyId!,
     action_type_key: CREW_NOTICE_KEY,

@@ -89,6 +89,24 @@ and the office's morning list. It passes
 the guard like every send and never throws, so a message that cannot go out
 does not undo the booking behind it.
 
+### Message wording
+
+`lib/messages/catalog.ts` lists every email the platform writes: who it goes
+to, when, the fill-in fields it may use (`{player}`, `{when}`, ...) and the
+starting subject and body. Every email is written with `renderMessage`, which
+takes the company's own wording when one is saved and the starting text
+otherwise. A company's wording is one settings row per message
+(`message.<key>`; the makeup offer keeps its older `prepay.makeup_offer` row),
+edited by owner and admin in Settings, Messages, with a live preview and a way
+back to the original. A save is refused when it names a field the message
+does not have, or drops a link the message needs.
+
+Each paragraph is filled on its own, and a paragraph whose fields are all
+empty is left out. A new email is added to the catalog first; a test fills
+every entry with its sample values. The wording says nothing about who a
+message goes to or whether it waits for approval: that stays in code and in
+the mail guard.
+
 ## Integrations
 
 Credentials are stored in Supabase Vault, mapped per company in

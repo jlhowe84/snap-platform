@@ -3,6 +3,7 @@
 // while mail is in test mode they go to the test address only.
 
 import { formatDate, formatTime } from "@/lib/dates";
+import { renderMessage, type SavedMessages } from "@/lib/messages/catalog";
 import { POSITION_LABEL } from "./plan";
 
 export const CREW_NOTICE_KEY = "crew.notify";
@@ -21,36 +22,23 @@ export type CrewNoticeFacts = {
   companyName: string | null;
 };
 
-export function crewNotice(f: CrewNoticeFacts): { subject: string; body: string } {
-  const when = formatDate(f.date, { weekday: true });
-  const role = (POSITION_LABEL[f.position] ?? f.position).toLowerCase();
+export function crewNotice(f: CrewNoticeFacts, saved?: SavedMessages | null): { subject: string; body: string } {
+  const date = formatDate(f.date, { weekday: true }) ?? "";
   const times = [formatTime(f.startTime), formatTime(f.endTime)].filter(Boolean).join(" to ");
-  const hi = f.firstName ? `Hi ${f.firstName},` : "Hi,";
-  const sign = f.companyName ? `Thanks,\n${f.companyName}` : "Thanks";
-  if (f.kind === "added") {
-    return {
-      subject: `You're on for ${f.jobName}, ${when}`,
-      body: [
-        hi,
-        `You're booked as ${role} for ${f.jobName} on ${when}${times ? `, ${times}` : ""}.`,
-        f.place ? `Where: ${f.place}` : null,
-        `Your shifts are here: ${f.shiftsUrl}`,
-        "If you can't make it, let the office know as soon as you can.",
-        sign,
-      ]
-        .filter(Boolean)
-        .join("\n\n"),
-    };
-  }
-  return {
-    subject: `Change to your shift on ${when}`,
-    body: [
-      hi,
-      `You're no longer booked as ${role} for ${f.jobName} on ${when}. Nothing else changes, and you don't need to do anything.`,
-      `Your shifts are here: ${f.shiftsUrl}`,
-      sign,
-    ].join("\n\n"),
-  };
+  return renderMessage(
+    f.kind === "added" ? "crew.added" : "crew.removed",
+    {
+      first_name: f.firstName ?? "there",
+      role: (POSITION_LABEL[f.position] ?? f.position).toLowerCase(),
+      job: f.jobName,
+      date,
+      shift: times ? `${date}, ${times}` : date,
+      place: f.place ?? "",
+      link: f.shiftsUrl,
+      company: f.companyName ?? "",
+    },
+    saved,
+  );
 }
 
 export function firstNameOf(fullName: string | null | undefined): string | null {

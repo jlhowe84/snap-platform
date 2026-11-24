@@ -1,6 +1,7 @@
 import "server-only";
 
 import { z } from "zod";
+import { savedMessages } from "@/lib/messages/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { todayIn } from "@/lib/dates";
 import { planningDates } from "@/lib/planning/dates";
@@ -64,6 +65,7 @@ export async function runClock(onlyCompanyId?: string): Promise<ClockResult[]> {
       continue;
     }
     result.due = items.data.length;
+    const saved = items.data.length ? await savedMessages(admin, company.id) : null;
 
     for (const item of items.data) {
       if (!isDraftKind(item.kind)) {
@@ -100,7 +102,7 @@ export async function runClock(onlyCompanyId?: string): Promise<ClockResult[]> {
           actor_kind: "system",
           status: "proposed",
           input: { clock_key: item.key, today },
-          draft: buildDraft(item.kind, facts),
+          draft: buildDraft(item.kind, facts, saved),
           record_refs: { job_id: item.job_id, org_id: item.org_id ?? null, hold_id: item.hold_id ?? null },
         })
         .select("id")
