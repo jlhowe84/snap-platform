@@ -712,6 +712,9 @@ select t.works($$update public.schedule_slots set minutes = 15 where team_id = '
 select t.count_is($$select count(*) from public.schedules where id = '80000000-0000-0000-0000-0000000000a1' and status = 'complete'$$, 1, 'an office edit leaves the schedule complete');
 select t.fails($$select public.set_schedule_status('80000000-0000-0000-0000-0000000000a1', 'submitted')$$, 'only complete or started can be set');
 select t.works($$insert into public.teams (company_id, job_id, name, source) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'Late Team', 'office')$$, 'office adds a late team');
+select t.count_is($$select count(*) from public.teams where job_id = '40000000-0000-0000-0000-0000000000a1' and (tc_number is null or tc_number !~ '^[0-9]+$')$$, 0, 'every team on the job has a team card number');
+select t.count_is($$select count(*) - count(distinct tc_number) from public.teams where job_id = '40000000-0000-0000-0000-0000000000a1'$$, 0, 'no two teams on a job share a team card number');
+select t.count_is($$select count(*) from public.teams where job_id = '40000000-0000-0000-0000-0000000000a1' and name = 'Late Team' and tc_number::int = (select max(tc_number::int) from public.teams where job_id = '40000000-0000-0000-0000-0000000000a1')$$, 1, 'a late team takes the next team card number');
 select t.count_is($$select count(*) from public.schedules where id = '80000000-0000-0000-0000-0000000000a1' and status = 'started'$$, 1, 'a new team reopens a complete schedule');
 select t.count_is($$select count(*) from public.planning_due('40000000-0000-0000-0000-0000000000a1') where weeks_due = 3 and deadline_days = 10$$, 1, 'the planning dates read from settings');
 select t.login('crew');
@@ -735,6 +738,9 @@ select t.count_is($$select count(*) from public.teams where job_id = '40000000-0
 select t.count_is($$select count(*) from public.teams where job_id = '40000000-0000-0000-0000-0000000000a1' and roster_group = 'U8 - Tigers - Smith' and player_count = 12$$, 1, 'a team in both rosters is updated, not doubled');
 select t.count_is($$select count(*) from public.roster_versions where job_id = '40000000-0000-0000-0000-0000000000a1' and status = 'ready'$$, 1, 'only the newest roster is the ready one');
 select t.count_is($$select count(*) from public.roster_versions where job_id = '40000000-0000-0000-0000-0000000000a1' and status = 'superseded' and csv_path like '%/standard/x.csv'$$, 1, 'the earlier roster is superseded');
+select t.count_is($$select count(*) from public.roster_versions where job_id = '40000000-0000-0000-0000-0000000000a1' and csv_path like '%/standard/x.csv' and diff is null$$, 1, 'a first roster has nothing to compare against');
+select t.count_is($$select count(*) from public.roster_versions where job_id = '40000000-0000-0000-0000-0000000000a1' and status = 'ready' and diff -> 'removed' -> 0 ->> 'name' = 'Lions' and (diff -> 'removed' -> 0 ->> 'kept')::boolean = false and jsonb_array_length(diff -> 'added') = 0$$, 1, 'a newer roster records the team it dropped');
+select t.count_is($$select count(*) from public.roster_versions where job_id = '40000000-0000-0000-0000-0000000000a1' and status = 'ready' and diff -> 'changed' -> 0 ->> 'name' = 'Tigers' and (diff -> 'changed' -> 0 ->> 'from')::int = 11 and (diff -> 'changed' -> 0 ->> 'to')::int = 12$$, 1, 'a newer roster records a head count that moved');
 
 -- Ask SNAP: staff only, one question at a time each, stopped at the day's cap.
 select t.login('coord');

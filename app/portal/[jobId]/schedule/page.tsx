@@ -117,6 +117,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                   </div>
                 ) : (
                   <p className="text-sm">
+                    {t.tc_number && <span className="mr-2 rounded border border-line px-1.5 py-0.5 text-xs font-semibold">TC {t.tc_number}</span>}
                     <span className="font-medium">{t.name}</span>
                     <span className="text-muted">{[t.division, t.coach_name, t.sponsor].filter(Boolean).map((x) => ` · ${x}`).join("")}</span>
                   </p>
@@ -169,9 +170,14 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
         <Card
           title={`${formatDate(day.date, { weekday: true })}${day.location_name ? ` · ${day.location_name}` : ""}`}
           action={
-            <a href={`/portal/${jobId}/schedule/csv?day=${day.id}`} className="text-sm text-accent hover:underline">
-              Download CSV
-            </a>
+            <span className="flex gap-4">
+              <Link href={`/portal/${jobId}/schedule/print?day=${day.id}`} className="text-sm text-accent hover:underline">
+                Print view
+              </Link>
+              <a href={`/portal/${jobId}/schedule/csv?day=${day.id}`} className="text-sm text-accent hover:underline">
+                Download CSV
+              </a>
+            </span>
           }
         >
           <p className="mb-4 text-sm text-muted">

@@ -95,24 +95,32 @@ const cell = (v: string | number | null | undefined) => {
 
 export type ExportTeam = { id: string; name: string; division: string | null; coach_name: string | null; tc_number: string | null };
 
-export function scheduleCsv(slots: Slot[], teams: ExportTeam[], date: string): string {
+export type ScheduleRow = { start: string; end: string; station: number; team: string; division: string | null; coach: string | null; tc: string | null; isBreak: boolean; teamId: string | null };
+
+/** The day's slots in running order: by start time, then station. */
+export function scheduleRows(slots: Slot[], teams: ExportTeam[]): ScheduleRow[] {
   const byId = new Map(teams.map((t) => [t.id, t]));
-  const rows = [...slots]
+  return [...slots]
     .sort((a, b) => toMinutes(a.starts_at) - toMinutes(b.starts_at) || a.station - b.station)
     .map((s) => {
       const t = s.team_id ? byId.get(s.team_id) : undefined;
-      return [
-        date,
-        toClock(toMinutes(s.starts_at)),
-        toClock(toMinutes(s.starts_at) + s.minutes),
-        s.station,
-        s.kind === "break" ? s.label || "Break" : (t?.name ?? s.label ?? ""),
-        t?.division,
-        t?.coach_name,
-        t?.tc_number,
-      ]
-        .map(cell)
-        .join(",");
+      return {
+        start: toClock(toMinutes(s.starts_at)),
+        end: toClock(toMinutes(s.starts_at) + s.minutes),
+        station: s.station,
+        team: s.kind === "break" ? s.label || "Break" : (t?.name ?? s.label ?? ""),
+        division: t?.division ?? null,
+        coach: t?.coach_name ?? null,
+        tc: t?.tc_number ?? null,
+        isBreak: s.kind === "break",
+        teamId: s.team_id,
+      };
     });
+}
+
+export function scheduleCsv(slots: Slot[], teams: ExportTeam[], date: string): string {
+  const rows = scheduleRows(slots, teams).map((r) =>
+    [date, r.start, r.end, r.station, r.team, r.division, r.coach, r.tc].map(cell).join(","),
+  );
   return ["Date,Start,End,Station,Team,Division,Coach,TC", ...rows].join("\n") + "\n";
 }
