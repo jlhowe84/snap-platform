@@ -32,6 +32,13 @@ const ICONS: Record<string, ReactNode> = {
       <rect x="16" y="4" width="4.5" height="13" rx="1.5" />
     </>
   ),
+  // Makeups: a calendar day with a tick, a session booked
+  "/production/makeups": (
+    <>
+      <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+      <path d="M8 3v4M16 3v4M8.5 13.5l2.5 2.5 4.5-5" />
+    </>
+  ),
   // Calendar
   "/calendar": (
     <>
