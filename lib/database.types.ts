@@ -3311,6 +3311,95 @@ export type Database = {
           },
         ]
       }
+      prepay_photo_cases: {
+        Row: {
+          cleared_at: string | null
+          company_id: string
+          first_seen_at: string
+          gallery_id: number
+          id: string
+          job_id: string | null
+          last_checked_at: string
+          note: string | null
+          order_date: string | null
+          order_id: number
+          player: string | null
+          reason: string
+          status: string
+          team: string | null
+          total: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          cleared_at?: string | null
+          company_id: string
+          first_seen_at?: string
+          gallery_id: number
+          id?: string
+          job_id?: string | null
+          last_checked_at?: string
+          note?: string | null
+          order_date?: string | null
+          order_id: number
+          player?: string | null
+          reason: string
+          status?: string
+          team?: string | null
+          total?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          cleared_at?: string | null
+          company_id?: string
+          first_seen_at?: string
+          gallery_id?: number
+          id?: string
+          job_id?: string | null
+          last_checked_at?: string
+          note?: string | null
+          order_date?: string | null
+          order_id?: number
+          player?: string | null
+          reason?: string
+          status?: string
+          team?: string | null
+          total?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prepay_photo_cases_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prepay_photo_cases_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prepay_photo_cases_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prepay_photo_cases_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profile_roles: {
         Row: {
           company_id: string
