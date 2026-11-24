@@ -31,6 +31,8 @@ import { JumpBar } from "./jump-bar";
 import { AddNoteForm, DeleteNote } from "./notes-form";
 import { CombineForm } from "./combine-form";
 import { ConfirmButton } from "@/components/confirm-button";
+import { DayEditor, JobDetailsEditor, LinksEditor } from "./edit-forms";
+import { JOB_TYPE_LABEL, LAB_LABEL, PROGRAM_LABEL, SALE_MODE_LABEL, TEAM_PHOTO_LABEL, VENUE_LABEL } from "@/lib/jobs/edit";
 
 const READY: Record<string, string> = {
   not_sent: "not sent", sent: "sent", submitted: "submitted",
@@ -232,6 +234,11 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     .sort((x, y) => dayGap(x.first) - dayGap(y.first))
     .map(({ id: jobId, label }) => ({ id: jobId, label }));
 
+  const { data: leagueList } = office
+    ? await supabase.from("organizations").select("id, name, active").order("name").limit(2000)
+    : { data: null };
+  const leagueOptions = (leagueList ?? []).filter((l) => l.active || l.id === job.org_id).map((l) => ({ id: l.id, name: l.name }));
+
   const sections = [
     ["days", "Photo days"],
     ["readiness", "Readiness"],
@@ -260,6 +267,11 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     <>
       <PageHeader back={{ href: "/jobs", label: "Jobs" }} eyebrow={[season, job.organizations?.name].filter(Boolean).join(" · ") || "Job"} title={job.name}>
         <StatusDot tone={STATUS_TONE[job.status]} label={STATUS_LABEL[job.status]} />
+        {office && (
+          <a href="#details" className="rounded-lg border border-line px-3 py-1.5 text-sm font-semibold hover:border-accent hover:text-accent">
+            Edit job
+          </a>
+        )}
       </PageHeader>
 
       {step && (
@@ -342,7 +354,13 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                     <p className="text-sm text-muted">
                       {[d.location_name, d.address, d.city, d.state].filter(Boolean).join(", ") || "Location to confirm"}
                     </p>
+                    {(d.location_details || d.notes) && (
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted">
+                        {[d.location_details, d.notes].filter(Boolean).join("\n")}
+                      </p>
+                    )}
                     <div className="mt-1 flex flex-wrap gap-2">
+                      <Pill>{d.stations} {d.stations === 1 ? "station" : "stations"}</Pill>
                       {d.indoor === true && <Pill tone="info">Indoor</Pill>}
                       {d.indoor === false && <Pill>Outdoor</Pill>}
                       {d.alt_indoor_location && <Pill>Rain plan: {d.alt_indoor_location}</Pill>}
@@ -373,6 +391,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                         <Link href={`/staffing/${d.id}`} className="inline-block text-sm text-accent hover:underline">Staffing for this day</Link>
                       </div>
                     )}
+                    {office && <DayEditor jobId={id} day={d} />}
                     {canChangeDates && d.status !== "cancelled" && !["released", "cancelled"].includes(job.status) && (
                       <ChangeDateForm jobId={id} photoDayId={d.id} postponed={d.status === "postponed"} />
                     )}
@@ -615,6 +634,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             </Card>
           )}
           <Card id="details" title="Details">
+            {(() => {
+              const facts = (
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
               <Detail label="League">
                 {job.organizations ? (
@@ -625,7 +646,10 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                   "Not linked yet"
                 )}
               </Detail>
-              <Detail label="Type">{job.job_type}</Detail>
+              <Detail label="Type">
+                {[JOB_TYPE_LABEL[job.job_type as keyof typeof JOB_TYPE_LABEL] ?? job.job_type, PROGRAM_LABEL[job.program as keyof typeof PROGRAM_LABEL], VENUE_LABEL[job.venue as keyof typeof VENUE_LABEL], SALE_MODE_LABEL[job.sale_mode as keyof typeof SALE_MODE_LABEL]].filter(Boolean).join(" · ")}
+              </Detail>
+              <Detail label="Lab">{job.lab ? (LAB_LABEL[job.lab as keyof typeof LAB_LABEL] ?? job.lab) : "Not set"}</Detail>
               <Detail label="Sports">{job.sports.join(", ") || "None"}</Detail>
               <Detail label="Teams">{job.expected_teams ?? "Unknown"}</Detail>
               <Detail label="Subjects">
@@ -635,11 +659,15 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                 )}
               </Detail>
               <Detail label="Delivery">{job.delivery_method ? DELIVERY_LABEL[job.delivery_method] : "Not set"}</Detail>
-              <Detail label="Team photo">{job.team_photo_type ?? "Not set"}</Detail>
+              <Detail label="Team photo">{job.team_photo_type ? (TEAM_PHOTO_LABEL[job.team_photo_type as keyof typeof TEAM_PHOTO_LABEL] ?? job.team_photo_type) : "Not set"}</Detail>
               <Detail label="Sponsors">{job.sponsors == null ? "Unknown" : job.sponsors ? "Yes" : "No"}</Detail>
+              {job.coupon && <Detail label="Coupon">{job.coupon}</Detail>}
               {job.promo && <Detail label="Promo">{job.promo}</Detail>}
               {job.imported_planning_stage && <Detail label="Notion stage">{job.imported_planning_stage}</Detail>}
             </dl>
+              );
+              return office ? <JobDetailsEditor job={job} leagues={leagueOptions}>{facts}</JobDetailsEditor> : facts;
+            })()}
           </Card>
 
           <Card
@@ -745,12 +773,17 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
           </Card>
 
           <Card title="Links">
+            {(() => {
+              const list = (
             <ul className="space-y-2 text-sm">
               <LinkRow label="Captura gallery" value={links?.captura_gallery_id ? String(links.captura_gallery_id) : null} />
               <LinkRow label="Online shop" href={links?.online_shop_url} />
               <LinkRow label="Notion page" href={links?.notion_page_url} />
               <LinkRow label="Drive folder" href={links?.drive_folder_url} />
             </ul>
+              );
+              return office ? <LinksEditor jobId={id} links={links ?? null}>{list}</LinksEditor> : list;
+            })()}
           </Card>
 
           {orderTotals && (
