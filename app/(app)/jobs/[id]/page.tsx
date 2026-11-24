@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill, ReadinessStrip, StatusDot } from "@/components/ui";
 import { SubmitButton } from "@/components/submit-button";
 import { startProduction } from "../../production/actions";
+import { RosterCheck } from "./roster-check";
+import { readRosterDiff } from "@/lib/rosters/diff";
 import { formatDate, formatTime, todayIn } from "@/lib/dates";
 import { MoneyTermsList } from "@/components/money-terms";
 import { seasonForDate } from "@/lib/season";
@@ -147,7 +149,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
     supabase.from("teams").select("id", { count: "exact", head: true }).eq("job_id", id),
     supabase
       .from("roster_versions")
-      .select("version, status, subject_count, team_count, created_at")
+      .select("version, status, subject_count, team_count, created_at, diff")
       .eq("job_id", id)
       .in("status", ["ready", "uploaded"])
       .not("csv_path", "is", null)
@@ -593,7 +595,17 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
                   {formatDate(finishedRoster.created_at.slice(0, 10))}
                 </span>
               </p>
-            ) : (
+            ) : null}
+            {finishedRoster && (
+              <RosterCheck
+                players={finishedRoster.subject_count}
+                teams={finishedRoster.team_count}
+                expectedPlayers={job.expected_subjects}
+                expectedTeams={job.expected_teams}
+                diff={readRosterDiff(finishedRoster.diff)}
+              />
+            )}
+            {finishedRoster ? null : (
               <p className="mb-2 text-sm text-muted">
                 Not uploaded yet. Process the league&apos;s files into the SNAP roster format, then upload the CSV here. Its teams fill the schedule.
               </p>

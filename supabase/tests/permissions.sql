@@ -738,6 +738,9 @@ select t.count_is($$select count(*) from public.teams where job_id = '40000000-0
 select t.count_is($$select count(*) from public.teams where job_id = '40000000-0000-0000-0000-0000000000a1' and roster_group = 'U8 - Tigers - Smith' and player_count = 12$$, 1, 'a team in both rosters is updated, not doubled');
 select t.count_is($$select count(*) from public.roster_versions where job_id = '40000000-0000-0000-0000-0000000000a1' and status = 'ready'$$, 1, 'only the newest roster is the ready one');
 select t.count_is($$select count(*) from public.roster_versions where job_id = '40000000-0000-0000-0000-0000000000a1' and status = 'superseded' and csv_path like '%/standard/x.csv'$$, 1, 'the earlier roster is superseded');
+select t.count_is($$select count(*) from public.roster_versions where job_id = '40000000-0000-0000-0000-0000000000a1' and csv_path like '%/standard/x.csv' and diff is null$$, 1, 'a first roster has nothing to compare against');
+select t.count_is($$select count(*) from public.roster_versions where job_id = '40000000-0000-0000-0000-0000000000a1' and status = 'ready' and diff -> 'removed' -> 0 ->> 'name' = 'Lions' and (diff -> 'removed' -> 0 ->> 'kept')::boolean = false and jsonb_array_length(diff -> 'added') = 0$$, 1, 'a newer roster records the team it dropped');
+select t.count_is($$select count(*) from public.roster_versions where job_id = '40000000-0000-0000-0000-0000000000a1' and status = 'ready' and diff -> 'changed' -> 0 ->> 'name' = 'Tigers' and (diff -> 'changed' -> 0 ->> 'from')::int = 11 and (diff -> 'changed' -> 0 ->> 'to')::int = 12$$, 1, 'a newer roster records a head count that moved');
 
 -- Ask SNAP: staff only, one question at a time each, stopped at the day's cap.
 select t.login('coord');
