@@ -24,7 +24,7 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
   const [{ data: c }, { data: messages }, { data: people }, { data: settings }, { data: saved }] = await Promise.all([
     supabase
       .from("support_conversations")
-      .select("id, subject, customer_name, customer_email, status, category, assignee_id, mailbox, organization_id, first_response_at, organizations(name)")
+      .select("id, subject, customer_name, customer_email, status, category, assignee_id, mailbox, organization_id, first_response_at, last_message_at, organizations(name)")
       .eq("id", id.data)
       .maybeSingle(),
     supabase
@@ -37,6 +37,19 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
     supabase.from("support_saved_replies").select("id, title, body").eq("active", true).order("title"),
   ]);
   if (!c) notFound();
+
+  // Previous and Next walk the "Needs a reply" list in its own order (longest
+  // waiting first), so the desk can work down it without going back to the list.
+  const neighbour = (older: boolean) => {
+    const q = supabase.from("support_conversations").select("id").in("status", ["new", "open"]).neq("id", c.id);
+    if (!c.last_message_at) return Promise.resolve({ data: null });
+    return (older ? q.lt("last_message_at", c.last_message_at) : q.gt("last_message_at", c.last_message_at))
+      .order("last_message_at", { ascending: !older })
+      .limit(1)
+      .maybeSingle();
+  };
+  const [{ data: prev }, { data: next }] = await Promise.all([neighbour(true), neighbour(false)]);
+  const step = "inline-flex min-h-12 items-center rounded-lg border border-line px-3 text-sm font-medium sm:min-h-9";
 
   const nameOf = new Map((people ?? []).map((p) => [p.id, p.full_name]));
   const desk = (people ?? [])
@@ -53,9 +66,21 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
 
   return (
     <>
-      <p className="mb-2 text-sm">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm">
         <Link href="/support" className="text-muted hover:text-accent">← Support</Link>
-      </p>
+        <nav aria-label="Conversations that need a reply" className="flex gap-2">
+          {prev ? (
+            <Link href={`/support/${prev.id}`} className={cx(step, "hover:border-accent hover:text-accent")}>← Previous</Link>
+          ) : (
+            <span aria-disabled className={cx(step, "text-muted opacity-50")}>← Previous</span>
+          )}
+          {next ? (
+            <Link href={`/support/${next.id}`} className={cx(step, "hover:border-accent hover:text-accent")}>Next →</Link>
+          ) : (
+            <span aria-disabled className={cx(step, "text-muted opacity-50")}>Next →</span>
+          )}
+        </nav>
+      </div>
       <PageHeader eyebrow={c.customer_name ?? c.customer_email ?? "Unknown sender"} title={c.subject}>
         <Pill tone={SUPPORT_STATUS_TONE[c.status]}>{SUPPORT_STATUS_LABEL[c.status]}</Pill>
       </PageHeader>
