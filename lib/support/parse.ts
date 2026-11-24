@@ -120,11 +120,17 @@ function parseMessage(m: GmailMessage, own: Set<string>, quiet: QuietRule[]): Pa
 
 /**
  * `ownAddresses` are the company's own sending addresses (the mailbox itself
- * and any others in settings). Drafts, spam and trash are dropped, and so is
+ * and any others in settings, such as each person who answers from their own
+ * address). `mailboxes` are the support mailboxes themselves. Drafts, spam and trash are dropped, and so is
  * mail matching `quietRules`: automatic notices that only matter once a person
  * answers one, at which point the answer comes in as its own message.
  */
-export function parseThread(thread: GmailThread, ownAddresses: Iterable<string>, quietRules: Iterable<string | QuietRule> = []): ParsedThread {
+export function parseThread(
+  thread: GmailThread,
+  ownAddresses: Iterable<string>,
+  quietRules: Iterable<string | QuietRule> = [],
+  mailboxes: Iterable<string> = [],
+): ParsedThread {
   const own = new Set([...ownAddresses].map((a) => a.toLowerCase()));
   const quiet = [...quietRules]
     .map((r) => (typeof r === "string" ? { from: r } : r))
@@ -133,6 +139,18 @@ export function parseThread(thread: GmailThread, ownAddresses: Iterable<string>,
     .map((m) => parseMessage(m, own, quiet))
     .filter((m): m is ParsedMessage => m !== null)
     .sort((a, b) => a.sent_at.localeCompare(b.sent_at));
+  // A colleague who starts a thread by writing to the support mailbox is
+  // handing work to the desk, not answering a customer: it counts as mail in.
+  const boxes = new Set([...mailboxes].map((a) => a.toLowerCase()));
+  const opener = messages[0];
+  if (
+    opener?.direction === "out" &&
+    opener.from_address &&
+    !boxes.has(opener.from_address) &&
+    [...opener.to, ...opener.cc].some((a) => boxes.has(a.toLowerCase()))
+  ) {
+    opener.direction = "in";
+  }
   const first = (thread.messages ?? [])[0];
   const subject = header(first?.payload, "Subject").replace(/\s+/g, " ").trim();
   return { threadId: thread.id, subject, messages };

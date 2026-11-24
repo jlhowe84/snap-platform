@@ -72,6 +72,26 @@ describe("support mail parsing", () => {
     expect(hasInbound(thread)).toBe(true);
   });
 
+  it("counts a colleague's own address as the company answering", () => {
+    const own = ["help@example.com", "sam@example.com"];
+    const thread = parseThread(
+      { id: "t1", messages: [msg("m1", "Pat <pat@example.org>", 1000), msg("m2", "Sam <sam@example.com>", 2000)] },
+      own,
+      [],
+      ["help@example.com"],
+    );
+    expect(thread.messages.map((m) => m.direction)).toEqual(["in", "out"]);
+  });
+
+  it("counts a colleague who starts a thread to the mailbox as mail in", () => {
+    const own = ["help@example.com", "sam@example.com"];
+    const handoff = parseThread({ id: "t1", messages: [msg("m1", "Sam <sam@example.com>", 1000)] }, own, [], ["help@example.com"]);
+    expect(handoff.messages.map((m) => m.direction)).toEqual(["in"]);
+    // The mailbox writing first is the company writing out.
+    const outbound = parseThread({ id: "t2", messages: [msg("m1", "SNAP <help@example.com>", 1000)] }, own, [], ["help@example.com"]);
+    expect(outbound.messages.map((m) => m.direction)).toEqual(["out"]);
+  });
+
   it("leaves out automatic notices until a person answers", () => {
     const quiet = ["no-reply@orders.example"];
     const receipt = msg("m1", "Orders <No-Reply@orders.example>", 1000);

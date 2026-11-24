@@ -156,7 +156,7 @@ export async function runSupportSync(onlyCompanyId?: string): Promise<SyncResult
           for (let i = 0; i < ids.length; i += AT_ONCE) {
             await Promise.all(
               ids.slice(i, i + AT_ONCE).map(async (id) => {
-                const thread = parseThread(await gmail.getThread(id), own, [...settings.quietSenders, ...settings.quietRules]);
+                const thread = parseThread(await gmail.getThread(id), own, [...settings.quietSenders, ...settings.quietRules], boxes);
                 result.threads += 1;
                 if (thread.messages.length === 0) return;
                 const { data, error: ingestError } = await admin.rpc("support_ingest", {
