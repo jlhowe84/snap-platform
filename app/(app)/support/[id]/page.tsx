@@ -105,7 +105,8 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
           </Card>
         </div>
 
-        <div className="space-y-4">
+        {/* On a wide screen the side column stays in view while the conversation scrolls. */}
+        <div className="min-w-0 space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:self-start xl:overflow-y-auto">
           <Card
             title="Working it"
             action={
