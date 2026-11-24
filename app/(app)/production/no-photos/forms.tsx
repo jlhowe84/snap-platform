@@ -3,7 +3,8 @@
 import { useActionState } from "react";
 import { useToast } from "@/components/toast";
 import { CASE_STATUSES, CASE_STATUS_LABEL, type CaseStatus } from "@/lib/production/no-photos";
-import { checkNoPhotos, saveNoPhotoCase, type NoPhotoState } from "./actions";
+import Link from "next/link";
+import { checkNoPhotos, draftMakeupOffer, saveNoPhotoCase, type NoPhotoState } from "./actions";
 
 const field = "min-h-12 min-w-0 rounded-lg border border-line bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none sm:min-h-0";
 
@@ -34,6 +35,27 @@ export function CaseForm({ caseId, status, note }: { caseId: string; status: Cas
       <button disabled={pending} className="min-h-12 rounded-lg border border-line px-4 py-2 text-sm font-semibold hover:border-accent hover:text-accent disabled:opacity-60 sm:min-h-0">
         {pending ? "Saving…" : "Save"}
       </button>
+    </form>
+  );
+}
+
+/** Puts the makeup offer for one order into the approval queue. */
+export function DraftOffer({ caseId }: { caseId: string }) {
+  const [state, action, pending] = useActionState<NoPhotoState>(() => draftMakeupOffer(caseId), null);
+  useToast(state);
+  if (state?.ok) {
+    return (
+      <p className="mt-2 text-sm text-ok">
+        {state.message} <Link href="/queue" className="text-accent hover:underline">Open the queue</Link>
+      </p>
+    );
+  }
+  return (
+    <form action={action} className="mt-2 flex flex-wrap items-center gap-3">
+      <button disabled={pending} className="min-h-12 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110 disabled:opacity-60 sm:min-h-0">
+        {pending ? "Drafting…" : "Draft makeup offer"}
+      </button>
+      {state && !state.ok && <p className="text-sm text-risk">{state.message}</p>}
     </form>
   );
 }

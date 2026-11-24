@@ -5,10 +5,12 @@ import { z } from "zod";
 import { OFFICE_ROLES, requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { CASE_STATUSES, findNoPhotoOrders, readGalleryPlayers, type PrepayOrder } from "@/lib/production/no-photos";
+import { buildMakeupOffer, MAKEUP_OFFER_KEY, MAKEUP_OFFER_SETTING, orderBuyer, readOfferTemplate } from "@/lib/production/makeup-offer";
 
 export type NoPhotoState = { ok: boolean; message: string } | null;
 
 function refresh(jobId: string | null) {
+  revalidatePath("/queue");
   revalidatePath("/production");
   revalidatePath("/production/no-photos");
   if (jobId) revalidatePath(`/jobs/${jobId}`);
@@ -116,4 +118,64 @@ export async function saveNoPhotoCase(caseId: string, _prev: NoPhotoState, form:
   if (error || !data?.length) return { ok: false, message: "That could not be saved." };
   refresh(data[0].job_id);
   return { ok: true, message: "Saved." };
+}
+
+// Drafts the makeup offer for one listed order and puts it in the approval
+// queue. The buyer's email is read from Captura (read-only) for this draft
+// only. Nothing is sent until a person approves it in the queue.
+export async function draftMakeupOffer(caseId: string): Promise<NoPhotoState> {
+  const viewer = await requireStaff(OFFICE_ROLES);
+  if (!viewer.companyId || !z.uuid().safeParse(caseId).success) return { ok: false, message: "That order was not found." };
+  const supabase = await createClient();
+  const { data: row } = await supabase
+    .from("prepay_photo_cases")
+    .select("id, order_id, job_id, player, status, cleared_at, jobs(name, organizations(name))")
+    .eq("id", caseId)
+    .maybeSingle();
+  if (!row) return { ok: false, message: "That order was not found." };
+  if (row.cleared_at) return { ok: false, message: "This player has photos now, so no offer is needed." };
+  if (row.status !== "open") return { ok: false, message: "This order is already past To do. Set it back to To do to draft an offer." };
+
+  const { data: before } = await supabase
+    .from("agent_actions")
+    .select("id")
+    .eq("action_type_key", MAKEUP_OFFER_KEY)
+    .in("status", ["proposed", "approved", "edited", "sent"])
+    .contains("record_refs", { case_id: row.id })
+    .limit(1);
+  if (before?.length) return { ok: false, message: "An offer for this order is already in the queue or sent." };
+
+  let buyer: ReturnType<typeof orderBuyer>;
+  try {
+    const { loadCapturaCredentials, createCapturaClient } = await import("@/lib/captura/client");
+    const creds = await loadCapturaCredentials(viewer.companyId);
+    if (!creds) return { ok: false, message: "Captura is not connected. Connect it in Settings." };
+    buyer = orderBuyer(await createCapturaClient(creds).getOrder(row.order_id), row.order_id);
+  } catch {
+    return { ok: false, message: "Captura did not answer. Nothing was drafted; try again in a minute." };
+  }
+  if (!buyer.email) return { ok: false, message: "Captura holds no email for this order, so the offer cannot be drafted here." };
+
+  const { data: setting } = await supabase.from("settings").select("value").eq("key", MAKEUP_OFFER_SETTING).maybeSingle();
+  const job = row.jobs as { name: string; organizations: { name: string } | null } | null;
+  const draft = buildMakeupOffer(readOfferTemplate(setting?.value), {
+    company: viewer.companyName ?? "The photo team",
+    league: job?.organizations?.name ?? job?.name ?? null,
+    player: row.player,
+    parentFirstName: buyer.firstName,
+    orderId: row.order_id,
+    to: [buyer.email],
+  });
+  const { error } = await supabase.from("agent_actions").insert({
+    company_id: viewer.companyId,
+    action_type_key: MAKEUP_OFFER_KEY,
+    actor_kind: "person",
+    actor_id: viewer.id,
+    status: "proposed",
+    draft,
+    record_refs: { job_id: row.job_id, case_id: row.id, order_id: row.order_id },
+  });
+  if (error) return { ok: false, message: "The offer could not be drafted." };
+  refresh(row.job_id);
+  return { ok: true, message: "Makeup offer drafted. Review and approve it in the queue." };
 }

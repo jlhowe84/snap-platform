@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { liveSiteUrl } from "@/lib/site-url";
 import { runClock } from "@/lib/clock/run";
 import { sendApprovedAction, type SendResult } from "@/lib/mail/send";
+import { MAKEUP_OFFER_KEY } from "@/lib/production/makeup-offer";
 
 export type QueueState = { ok: boolean; message: string } | null;
 
@@ -33,10 +34,24 @@ async function send(companyId: string, actionId: string): Promise<SendResult> {
   const { data: visible } = await supabase.from("agent_actions").select("id").eq("id", actionId).maybeSingle();
   if (!visible) return { ok: false, message: "That draft could not be found." };
   try {
-    return await sendApprovedAction(companyId, actionId, await baseUrl());
+    const result = await sendApprovedAction(companyId, actionId, await baseUrl());
+    if (result.ok) await afterSend(actionId);
+    return result;
   } catch {
     return { ok: false, message: "The message could not be sent. Check the server key in Vercel." };
   }
+}
+
+/** A sent makeup offer moves its order from To do to Makeup offered. */
+async function afterSend(actionId: string) {
+  const supabase = await createClient();
+  const { data: action } = await supabase.from("agent_actions").select("action_type_key, record_refs").eq("id", actionId).maybeSingle();
+  if (action?.action_type_key !== MAKEUP_OFFER_KEY) return;
+  const caseId = (action.record_refs as { case_id?: unknown } | null)?.case_id;
+  if (typeof caseId !== "string" || !z.uuid().safeParse(caseId).success) return;
+  // Office roles only may write the list; for anyone else this changes nothing.
+  await supabase.from("prepay_photo_cases").update({ status: "offered" }).eq("id", caseId).eq("status", "open");
+  revalidatePath("/production/no-photos");
 }
 
 const sentLine = (r: Extract<SendResult, { ok: true }>) =>

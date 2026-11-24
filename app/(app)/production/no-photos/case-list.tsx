@@ -2,7 +2,9 @@ import { Pill } from "@/components/ui";
 import { formatDate } from "@/lib/dates";
 import { CASE_STATUS_LABEL, NO_PHOTO_REASON, type CaseStatus, type NoPhotoReason } from "@/lib/production/no-photos";
 import type { Database } from "@/lib/database.types";
-import { CaseForm } from "./forms";
+import Link from "next/link";
+import { CaseForm, DraftOffer } from "./forms";
+import type { OfferState } from "@/lib/production/offer-state";
 
 export type CaseRow = Pick<
   Database["public"]["Tables"]["prepay_photo_cases"]["Row"],
@@ -13,7 +15,8 @@ const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD
 const TONE = { open: "warn", offered: "info", makeup_booked: "info", refunded: "muted", closed: "muted" } as const;
 
 /** The orders of one job, each with its status and note to keep up to date. */
-export function CaseList({ cases }: { cases: CaseRow[] }) {
+
+export function CaseList({ cases, offers = {} }: { cases: CaseRow[]; offers?: OfferState }) {
   return (
     <ul className="divide-y divide-line">
       {cases.map((c) => {
@@ -33,6 +36,14 @@ export function CaseList({ cases }: { cases: CaseRow[] }) {
               {c.total != null ? ` · ${money.format(Number(c.total))}` : ""}
               {c.player && c.reason !== "no_images" ? ` · ${NO_PHOTO_REASON[c.reason as NoPhotoReason]}` : ""}
             </p>
+            {offers[c.id] ? (
+              <p className="mt-2 text-sm">
+                {offers[c.id] === "sent" ? "Makeup offer sent." : offers[c.id] === "approved" ? "Makeup offer approved, not sent yet." : "Makeup offer waiting for approval."}{" "}
+                <Link href="/queue" className="text-accent hover:underline">Queue</Link>
+              </p>
+            ) : (
+              !c.cleared_at && status === "open" && <DraftOffer caseId={c.id} />
+            )}
             <CaseForm caseId={c.id} status={status} note={c.note} />
           </li>
         );

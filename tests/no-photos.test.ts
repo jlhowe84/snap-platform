@@ -58,3 +58,34 @@ describe("prepay orders with no photos", () => {
     expect(findNoPhotoOrders([order(1, ["1"])], readGalleryPlayers({}))).toEqual({ ready: false, why: "no_players", prepay: 1 });
   });
 });
+
+import { buildMakeupOffer, DEFAULT_OFFER, orderBuyer, readOfferTemplate } from "@/lib/production/makeup-offer";
+
+describe("makeup offer", () => {
+  const facts = { company: "Photo Co", league: "River League", player: "Ben Poe", parentFirstName: "Dana", orderId: 60000001, to: ["dana@example.com"] };
+  it("fills the starting wording with the order's facts", () => {
+    const d = buildMakeupOffer(DEFAULT_OFFER, facts);
+    expect(d.to).toEqual(["dana@example.com"]);
+    expect(d.subject).toBe("Your Photo Co preorder for Ben Poe");
+    expect(d.body).toContain("Hi Dana,");
+    expect(d.body).toContain("we missed Ben Poe on photo day for River League");
+    expect(d.body).toContain("order 60000001");
+    expect(d.body).not.toMatch(/\{\w+\}/);
+  });
+  it("still reads well with no names", () => {
+    const d = buildMakeupOffer(DEFAULT_OFFER, { ...facts, player: null, parentFirstName: null, league: null });
+    expect(d.body).toContain("Hi there,");
+    expect(d.subject).toBe("Your Photo Co preorder for your player");
+  });
+  it("uses the company's saved wording, and the starting text when a part is missing", () => {
+    expect(readOfferTemplate({ subject: "About {player}", body: "Hello {parent}" })).toEqual({ subject: "About {player}", body: "Hello {parent}" });
+    expect(readOfferTemplate({ subject: "", body: 5 })).toEqual(DEFAULT_OFFER);
+    expect(readOfferTemplate(null)).toEqual(DEFAULT_OFFER);
+  });
+  it("reads the buyer from a checkout or a bare order, and nothing but email and first name", () => {
+    expect(orderBuyer({ billTo: { firstName: "Dana", lastName: "Poe", email: "Dana@Example.com", phone: "555" }, orders: [{ id: 7 }] }, 7)).toEqual({ email: "dana@example.com", firstName: "Dana" });
+    expect(orderBuyer({ orders: [{ id: 7, billTo: { name: "Dana Poe", email: "d@example.com" } }] }, 7)).toEqual({ email: "d@example.com", firstName: "Dana" });
+    expect(orderBuyer({ billTo: { email: "not an address" } }, 7)).toEqual({ email: null, firstName: null });
+    expect(orderBuyer(null, 7)).toEqual({ email: null, firstName: null });
+  });
+});

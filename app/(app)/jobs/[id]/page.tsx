@@ -34,6 +34,7 @@ import { ConfirmButton } from "@/components/confirm-button";
 import { DayEditor, JobDetailsEditor, LinksEditor } from "./edit-forms";
 import { CheckNoPhotos } from "../../production/no-photos/forms";
 import { CaseList } from "../../production/no-photos/case-list";
+import { loadOfferStates } from "@/lib/production/offer-state";
 import { JOB_TYPE_LABEL, LAB_LABEL, PROGRAM_LABEL, SALE_MODE_LABEL, TEAM_PHOTO_LABEL, VENUE_LABEL } from "@/lib/jobs/edit";
 
 const READY: Record<string, string> = {
@@ -246,6 +247,7 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
           .order("player")
       : { data: null };
   const openCases = (photoCases ?? []).filter((c) => !c.cleared_at);
+  const offerStates = photoCases?.length ? await loadOfferStates(supabase) : {};
   const lastCheck = (photoCases ?? []).reduce<string | null>((m, c) => (!m || c.last_checked_at > m ? c.last_checked_at : m), null);
 
   const { data: leagueList } = office
@@ -629,11 +631,11 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
             >
               <p className="mb-3 text-sm text-muted">
                 Once this job&apos;s images are uploaded and assigned, the check reads the gallery in Captura and lists every prepay order whose
-                player has no photos. It sends nothing.
+                player has no photos. The check sends nothing; a makeup offer you draft here waits in the approval queue.
                 {lastCheck ? ` Last listed ${noteStamp.format(new Date(lastCheck))}.` : ""}
               </p>
               <CheckNoPhotos jobId={id} checkedBefore={!!photoCases?.length} />
-              {photoCases?.length ? <div className="mt-3"><CaseList cases={photoCases} /></div> : null}
+              {photoCases?.length ? <div className="mt-3"><CaseList cases={photoCases} offers={offerStates} /></div> : null}
             </Card>
           )}
           {office && (

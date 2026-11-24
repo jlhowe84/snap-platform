@@ -4,6 +4,7 @@ import { OFFICE_ROLES, requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { CASE_WAITING } from "@/lib/production/no-photos";
+import { loadOfferStates } from "@/lib/production/offer-state";
 import { CaseList, type CaseRow } from "./case-list";
 
 export const metadata: Metadata = { title: "Orders with no photos" };
@@ -22,6 +23,7 @@ export default async function NoPhotosPage({ searchParams }: PageProps<"/product
     .order("first_seen_at", { ascending: false })
     .limit(2000);
   const rows = data ?? [];
+  const offers = rows.length ? await loadOfferStates(supabase) : {};
   const waiting = rows.filter((r) => !r.cleared_at && (CASE_WAITING as readonly string[]).includes(r.status));
   const shown = showAll ? rows : waiting;
 
@@ -59,7 +61,7 @@ export default async function NoPhotosPage({ searchParams }: PageProps<"/product
               title={`${g.name} (${g.cases.length})`}
               action={g.jobId ? <Link href={`/jobs/${g.jobId}#nophotos`} className="text-sm text-accent hover:underline">Open job</Link> : undefined}
             >
-              <CaseList cases={g.cases} />
+              <CaseList cases={g.cases} offers={offers} />
             </Card>
           ))}
         </div>
@@ -71,7 +73,7 @@ export default async function NoPhotosPage({ searchParams }: PageProps<"/product
         </Card>
       )}
       <p className="mt-4 text-xs text-muted">
-        The check reads Captura and lists orders; it sends nothing. Makeup offers and refunds are still done by a person.
+        The check reads Captura and lists orders; it sends nothing. A makeup offer is drafted here and waits in the approval queue; refunds are done by a person.
       </p>
     </>
   );
