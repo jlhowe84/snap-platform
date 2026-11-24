@@ -58,6 +58,9 @@ export default async function SupportPage({ searchParams }: PageProps<"/support"
   return (
     <>
       <PageHeader eyebrow="Customers · Support" title={needs ? `${needs} need a reply` : "All answered"}>
+        <Link href="/support/reports" className="rounded-lg border border-line px-3 py-1.5 text-sm font-semibold hover:border-accent hover:text-accent">
+          Reports
+        </Link>
         <Link href="/support/replies" className="rounded-lg border border-line px-3 py-1.5 text-sm font-semibold hover:border-accent hover:text-accent">
           Saved replies
         </Link>
