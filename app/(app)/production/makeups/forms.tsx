@@ -84,40 +84,42 @@ export function MoveOrCancel({ id, date, time, hasEmail }: { id: string; date: s
   const [cancelled, cancel] = useActionState<MakeupState, FormData>(cancelBooking.bind(null, id), null);
   useToast(moved);
   useToast(cancelled);
-  const tell = (
-    <label className="flex min-h-12 items-center gap-2 text-sm sm:min-h-8">
-      <input type="checkbox" name="tell" defaultChecked={hasEmail} disabled={!hasEmail} className="h-5 w-5 accent-[var(--accent)]" />
-      {hasEmail ? "Email the parent" : "No email on file to tell the parent"}
-    </label>
-  );
+  // One form, read top to bottom: pick a new time and move it, or cancel below.
   return (
-    <div className="mt-3 grid grid-cols-1 gap-4 rounded-lg border border-line p-3 lg:grid-cols-2">
-      <form action={move} className="space-y-2">
-        <p className="text-sm font-semibold">Change the time</p>
-        <div className="grid grid-cols-2 gap-2">
-          <label className={label}>
-            New date
-            <input name="date" type="date" required defaultValue={date} className={field} />
-          </label>
-          <label className={label}>
-            New time
-            <input name="time" type="time" required step={300} defaultValue={time} className={field} />
-          </label>
-        </div>
-        {tell}
-        <button disabled={moving} className={quiet}>{moving ? "Moving…" : "Move the session"}</button>
-        {moved && !moved.ok && <p className="text-sm text-risk">{moved.message}</p>}
-      </form>
-      <form action={cancel} className="space-y-2">
-        <p className="text-sm font-semibold">Cancel the session</p>
-        <p className="text-xs text-muted">The time opens up for someone else. The booking stays on the Cancelled list.</p>
-        {tell}
-        <ConfirmButton ask="Cancel this session?" yes="Yes, cancel it" className={quiet + " hover:border-risk hover:text-risk"}>
+    <form action={move} className="mt-3 max-w-2xl rounded-lg border border-line p-3">
+      <p className="text-sm font-semibold">Move to a new time</p>
+      <div className="mt-2 grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_1fr_auto]">
+        <label className={label}>
+          New date
+          <input name="date" type="date" required defaultValue={date} className={field} />
+        </label>
+        <label className={label}>
+          New time
+          <input name="time" type="time" required step={300} defaultValue={time} className={field} />
+        </label>
+        <button disabled={moving} className={primary}>{moving ? "Moving…" : "Move"}</button>
+      </div>
+      {moved && !moved.ok && <p className="mt-2 text-sm text-risk">{moved.message}</p>}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-line pt-3">
+        <p className="text-sm">
+          <span className="font-semibold">Or cancel it.</span> <span className="text-muted">The time opens up for someone else.</span>
+        </p>
+        <ConfirmButton
+          formAction={cancel}
+          formNoValidate
+          ask="Cancel this session?"
+          yes="Yes, cancel it"
+          className={quiet + " border-risk/50 text-risk hover:border-risk"}
+        >
           Cancel the session
         </ConfirmButton>
-        {cancelled && !cancelled.ok && <p className="text-sm text-risk">{cancelled.message}</p>}
-      </form>
-    </div>
+      </div>
+      {cancelled && !cancelled.ok && <p className="mt-2 text-sm text-risk">{cancelled.message}</p>}
+      <label className="mt-2 flex min-h-12 items-center gap-2 border-t border-line pt-2 text-sm sm:min-h-8">
+        <input type="checkbox" name="tell" defaultChecked={hasEmail} disabled={!hasEmail} className="h-5 w-5 accent-[var(--accent)]" />
+        {hasEmail ? "Email the parent about the move or the cancellation" : "No email on file to tell the parent"}
+      </label>
+    </form>
   );
 }
 
