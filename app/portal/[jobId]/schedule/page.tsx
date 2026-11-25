@@ -40,8 +40,8 @@ const STATUS: Record<string, string> = {
 
 // Team rows line up as one table row each on a wide screen. On a phone the
 // fields stack two to a row, each with its own small label.
-// The portal is 768px wide, so the columns are sized to fit it.
-const TEAM_GRID = "grid grid-cols-2 items-end gap-2 lg:grid-cols-[3rem_minmax(7rem,1fr)_6rem_7rem_6rem_3.5rem_auto_auto] lg:gap-1.5 lg:items-center";
+// This page asks the portal for its wide layout, so the columns fit from 1024px up.
+const TEAM_GRID = "grid grid-cols-2 items-end gap-2 lg:grid-cols-[3.5rem_minmax(10rem,1fr)_8rem_10rem_9rem_4rem_auto_auto] lg:gap-1.5 lg:items-center";
 
 function Field({ label, wide, always, children }: { label: string; wide?: boolean; always?: boolean; children: React.ReactNode }) {
   return (
@@ -100,6 +100,8 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
 
   return (
     <>
+      {/* Asks the portal layout for a wider page, so team names have room. */}
+      <span data-wide hidden />
       <Link href={`/portal/${jobId}`} className="text-sm text-muted underline-offset-2 hover:underline">
         Back to your steps
       </Link>
@@ -285,14 +287,14 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                 <section key={n} className="rounded-lg border border-line p-3">
                   <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Station {n}</h3>
                   {mine.length === 0 && <p className="text-sm text-muted">Nothing yet.</p>}
-                  <ul className="space-y-1">
+                  <ul className="space-y-1.5">
                     {mine.map((s) => (
                       <DraggableSlot
                         key={s.id}
                         slotId={s.id}
                         enabled={canEdit}
                         swap={swapSlots.bind(null, jobId, day.id)}
-                        className={cx("rounded-md px-2 py-1 text-sm", s.kind === "break" ? "bg-surface-2 text-muted" : "bg-surface-2", picked === s.id && "outline-2 outline-accent")}
+                        className={cx("rounded-md px-2.5 py-2 text-sm", s.kind === "break" ? "bg-surface-2 text-muted" : "bg-surface-2", picked === s.id && "outline-2 outline-accent")}
                       >
                         {/* One line per slot. The move and remove controls fold away under Edit. */}
                         <details className="group">

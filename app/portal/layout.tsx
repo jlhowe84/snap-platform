@@ -4,9 +4,9 @@ import { requirePortalViewer } from "@/lib/auth";
 export default async function PortalLayout({ children }: LayoutProps<"/portal">) {
   const viewer = await requirePortalViewer();
   return (
-    <div className="outward min-h-screen">
+    <div className="outward group/portal min-h-screen">
       <header className="border-b border-line bg-surface print:hidden">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-4">
+        <div className="mx-auto flex max-w-3xl items-center group-has-[[data-wide]]/portal:max-w-6xl justify-between gap-4 px-4 py-4">
           <Link href="/portal" className="leading-tight">
             <p className="font-display text-xl font-bold uppercase tracking-wide">{viewer.companyName ?? "Photo Day"}</p>
             <p className="text-xs uppercase tracking-[0.18em] text-accent">Photo day portal</p>
@@ -30,7 +30,7 @@ export default async function PortalLayout({ children }: LayoutProps<"/portal">)
           You are seeing the portal as staff. Only the league&apos;s coordinator can sign. Changes the office makes here are saved as the office&apos;s.
         </p>
       )}
-      <main className="mx-auto max-w-3xl px-4 py-8 print:max-w-none print:p-0">{children}</main>
+      <main className="mx-auto max-w-3xl px-4 group-has-[[data-wide]]/portal:max-w-6xl py-8 print:max-w-none print:p-0">{children}</main>
     </div>
   );
 }

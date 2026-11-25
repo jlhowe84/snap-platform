@@ -32,6 +32,9 @@ export function DraggableSlot({
       onDragStart={(e) => {
         e.dataTransfer.setData(TYPE, slotId);
         e.dataTransfer.effectAllowed = "move";
+        // Drag only this slot, never a highlighted run of text across slots.
+        window.getSelection()?.removeAllRanges();
+        e.dataTransfer.setDragImage(e.currentTarget, 12, 12);
       }}
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes(TYPE)) return;
@@ -48,7 +51,7 @@ export function DraggableSlot({
         start(() => swap(from, slotId));
       }}
       title="Drag onto another slot to swap them"
-      className={cx(className, "cursor-grab active:cursor-grabbing", over && "outline-2 outline-accent", pending && "opacity-60")}
+      className={cx(className, "cursor-grab select-none active:cursor-grabbing", over && "outline-2 outline-accent", pending && "opacity-60")}
     >
       {children}
     </li>
