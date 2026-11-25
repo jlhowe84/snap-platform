@@ -4385,6 +4385,7 @@ export type Database = {
       }
       support_messages: {
         Row: {
+          attachments: Json | null
           author_id: string | null
           body_text: string
           cc_addresses: string[]
@@ -4400,6 +4401,7 @@ export type Database = {
           to_addresses: string[]
         }
         Insert: {
+          attachments?: Json | null
           author_id?: string | null
           body_text?: string
           cc_addresses?: string[]
@@ -4415,6 +4417,7 @@ export type Database = {
           to_addresses?: string[]
         }
         Update: {
+          attachments?: Json | null
           author_id?: string | null
           body_text?: string
           cc_addresses?: string[]
@@ -5234,6 +5237,10 @@ export type Database = {
           p_thread_id: string
         }
         Returns: Json
+      }
+      support_set_attachments: {
+        Args: { p_company: string; p_items: Json }
+        Returns: number
       }
       support_sync_mark: {
         Args: {

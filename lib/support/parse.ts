@@ -12,7 +12,11 @@ export type ParsedMessage = {
   cc: string[];
   body: string;
   sent_at: string;
+  attachments: Attachment[];
 };
+
+/** A file that came with a message. `part` is the mailbox's part number, used to fetch it. */
+export type Attachment = { part: string; name: string; type: string; size: number; inline: boolean };
 
 export type ParsedThread = { threadId: string; subject: string; messages: ParsedMessage[] };
 
@@ -83,6 +87,48 @@ export function bodyText(payload: GmailPart | undefined): string {
   return text.replace(/\r\n/g, "\n").replace(/\u0000/g, "").trim().slice(0, MAX_BODY);
 }
 
+const MAX_ATTACHMENTS = 30;
+// A picture this small inside a message is a tracking dot or a tiny icon.
+const TINY_INLINE = 3_000;
+const PART_ID = /^\d+(\.\d+)*$/;
+const EXT: Record<string, string> = {
+  "image/jpeg": "jpg", "image/png": "png", "image/gif": "gif", "image/webp": "webp", "image/heic": "heic", "application/pdf": "pdf",
+};
+
+/** Whether a stored part number has the shape the mailbox uses ("1", "0.2"). */
+export function isPartId(v: string): boolean {
+  return v.length <= 20 && PART_ID.test(v);
+}
+
+/**
+ * The files that came with a message: attached ones and pictures placed in
+ * the text. Signed-message parts and tiny inline pictures are left out.
+ */
+export function attachmentsOf(payload: GmailPart | undefined): Attachment[] {
+  const out: Attachment[] = [];
+  const walk = (part: GmailPart | undefined) => {
+    if (!part || out.length >= MAX_ATTACHMENTS) return;
+    const type = (part.mimeType ?? "").toLowerCase().split(";")[0].trim();
+    const size = part.body?.size ?? 0;
+    const id = part.partId ?? "";
+    if (part.body?.attachmentId && isPartId(id) && size > 0 && !type.startsWith("multipart/")) {
+      const disposition = header(part, "Content-Disposition").toLowerCase();
+      const inline = !disposition.startsWith("attachment") && (disposition.startsWith("inline") || !!header(part, "Content-ID"));
+      const named = (part.filename ?? "").replace(/[\u0000-\u001f\u007f/\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 200);
+      const skip =
+        type === "application/pkcs7-signature" || type === "application/pgp-signature" ||
+        (inline && type.startsWith("image/") && size < TINY_INLINE) ||
+        (!named && !type.startsWith("image/"));
+      if (!skip) {
+        out.push({ part: id, name: named || `image-${out.length + 1}.${EXT[type] ?? "img"}`, type: type || "application/octet-stream", size, inline });
+      }
+    }
+    for (const child of part.parts ?? []) walk(child);
+  };
+  walk(payload);
+  return out;
+}
+
 const SKIP_LABELS = new Set(["DRAFT", "SPAM", "TRASH"]);
 
 /** A sender whose mail is left out, always or only when the subject holds some text. */
@@ -115,6 +161,7 @@ function parseMessage(m: GmailMessage, own: Set<string>, quiet: QuietRule[]): Pa
     cc: parseAddressList(header(m.payload, "Cc")),
     body: bodyText(m.payload),
     sent_at: new Date(ms).toISOString(),
+    attachments: attachmentsOf(m.payload),
   };
 }
 

@@ -2,7 +2,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { allowedMailboxes, createGmailClient, loadServiceAccount } from "@/lib/gmail/client";
-import { parseThread } from "./parse";
+import { attachmentsOf, parseThread, type Attachment } from "./parse";
 
 // Brings mail from the company's support mailboxes into the support desk.
 // A server job, so it uses the service role. It only reads Gmail: nothing is
@@ -26,6 +26,8 @@ export type SyncResult = {
 };
 
 const AT_ONCE = 6;
+// Older messages checked for attachments on each run.
+const BACKFILL_PER_RUN = 60;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const OVERLAP_MS = 60 * 60 * 1000;
 const DEFAULT_FIRST_DAYS = 7;
@@ -170,6 +172,10 @@ export async function runSupportSync(onlyCompanyId?: string): Promise<SyncResult
                 const out = data as { created?: boolean; added?: number } | null;
                 if (out?.created) result.conversations += 1;
                 result.messages += out?.added ?? 0;
+                await admin.rpc("support_set_attachments", {
+                  p_company: company.id,
+                  p_items: thread.messages.map((m) => ({ id: m.id, attachments: m.attachments })),
+                });
               }),
             );
           }
@@ -178,6 +184,34 @@ export async function runSupportSync(onlyCompanyId?: string): Promise<SyncResult
             p_mailbox: mailbox,
             p_through: new Date(window.to).toISOString(),
           });
+        }
+        // Mail stored before attachments were recorded: look at a few each run.
+        if (Date.now() - started < BUDGET_MS) {
+          const { data: unchecked } = await admin
+            .from("support_messages")
+            .select("gmail_message_id, support_conversations!inner(mailbox)")
+            .eq("company_id", company.id)
+            .eq("support_conversations.mailbox", mailbox)
+            .is("attachments", null)
+            .not("gmail_message_id", "is", null)
+            .order("sent_at", { ascending: false })
+            .limit(BACKFILL_PER_RUN);
+          const todo = (unchecked ?? []).map((r) => r.gmail_message_id).filter((x): x is string => !!x);
+          const items: { id: string; attachments: Attachment[] }[] = [];
+          for (let i = 0; i < todo.length && Date.now() - started < BUDGET_MS; i += AT_ONCE) {
+            await Promise.all(
+              todo.slice(i, i + AT_ONCE).map(async (id) => {
+                try {
+                  items.push({ id, attachments: attachmentsOf((await gmail.getMessage(id)).payload) });
+                } catch (e) {
+                  // Gone from the mailbox: nothing to offer, and no reason to ask again.
+                  if (e instanceof Error && /\((404|410)\)/.test(e.message)) items.push({ id, attachments: [] });
+                  else throw e;
+                }
+              }),
+            );
+          }
+          if (items.length) await admin.rpc("support_set_attachments", { p_company: company.id, p_items: items });
         }
       } catch (e) {
         // Messages from Gmail and the database carry no mail content.
