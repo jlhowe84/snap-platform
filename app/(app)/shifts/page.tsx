@@ -5,7 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, Empty, PageHeader, Pill } from "@/components/ui";
 import { formatDate, formatTime } from "@/lib/dates";
 import { POSITION_LABEL } from "@/lib/staffing/plan";
+import { consentWording } from "@/lib/sms/crew";
+import { formatUsMobile, toUsMobile } from "@/lib/sms/phone";
 import { Answer } from "./answer";
+import { TextsCard, type TextConsent } from "./texts";
 
 export const metadata: Metadata = { title: "My shifts" };
 
@@ -53,10 +56,24 @@ function Shift({ s, children }: { s: Row; children?: React.ReactNode }) {
 
 // The crew phone page: offers open to me, then my coming shifts.
 export default async function ShiftsPage() {
-  await requireStaff(["crew"]);
+  const viewer = await requireStaff(["crew"]);
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("crew_shift_board");
+  const [{ data, error }, { data: consentData }, { data: details }] = await Promise.all([
+    supabase.rpc("crew_shift_board"),
+    supabase.rpc("my_text_consent"),
+    supabase.rpc("my_crew_details"),
+  ]);
   const rows = (data ?? []) as Row[];
+  const consent = (consentData ?? null) as TextConsent;
+  const phoneOnFile = (details as { phone?: string | null } | null)?.phone ?? "";
+  const texts = (
+    <TextsCard
+      consent={consent}
+      wording={consentWording(viewer.companyName)}
+      phoneOnFile={consent?.phone ? formatUsMobile(consent.phone) : toUsMobile(phoneOnFile) ? formatUsMobile(toUsMobile(phoneOnFile)) : phoneOnFile}
+      phoneShown={formatUsMobile(consent?.phone)}
+    />
+  );
   const offered = rows.filter((r) => r.kind === "offered");
   const mine = rows.filter((r) => r.kind === "mine");
 
@@ -68,6 +85,7 @@ export default async function ShiftsPage() {
         </Link>
       </PageHeader>
       {error && <Empty>Could not load your shifts. Try again in a minute.</Empty>}
+      {!consent && texts}
       <section className="mb-8">
         <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold uppercase tracking-wider text-muted">
           Open shifts {offered.length > 0 && <Pill tone="accent">{offered.length}</Pill>}
@@ -100,6 +118,7 @@ export default async function ShiftsPage() {
         )}
         <p className="mt-3 text-xs text-muted">Can&apos;t make a shift you took? Call or text the office so they can find someone.</p>
       </Card>
+      {consent && <div className="mt-8">{texts}</div>}
     </div>
   );
 }

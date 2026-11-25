@@ -60,7 +60,7 @@ async function queueCrewNotice(viewer: Viewer, shiftId: string, crewMemberId: st
     actor_id: viewer.id,
     status: "proposed",
     draft: { to: [c.email], ...draft },
-    record_refs: { job_id: s.job_id, photo_day_id: s.photo_day_id, shift_id: s.id, crew_member_id: crewMemberId },
+    record_refs: { job_id: s.job_id, photo_day_id: s.photo_day_id, shift_id: s.id, crew_member_id: crewMemberId, kind },
   });
 }
 

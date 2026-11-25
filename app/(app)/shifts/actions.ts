@@ -5,6 +5,8 @@ import { z } from "zod";
 import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { responseMessage } from "@/lib/staffing/plan";
+import { toUsMobile } from "@/lib/sms/phone";
+import { CONSENT_VERSION } from "@/lib/sms/crew";
 
 // A crew member answers an offer. The database decides whether it is still
 // theirs to take (respond_to_shift), so two people cannot take one shift.
@@ -56,4 +58,24 @@ export async function saveMyDetails(_prev: DetailsState, form: FormData): Promis
   if (error) return { ok: false, message: "Could not save. Try again." };
   revalidatePath("/shifts/me");
   return { ok: true, message: "Saved. Thank you for keeping this current." };
+}
+
+// A crew member says yes or no to shift texts. Each answer is a new row, so
+// the record of what they agreed to and when is kept whole.
+
+export type TextsState = { ok: boolean; message: string } | null;
+
+export async function answerTexts(_prev: TextsState, form: FormData): Promise<TextsState> {
+  await requireStaff(["crew"]);
+  const optIn = form.get("intent") === "yes";
+  const phone = optIn ? toUsMobile(String(form.get("phone") ?? "")) : null;
+  if (optIn && !phone) return { ok: false, message: "Enter a US mobile number, area code first." };
+  if (optIn && form.get("agree") !== "yes") return { ok: false, message: "Tick the box to say yes to texts." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_my_text_consent", { p_opt_in: optIn, p_phone: phone ?? "", p_wording_version: CONSENT_VERSION });
+  if (error) return { ok: false, message: "That did not go through. Try again." };
+  revalidatePath("/shifts");
+  return optIn
+    ? { ok: true, message: "Thanks. Shift texts will come to this number once texting is switched on." }
+    : { ok: true, message: "You will not get shift texts. Email notices still come." };
 }

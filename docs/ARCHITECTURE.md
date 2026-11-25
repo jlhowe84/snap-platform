@@ -522,6 +522,24 @@ facts, open policy questions) and `handbook` (staff procedures). Status is
 - Support drafts (`lib/support/draft.ts`) add up to six matching published
   articles from the answers and support shelves to the prompt.
 
+## Crew texts (Wave B)
+
+Texts go to crew only, and only to someone who said yes. Nothing is sent yet:
+SNAP Photo needs its own carrier registration first, so every text is logged.
+
+- `sms_consents`: one row per yes or no, never edited; the newest row is the
+  crew member's answer, with the wording version they saw
+  (`lib/sms/crew.ts`, `CONSENT_VERSION`). Crew answer on `/shifts` through
+  `set_my_text_consent`; the office reads, nobody writes directly.
+- `text_messages`: every crew text, `logged` while `sms.enabled` is false.
+  `log_crew_text` (staff desk) logs one only when the crew member's newest
+  answer is yes. Sending a crew shift notice from the queue logs its text twin.
+- Texts stay in the GSM character set (`lib/sms/text.ts`), start with the
+  company's name, end with "Reply STOP to opt out" and fit two segments.
+  Numbers are stored as +1 and ten digits (`lib/sms/phone.ts`).
+- Settings `sms.enabled` (false), `sms.test_mode` (true) and
+  `sms.test_recipient` are not editable from the Settings page.
+
 ## Staffing (Wave B, module 7)
 
 Replaces StaffMate: shift picking, pay rates, pay per shift with mileage, the

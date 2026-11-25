@@ -9,6 +9,8 @@ import { liveSiteUrl } from "@/lib/site-url";
 import { runClock } from "@/lib/clock/run";
 import { sendApprovedAction, type SendResult } from "@/lib/mail/send";
 import { MAKEUP_OFFER_KEY } from "@/lib/production/makeup-offer";
+import { CREW_NOTICE_KEY } from "@/lib/staffing/notices";
+import { crewShiftText } from "@/lib/sms/crew";
 
 export type QueueState = { ok: boolean; message: string } | null;
 
@@ -42,16 +44,51 @@ async function send(companyId: string, actionId: string): Promise<SendResult> {
   }
 }
 
-/** A sent makeup offer moves its order from To do to Makeup offered. */
+/**
+ * A sent makeup offer moves its order from To do to Makeup offered. A sent crew
+ * shift notice also logs a text for a crew member who said yes to texts.
+ */
 async function afterSend(actionId: string) {
   const supabase = await createClient();
   const { data: action } = await supabase.from("agent_actions").select("action_type_key, record_refs").eq("id", actionId).maybeSingle();
+  if (action?.action_type_key === CREW_NOTICE_KEY) return logCrewText(actionId, action.record_refs);
   if (action?.action_type_key !== MAKEUP_OFFER_KEY) return;
   const caseId = (action.record_refs as { case_id?: unknown } | null)?.case_id;
   if (typeof caseId !== "string" || !z.uuid().safeParse(caseId).success) return;
   // Office roles only may write the list; for anyone else this changes nothing.
   await supabase.from("prepay_photo_cases").update({ status: "offered" }).eq("id", caseId).eq("status", "open");
   revalidatePath("/production/no-photos");
+}
+
+const CrewRefs = z.object({ shift_id: z.uuid(), crew_member_id: z.uuid(), kind: z.enum(["added", "removed"]) });
+
+/** Logs the text twin of a crew shift notice. Nothing is sent while texts are off. */
+async function logCrewText(actionId: string, refs: unknown) {
+  const r = CrewRefs.safeParse(refs);
+  if (!r.success) return;
+  const supabase = await createClient();
+  const [{ data: s }, { data: company }] = await Promise.all([
+    supabase.from("shifts").select("position, start_time, end_time, photo_days(date), jobs(name)").eq("id", r.data.shift_id).maybeSingle(),
+    supabase.from("companies").select("name").maybeSingle(),
+  ]);
+  if (!s?.photo_days || !s.jobs) return;
+  const body = crewShiftText({
+    kind: r.data.kind,
+    company: company?.name ?? null,
+    jobName: s.jobs.name,
+    date: s.photo_days.date,
+    position: s.position,
+    startTime: s.start_time,
+    endTime: s.end_time,
+    link: `${await baseUrl()}/shifts`,
+  });
+  // The database checks the crew member said yes; for anyone else it logs nothing.
+  await supabase.rpc("log_crew_text", {
+    p_crew_member_id: r.data.crew_member_id,
+    p_kind: `crew.${r.data.kind}`,
+    p_body: body,
+    p_agent_action_id: actionId,
+  });
 }
 
 const sentLine = (r: Extract<SendResult, { ok: true }>) =>

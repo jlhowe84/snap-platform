@@ -4230,6 +4230,64 @@ export type Database = {
           },
         ]
       }
+      sms_consents: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          crew_member_id: string
+          id: string
+          opted_in: boolean
+          phone: string | null
+          source: string
+          wording_version: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          crew_member_id: string
+          id?: string
+          opted_in: boolean
+          phone?: string | null
+          source: string
+          wording_version: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          crew_member_id?: string
+          id?: string
+          opted_in?: boolean
+          phone?: string | null
+          source?: string
+          wording_version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_consents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_consents_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_consents_crew_member_id_fkey"
+            columns: ["crew_member_id"]
+            isOneToOne: false
+            referencedRelation: "crew_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_invites: {
         Row: {
           company_id: string
@@ -4726,6 +4784,73 @@ export type Database = {
           },
         ]
       }
+      text_messages: {
+        Row: {
+          agent_action_id: string | null
+          body: string
+          company_id: string
+          created_at: string
+          crew_member_id: string | null
+          id: string
+          kind: string
+          note: string | null
+          provider_id: string | null
+          sent_at: string | null
+          status: string
+          to_phone: string
+        }
+        Insert: {
+          agent_action_id?: string | null
+          body: string
+          company_id: string
+          created_at?: string
+          crew_member_id?: string | null
+          id?: string
+          kind: string
+          note?: string | null
+          provider_id?: string | null
+          sent_at?: string | null
+          status?: string
+          to_phone: string
+        }
+        Update: {
+          agent_action_id?: string | null
+          body?: string
+          company_id?: string
+          created_at?: string
+          crew_member_id?: string | null
+          id?: string
+          kind?: string
+          note?: string | null
+          provider_id?: string | null
+          sent_at?: string | null
+          status?: string
+          to_phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "text_messages_agent_action_id_fkey"
+            columns: ["agent_action_id"]
+            isOneToOne: false
+            referencedRelation: "agent_actions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "text_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "text_messages_crew_member_id_fkey"
+            columns: ["crew_member_id"]
+            isOneToOne: false
+            referencedRelation: "crew_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       touchpoints: {
         Row: {
           actor_id: string | null
@@ -5095,11 +5220,21 @@ export type Database = {
         Args: { p_gallery: number; p_job: string }
         Returns: undefined
       }
+      log_crew_text: {
+        Args: {
+          p_agent_action_id: string
+          p_body: string
+          p_crew_member_id: string
+          p_kind: string
+        }
+        Returns: string
+      }
       makeup_reminders: {
         Args: { p_company: string; p_today: string }
         Returns: number
       }
       my_crew_details: { Args: never; Returns: Json }
+      my_text_consent: { Args: never; Returns: Json }
       open_schedule: { Args: { p_photo_day_id: string }; Returns: string }
       order_daily_totals: {
         Args: { p_from: string; p_to: string }
@@ -5199,6 +5334,10 @@ export type Database = {
         }[]
       }
       season_label: { Args: { p_date: string }; Returns: string }
+      set_my_text_consent: {
+        Args: { p_opt_in: boolean; p_phone: string; p_wording_version: string }
+        Returns: undefined
+      }
       set_schedule_status: {
         Args: { p_schedule_id: string; p_status: string }
         Returns: string

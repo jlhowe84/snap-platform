@@ -8,6 +8,7 @@ import { Card, Empty, PageHeader, Pill } from "@/components/ui";
 import { formatDate, todayIn } from "@/lib/dates";
 import { POSITION_LABEL } from "@/lib/staffing/plan";
 import { crewPhotoUrls } from "@/lib/staffing/photos";
+import { formatUsMobile } from "@/lib/sms/phone";
 import { removeCrewPhoto, removePayRate } from "../actions";
 import { PayForm } from "./pay-form";
 import { DetailsForm, PhotoUpload, PrivateForm } from "./profile-forms";
@@ -32,7 +33,7 @@ export default async function CrewMemberPage({ params }: PageProps<"/crew/[id]">
     .maybeSingle();
   if (!c) notFound();
 
-  const [{ data: shifts }, { data: rates }, { data: priv }, photos] = await Promise.all([
+  const [{ data: shifts }, { data: rates }, { data: priv }, photos, { data: consent }, { data: texts }] = await Promise.all([
     supabase
       .from("shifts")
       .select("id, position, station, photo_day_id, photo_days!inner(date), jobs(name)")
@@ -44,6 +45,8 @@ export default async function CrewMemberPage({ params }: PageProps<"/crew/[id]">
       ? supabase.from("crew_private").select("address, emergency_name, emergency_phone, self_updated_at").eq("crew_member_id", id).maybeSingle()
       : Promise.resolve({ data: null }),
     crewPhotoUrls([c.photo_path]),
+    supabase.from("sms_consents").select("opted_in, phone, created_at").eq("crew_member_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("text_messages").select("id, body, status, created_at").eq("crew_member_id", id).order("created_at", { ascending: false }).limit(5),
   ]);
   const photo = c.photo_path ? photos.get(c.photo_path) : undefined;
   const sorted = [...(shifts ?? [])].sort((a, b) => a.photo_days.date.localeCompare(b.photo_days.date));
@@ -119,6 +122,27 @@ export default async function CrewMemberPage({ params }: PageProps<"/crew/[id]">
               <Empty>No coming shifts.</Empty>
             )}
             {past.length > 0 && <p className="mt-3 text-xs text-muted">{past.length} past shift{past.length === 1 ? "" : "s"} on record.</p>}
+          </Card>
+          <Card title="Shift texts">
+            <p className="text-sm">
+              {!consent
+                ? "Has not answered yet. They are asked on their shifts page."
+                : consent.opted_in
+                  ? `Said yes on ${formatDate(todayIn(viewer.timeZone, new Date(consent.created_at)))}, to ${formatUsMobile(consent.phone)}.`
+                  : `Said no on ${formatDate(todayIn(viewer.timeZone, new Date(consent.created_at)))}.`}
+            </p>
+            {texts && texts.length > 0 && (
+              <ul className="mt-3 space-y-2 text-sm">
+                {texts.map((t) => (
+                  <li key={t.id} className="rounded-lg border border-line p-2">
+                    <p className="text-xs text-muted">
+                      {formatDate(todayIn(viewer.timeZone, new Date(t.created_at)))} · {t.status === "logged" ? "logged, not sent (texts are off)" : t.status}
+                    </p>
+                    <p className="mt-1 break-words">{t.body}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
           {pay && (
             <Card title="Home and emergency contact">
