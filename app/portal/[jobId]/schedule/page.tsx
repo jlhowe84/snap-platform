@@ -271,7 +271,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
 
           {canEdit && slots.length > 1 && (
             <p className="mb-3 text-sm text-muted">
-              To trade two teams&apos; places, drag one slot onto the other, or press Swap on one and Swap here on the other. Times stay the same.
+              To trade two teams&apos; places, drag one slot onto the other, or press Swap on one and Swap here on the other. Times stay the same. Edit under a slot changes its time, length or station.
             </p>
           )}
           <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(stations, 3)}, minmax(0, 1fr))` }}>
@@ -281,49 +281,58 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                 <section key={n} className="rounded-lg border border-line p-3">
                   <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Station {n}</h3>
                   {mine.length === 0 && <p className="text-sm text-muted">Nothing yet.</p>}
-                  <ul className="space-y-2">
+                  <ul className="space-y-1">
                     {mine.map((s) => (
                       <DraggableSlot
                         key={s.id}
                         slotId={s.id}
                         enabled={canEdit}
                         swap={swapSlots.bind(null, jobId, day.id)}
-                        className={cx("rounded-lg p-2 text-sm", s.kind === "break" ? "bg-surface-2 text-muted" : "bg-surface-2", picked === s.id && "outline-2 outline-accent")}
+                        className={cx("rounded-md px-2 py-1 text-sm", s.kind === "break" ? "bg-surface-2 text-muted" : "bg-surface-2", picked === s.id && "outline-2 outline-accent")}
                       >
-                        <p className="font-medium">
-                          {formatTime(s.starts_at)} to {formatTime(toClock(toMinutes(s.starts_at) + s.minutes))}
-                          {" · "}
-                          {s.kind === "break" ? s.label || "Break" : (teamName.get(s.team_id ?? "") ?? s.label ?? "Team removed")}
-                        </p>
-                        {canEdit && (
-                          <div className="mt-2 flex flex-wrap items-center gap-1">
-                            {picked === s.id ? (
-                              <>
-                                <span className="text-xs text-accent">Now press Swap here on the other slot.</span>
-                                <Link href={`/portal/${jobId}/schedule?day=${day.id}`} className={quiet}>Cancel</Link>
-                              </>
+                        {/* One line per slot. The move and remove controls fold away under Edit. */}
+                        <details className="group">
+                          <summary className={cx("flex list-none items-center gap-2 [&::-webkit-details-marker]:hidden", canEdit ? "cursor-pointer" : "pointer-events-none")}>
+                          <span className="block min-w-0 flex-1 truncate">
+                            <span className="tabular-nums text-muted">{formatTime(s.starts_at)}</span>{" "}
+                            <span className="font-medium">{s.kind === "break" ? s.label || "Break" : (teamName.get(s.team_id ?? "") ?? s.label ?? "Team removed")}</span>
+                            <span className="text-xs text-muted"> · {s.minutes} min</span>
+                          </span>
+                          {canEdit &&
+                            (picked === s.id ? (
+                              <Link href={`/portal/${jobId}/schedule?day=${day.id}`} className="shrink-0 text-xs text-accent hover:underline">Cancel swap</Link>
                             ) : picked ? (
-                              <form action={swapSlots.bind(null, jobId, day.id, picked, s.id)}>
-                                <SubmitButton className={cx(quiet, "border-accent text-accent")}>Swap here</SubmitButton>
+                              <form action={swapSlots.bind(null, jobId, day.id, picked, s.id)} className="shrink-0">
+                                <SubmitButton className="rounded border border-accent px-1.5 py-0.5 text-xs text-accent">Swap here</SubmitButton>
                               </form>
                             ) : (
-                              <Link href={`/portal/${jobId}/schedule?day=${day.id}&swap=${s.id}`} className={quiet}>Swap</Link>
-                            )}
-                            <form action={updateSlot.bind(null, jobId, day.id, s.id)} className="flex flex-wrap items-center gap-1">
-                              <input name="starts_at" type="time" step={300} defaultValue={s.starts_at.slice(0, 5)} required aria-label="Start time" className={input} />
-                              <select key={String(s.minutes)} name="minutes" defaultValue={s.minutes} aria-label="Minutes" className={input}>
-                                {MINUTES.map((m) => <option key={m} value={m}>{m} min</option>)}
-                              </select>
-                              <select key={String(s.station)} name="station" defaultValue={s.station} aria-label="Station" className={input}>
-                                {Array.from({ length: Math.max(stations, s.station) }, (_, k) => k + 1).map((k) => <option key={k} value={k}>Station {k}</option>)}
-                              </select>
-                              <SubmitButton className={quiet}>Move</SubmitButton>
-                            </form>
-                            <form action={removeSlot.bind(null, jobId, day.id, s.id)}>
-                              <SubmitButton className="px-2 py-1.5 text-sm text-muted hover:text-risk">Remove</SubmitButton>
-                            </form>
-                          </div>
-                        )}
+                              <Link href={`/portal/${jobId}/schedule?day=${day.id}&swap=${s.id}`} className="shrink-0 text-xs text-muted hover:text-accent hover:underline">Swap</Link>
+                            ))}
+                          {canEdit && (
+                            <span className="shrink-0 text-xs text-muted hover:text-accent">
+                              <span className="group-open:hidden">Edit</span>
+                              <span className="hidden group-open:inline">Close</span>
+                            </span>
+                          )}
+                          </summary>
+                          {canEdit && (
+                            <div className="mt-1 flex flex-wrap items-center gap-1 pb-1">
+                              <form action={updateSlot.bind(null, jobId, day.id, s.id)} className="flex flex-wrap items-center gap-1">
+                                <input name="starts_at" type="time" step={300} defaultValue={s.starts_at.slice(0, 5)} required aria-label="Start time" className={input} />
+                                <select key={String(s.minutes)} name="minutes" defaultValue={s.minutes} aria-label="Minutes" className={input}>
+                                  {MINUTES.map((m) => <option key={m} value={m}>{m} min</option>)}
+                                </select>
+                                <select key={String(s.station)} name="station" defaultValue={s.station} aria-label="Station" className={input}>
+                                  {Array.from({ length: Math.max(stations, s.station) }, (_, k) => k + 1).map((k) => <option key={k} value={k}>Station {k}</option>)}
+                                </select>
+                                <SubmitButton className={quiet}>Move</SubmitButton>
+                              </form>
+                              <form action={removeSlot.bind(null, jobId, day.id, s.id)}>
+                                <SubmitButton className="px-2 py-1.5 text-sm text-muted hover:text-risk">Remove</SubmitButton>
+                              </form>
+                            </div>
+                          )}
+                        </details>
                       </DraggableSlot>
                     ))}
                   </ul>
