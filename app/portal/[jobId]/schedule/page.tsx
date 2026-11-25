@@ -116,8 +116,17 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
         </p>
       )}
 
-      <Card title={`Teams (${teams?.length ?? 0})`} className="mb-6">
-        <p className="mb-3 text-sm text-muted">
+      {/* The team list folds away. It starts open until every team has a time
+          slot, then starts closed so the schedule is near the top. */}
+      <details open={!teams?.length || unplaced.length > 0} className="group/teams mb-6 scroll-mt-20 rounded-xl border border-line bg-surface p-5">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+          <h2 className="font-display text-lg font-semibold uppercase tracking-wider text-muted">Teams ({teams?.length ?? 0})</h2>
+          <span className="text-sm text-accent">
+            <span className="group-open/teams:hidden">Show teams</span>
+            <span className="hidden group-open/teams:inline">Hide teams</span>
+          </span>
+        </summary>
+        <p className="mb-3 mt-2 text-sm text-muted">
           List every team or group that will be photographed. Teams from your roster appear here once we have processed it.
         </p>
         {teams?.length ? (
@@ -210,7 +219,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
             <SubmitButton className={cx(primary, "col-span-2 self-end whitespace-nowrap")}>Add team</SubmitButton>
           </form>
         )}
-      </Card>
+      </details>
 
       {(days?.length ?? 0) > 1 && (
         <nav className="mb-4 flex flex-wrap gap-2" aria-label="Photo days">
