@@ -124,3 +124,23 @@ export function scheduleCsv(slots: Slot[], teams: ExportTeam[], date: string): s
   );
   return ["Date,Start,End,Station,Team,Division,Coach,TC", ...rows].join("\n") + "\n";
 }
+
+/** What a slot holds, as opposed to where it sits. A swap trades only this. */
+export type SlotContent = Pick<Slot, "kind" | "team_id" | "label">;
+
+/**
+ * Swapping two slots trades what they hold and keeps each slot's station,
+ * time and length, so the day's grid does not move. Returns the update for
+ * each slot, or null when they cannot be swapped.
+ */
+export function swapContents(
+  a: SlotContent & { id: string; schedule_id: string },
+  b: SlotContent & { id: string; schedule_id: string },
+): { id: string; set: SlotContent }[] | null {
+  if (a.id === b.id || a.schedule_id !== b.schedule_id) return null;
+  const content = (s: SlotContent): SlotContent => ({ kind: s.kind, team_id: s.team_id, label: s.label });
+  return [
+    { id: a.id, set: content(b) },
+    { id: b.id, set: content(a) },
+  ];
+}

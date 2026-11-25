@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { portalJob } from "@/lib/portal/job";
-import { makeRoom, placeRemaining, type Slot } from "@/lib/schedule/layout";
+import { makeRoom, placeRemaining, swapContents, type Slot } from "@/lib/schedule/layout";
 import type { Notice } from "@/lib/schedule/notices";
 
 // Every write here runs as the signed-in person, so the database decides:
@@ -37,6 +37,12 @@ function back(jobId: string, dayId: string | null, notice?: Notice): never {
   if (notice) q.set("notice", notice);
   revalidatePath(`/portal/${jobId}`);
   redirect(`/portal/${jobId}/schedule${q.size ? `?${q}` : ""}`);
+}
+
+// After a change to the slots, refresh the page in place instead of
+// navigating, so a drag or a swap keeps the person's place on the page.
+function refreshSlots(jobId: string): void {
+  revalidatePath(`/portal/${jobId}`);
 }
 
 async function open(jobId: string, dayId: string | null) {
@@ -124,7 +130,7 @@ export async function addSlot(jobId: string, dayId: string, scheduleId: string, 
     label: kind === "break" ? (s.data.label ?? "Break") : null,
   });
   if (error) back(jobId, dayId, "That slot could not be added.");
-  back(jobId, dayId);
+  refreshSlots(jobId);
 }
 
 export async function updateSlot(jobId: string, dayId: string, slotId: string, form: FormData) {
@@ -133,13 +139,38 @@ export async function updateSlot(jobId: string, dayId: string, slotId: string, f
   if (!s.success) back(jobId, dayId, "A slot needs a station, a start time and a length from 5 to 60 minutes.");
   const { error } = await ctx.supabase.from("schedule_slots").update(s.data).eq("id", slotId).eq("job_id", jobId);
   if (error) back(jobId, dayId, "That slot could not be changed.");
-  back(jobId, dayId);
+  refreshSlots(jobId);
 }
 
 export async function removeSlot(jobId: string, dayId: string, slotId: string) {
   const ctx = await open(jobId, dayId);
   await ctx.supabase.from("schedule_slots").delete().eq("id", slotId).eq("job_id", jobId);
-  back(jobId, dayId);
+  refreshSlots(jobId);
+}
+
+// Two slots trade the team (or break) they hold; times and stations stay put.
+// The second write is undone if it fails, so a team is never left twice.
+export async function swapSlots(jobId: string, dayId: string, firstId: string, secondId: string) {
+  const ctx = await open(jobId, dayId);
+  const ids = z.array(z.uuid()).length(2).safeParse([firstId, secondId]);
+  if (!ids.success) back(jobId, dayId, "Those two slots could not be swapped.");
+  const { data: rows } = await ctx.supabase
+    .from("schedule_slots")
+    .select("id, schedule_id, kind, team_id, label")
+    .eq("job_id", jobId)
+    .in("id", ids.data);
+  const a = rows?.find((r) => r.id === firstId);
+  const b = rows?.find((r) => r.id === secondId);
+  const plan = a && b ? swapContents(a as Parameters<typeof swapContents>[0], b as Parameters<typeof swapContents>[1]) : null;
+  if (!plan) back(jobId, dayId, "Those two slots could not be swapped.");
+  const { error: first } = await ctx.supabase.from("schedule_slots").update(plan[0].set).eq("id", plan[0].id).eq("job_id", jobId);
+  if (first) back(jobId, dayId, "Those two slots could not be swapped.");
+  const { error: second } = await ctx.supabase.from("schedule_slots").update(plan[1].set).eq("id", plan[1].id).eq("job_id", jobId);
+  if (second) {
+    await ctx.supabase.from("schedule_slots").update(plan[1].set).eq("id", plan[0].id).eq("job_id", jobId);
+    back(jobId, dayId, "Those two slots could not be swapped.");
+  }
+  refreshSlots(jobId);
 }
 
 // A first layout: every team without a slot goes on whichever station is
@@ -164,7 +195,7 @@ export async function placeRest(jobId: string, dayId: string, scheduleId: string
     added.map((s) => ({ ...s, company_id: ctx.job.company_id, job_id: jobId, schedule_id: scheduleId })),
   );
   if (error) back(jobId, dayId, "The teams could not be placed.");
-  back(jobId, dayId);
+  refreshSlots(jobId);
 }
 
 export async function submitSchedule(jobId: string, dayId: string, scheduleId: string) {

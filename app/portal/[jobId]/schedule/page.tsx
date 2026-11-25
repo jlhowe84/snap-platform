@@ -16,10 +16,12 @@ import {
   setScheduleStatus,
   startSchedule,
   submitSchedule,
+  swapSlots,
   updateSlot,
   updateTeam,
 } from "./actions";
 import { SubmitButton } from "@/components/submit-button";
+import { DraggableSlot, SwapHere } from "./swap-drag";
 
 const input = "rounded-lg border border-line bg-bg px-2 py-1.5 text-sm text-text focus:border-accent focus:outline-none";
 const primary = "rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110";
@@ -35,6 +37,20 @@ const PROBLEM: Record<string, (d: string | null) => string> = {
 const STATUS: Record<string, string> = {
   not_started: "Not started", link_sent: "Not started", started: "In progress", submitted: "Submitted", complete: "Complete",
 };
+
+// Team rows line up as one table row each on a wide screen. On a phone the
+// fields stack two to a row, each with its own small label.
+// This page asks the portal for its wide layout, so the columns fit from 1024px up.
+const TEAM_GRID = "grid grid-cols-2 items-end gap-2 lg:grid-cols-[3.5rem_minmax(10rem,1fr)_8rem_10rem_9rem_4rem_3.5rem_1.75rem] lg:gap-1.5 lg:items-center";
+
+function Field({ label, wide, always, children }: { label: string; wide?: boolean; always?: boolean; children: React.ReactNode }) {
+  return (
+    <label className={cx("flex min-w-0 flex-col gap-0.5", wide && "col-span-2 lg:col-span-1")}>
+      <span className={cx("text-xs text-muted", !always && "lg:hidden")}>{label}</span>
+      {children}
+    </label>
+  );
+}
 
 function dayName(d: { label: string | null; location_name: string | null; start_time: string | null }): string {
   return d.label?.trim() || d.location_name?.trim() || (d.start_time ? (formatTime(d.start_time) ?? "") : "");
@@ -79,9 +95,13 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
   const soonest = free.indexOf(Math.min(...free));
   const done = schedule?.status === "submitted" || schedule?.status === "complete";
   const dayId = day?.id ?? null;
+  // A slot picked with the Swap button waits in the address bar for its partner.
+  const picked = typeof query.swap === "string" && slots.some((s) => s.id === query.swap) ? query.swap : null;
 
   return (
     <>
+      {/* Asks the portal layout for a wider page, so team names have room. */}
+      <span data-wide hidden />
       <Link href={`/portal/${jobId}`} className="text-sm text-muted underline-offset-2 hover:underline">
         Back to your steps
       </Link>
@@ -96,54 +116,110 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
         </p>
       )}
 
-      <Card title={`Teams (${teams?.length ?? 0})`} className="mb-6">
-        <p className="mb-3 text-sm text-muted">
+      {/* The team list folds away. It starts open until every team has a time
+          slot, then starts closed so the schedule is near the top. */}
+      <details open={!teams?.length || unplaced.length > 0} className="group/teams mb-6 scroll-mt-20 rounded-xl border border-line bg-surface p-5">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+          <h2 className="font-display text-lg font-semibold uppercase tracking-wider text-muted">Teams ({teams?.length ?? 0})</h2>
+          <span className="text-sm text-accent">
+            <span className="group-open/teams:hidden">Show teams</span>
+            <span className="hidden group-open/teams:inline">Hide teams</span>
+          </span>
+        </summary>
+        <p className="mb-3 mt-2 text-sm text-muted">
           List every team or group that will be photographed. Teams from your roster appear here once we have processed it.
         </p>
         {teams?.length ? (
-          <ul className="divide-y divide-line">
-            {teams.map((t) => (
-              <li key={t.id} className="py-2">
-                {canEdit ? (
-                  <div className="flex flex-wrap items-end gap-2">
-                    <form action={updateTeam.bind(null, jobId, dayId, t.id)} className="flex flex-1 flex-wrap items-end gap-2">
-                      <input name="name" defaultValue={t.name} required maxLength={120} aria-label="Team name" className={cx(input, "min-w-36 flex-1")} />
-                      <input name="division" defaultValue={t.division ?? ""} maxLength={80} placeholder="Division" aria-label="Division" className={cx(input, "w-28")} />
-                      <input name="coach_name" defaultValue={t.coach_name ?? ""} maxLength={120} placeholder="Coach" aria-label="Coach" className={cx(input, "w-32")} />
-                      <input name="sponsor" defaultValue={t.sponsor ?? ""} maxLength={160} placeholder="Sponsor" aria-label="Sponsor" className={cx(input, "w-32")} />
-                      <input name="player_count" type="number" min={0} max={500} defaultValue={t.player_count ?? ""} placeholder="Players" aria-label="Players" className={cx(input, "w-20")} />
-                      {office && <input name="tc_number" defaultValue={t.tc_number ?? ""} maxLength={20} placeholder="TC" aria-label="Team card number" className={cx(input, "w-16")} />}
-                      <SubmitButton className={quiet}>Save</SubmitButton>
-                    </form>
-                    <form action={removeTeam.bind(null, jobId, dayId, t.id)}>
-                      <SubmitButton className="px-2 py-1.5 text-sm text-muted hover:text-risk" aria-label={`Remove ${t.name}`}>Remove</SubmitButton>
-                    </form>
-                  </div>
-                ) : (
-                  <p className="text-sm">
-                    {t.tc_number && <span className="mr-2 rounded border border-line px-1.5 py-0.5 text-xs font-semibold">TC {t.tc_number}</span>}
-                    <span className="font-medium">{t.name}</span>
-                    <span className="text-muted">{[t.division, t.coach_name, t.sponsor].filter(Boolean).map((x) => ` · ${x}`).join("")}</span>
-                  </p>
-                )}
-                {!placed.has(t.id) && <p className="mt-1 text-xs text-warn">No time slot yet</p>}
-              </li>
-            ))}
-          </ul>
+          <>
+            {canEdit && (
+              <div className={cx(TEAM_GRID, "hidden border-b border-line pb-1 text-xs font-semibold uppercase tracking-wider text-muted lg:grid")}>
+                <span>TC #</span>
+                <span>Team name</span>
+                <span>Division</span>
+                <span>Coach</span>
+                <span>Sponsor</span>
+                <span>Players</span>
+                <span className="col-span-2" />
+              </div>
+            )}
+            <ul className="divide-y divide-line">
+              {teams.map((t) => (
+                <li key={t.id} className="py-2">
+                  {canEdit ? (
+                    <div className={TEAM_GRID}>
+                      <form action={updateTeam.bind(null, jobId, dayId, t.id)} className="contents">
+                        <Field label="TC #">
+                          {office ? (
+                            <input name="tc_number" defaultValue={t.tc_number ?? ""} maxLength={20} aria-label="Team card number" className={cx(input, "w-full")} />
+                          ) : (
+                            <span className="px-2 py-1.5 text-sm text-muted">{t.tc_number ?? "None"}</span>
+                          )}
+                        </Field>
+                        <Field label="Team name" wide>
+                          <input name="name" defaultValue={t.name} required maxLength={120} aria-label="Team name" className={cx(input, "w-full")} />
+                        </Field>
+                        <Field label="Division">
+                          <input name="division" defaultValue={t.division ?? ""} maxLength={80} aria-label="Division" className={cx(input, "w-full")} />
+                        </Field>
+                        <Field label="Coach">
+                          <input name="coach_name" defaultValue={t.coach_name ?? ""} maxLength={120} aria-label="Coach" className={cx(input, "w-full")} />
+                        </Field>
+                        <Field label="Sponsor">
+                          <input name="sponsor" defaultValue={t.sponsor ?? ""} maxLength={160} aria-label="Sponsor" className={cx(input, "w-full")} />
+                        </Field>
+                        <Field label="Players">
+                          <input name="player_count" type="number" min={0} max={500} defaultValue={t.player_count ?? ""} aria-label="Players" className={cx(input, "w-full")} />
+                        </Field>
+                        <SubmitButton className={cx(quiet, "self-end lg:self-auto lg:px-2")}>Save</SubmitButton>
+                      </form>
+                      <form action={removeTeam.bind(null, jobId, dayId, t.id)} className="self-end lg:self-auto">
+                        <SubmitButton className="px-1.5 py-1.5 text-sm text-muted hover:text-risk" aria-label={`Remove ${t.name}`} title="Remove this team">
+                          <span className="lg:hidden">Remove</span>
+                          <span aria-hidden className="hidden text-base leading-none lg:inline">×</span>
+                        </SubmitButton>
+                      </form>
+                      {!placed.has(t.id) && <p className="col-span-full text-xs text-warn">No time slot yet</p>}
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm">
+                        {t.tc_number && <span className="mr-2 rounded border border-line px-1.5 py-0.5 text-xs font-semibold">TC {t.tc_number}</span>}
+                        <span className="font-medium">{t.name}</span>
+                        <span className="text-muted">{[t.division, t.coach_name, t.sponsor].filter(Boolean).map((x) => ` · ${x}`).join("")}</span>
+                      </p>
+                      {!placed.has(t.id) && <p className="mt-1 text-xs text-warn">No time slot yet</p>}
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </>
         ) : (
           <Empty>No teams yet.</Empty>
         )}
         {canEdit && (
-          <form action={addTeam.bind(null, jobId, dayId)} className="mt-4 flex flex-wrap items-end gap-2 border-t border-line pt-4">
-            <input name="name" required maxLength={120} placeholder="New team name" aria-label="New team name" className={cx(input, "min-w-36 flex-1")} />
-            <input name="division" maxLength={80} placeholder="Division" aria-label="Division" className={cx(input, "w-28")} />
-            <input name="coach_name" maxLength={120} placeholder="Coach" aria-label="Coach" className={cx(input, "w-32")} />
-            <input name="sponsor" maxLength={160} placeholder="Sponsor" aria-label="Sponsor" className={cx(input, "w-32")} />
-            <input name="player_count" type="number" min={0} max={500} placeholder="Players" aria-label="Players" className={cx(input, "w-20")} />
-            <SubmitButton className={primary}>Add team</SubmitButton>
+          <form action={addTeam.bind(null, jobId, dayId)} className={cx(TEAM_GRID, "mt-4 border-t border-line pt-4")}>
+            <p className="col-span-full text-sm font-semibold">Add a team</p>
+            <span className="hidden lg:block" />
+            <Field label="Team name" wide always>
+              <input name="name" required maxLength={120} aria-label="New team name" className={cx(input, "w-full")} />
+            </Field>
+            <Field label="Division" always>
+              <input name="division" maxLength={80} aria-label="Division" className={cx(input, "w-full")} />
+            </Field>
+            <Field label="Coach" always>
+              <input name="coach_name" maxLength={120} aria-label="Coach" className={cx(input, "w-full")} />
+            </Field>
+            <Field label="Sponsor" always>
+              <input name="sponsor" maxLength={160} aria-label="Sponsor" className={cx(input, "w-full")} />
+            </Field>
+            <Field label="Players" always>
+              <input name="player_count" type="number" min={0} max={500} aria-label="Players" className={cx(input, "w-full")} />
+            </Field>
+            <SubmitButton className={cx(primary, "col-span-2 self-end whitespace-nowrap")}>Add team</SubmitButton>
           </form>
         )}
-      </Card>
+      </details>
 
       {(days?.length ?? 0) > 1 && (
         <nav className="mb-4 flex flex-wrap gap-2" aria-label="Photo days">
@@ -208,6 +284,11 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
             </form>
           )}
 
+          {canEdit && slots.length > 1 && (
+            <p className="mb-3 text-sm text-muted">
+              To trade two teams&apos; places, drag one slot onto the other, or press Swap on one and Swap here on the other. Times stay the same. Edit under a slot changes its time, length or station.
+            </p>
+          )}
           <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(stations, 3)}, minmax(0, 1fr))` }}>
             {Array.from({ length: stations }, (_, i) => i + 1).map((n) => {
               const mine = slots.filter((s) => s.station === n).sort((a, b) => toMinutes(a.starts_at) - toMinutes(b.starts_at));
@@ -215,32 +296,57 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                 <section key={n} className="rounded-lg border border-line p-3">
                   <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Station {n}</h3>
                   {mine.length === 0 && <p className="text-sm text-muted">Nothing yet.</p>}
-                  <ul className="space-y-2">
+                  <ul className="space-y-1.5">
                     {mine.map((s) => (
-                      <li key={s.id} className={cx("rounded-lg p-2 text-sm", s.kind === "break" ? "bg-surface-2 text-muted" : "bg-surface-2")}>
-                        <p className="font-medium">
-                          {formatTime(s.starts_at)} to {formatTime(toClock(toMinutes(s.starts_at) + s.minutes))}
-                          {" · "}
-                          {s.kind === "break" ? s.label || "Break" : (teamName.get(s.team_id ?? "") ?? s.label ?? "Team removed")}
-                        </p>
-                        {canEdit && (
-                          <div className="mt-2 flex flex-wrap items-center gap-1">
-                            <form action={updateSlot.bind(null, jobId, day.id, s.id)} className="flex flex-wrap items-center gap-1">
-                              <input name="starts_at" type="time" step={300} defaultValue={s.starts_at.slice(0, 5)} required aria-label="Start time" className={input} />
-                              <select key={String(s.minutes)} name="minutes" defaultValue={s.minutes} aria-label="Minutes" className={input}>
-                                {MINUTES.map((m) => <option key={m} value={m}>{m} min</option>)}
-                              </select>
-                              <select key={String(s.station)} name="station" defaultValue={s.station} aria-label="Station" className={input}>
-                                {Array.from({ length: Math.max(stations, s.station) }, (_, k) => k + 1).map((k) => <option key={k} value={k}>Station {k}</option>)}
-                              </select>
-                              <SubmitButton className={quiet}>Move</SubmitButton>
-                            </form>
-                            <form action={removeSlot.bind(null, jobId, day.id, s.id)}>
-                              <SubmitButton className="px-2 py-1.5 text-sm text-muted hover:text-risk">Remove</SubmitButton>
-                            </form>
-                          </div>
-                        )}
-                      </li>
+                      <DraggableSlot
+                        key={s.id}
+                        slotId={s.id}
+                        enabled={canEdit}
+                        swap={swapSlots.bind(null, jobId, day.id)}
+                        className={cx("rounded-md px-2.5 py-2 text-sm", s.kind === "break" ? "bg-surface-2 text-muted" : "bg-surface-2", picked === s.id && "outline-2 outline-accent")}
+                      >
+                        {/* One line per slot. The move and remove controls fold away under Edit. */}
+                        <details className="group">
+                          <summary className={cx("flex list-none items-center gap-2 [&::-webkit-details-marker]:hidden", canEdit ? "cursor-pointer" : "pointer-events-none")}>
+                          <span className="block min-w-0 flex-1 truncate">
+                            <span className="tabular-nums text-muted">{formatTime(s.starts_at)}</span>{" "}
+                            <span className="font-medium">{s.kind === "break" ? s.label || "Break" : (teamName.get(s.team_id ?? "") ?? s.label ?? "Team removed")}</span>
+                            <span className="text-xs text-muted"> · {s.minutes} min</span>
+                          </span>
+                          {canEdit &&
+                            (picked === s.id ? (
+                              <Link href={`/portal/${jobId}/schedule?day=${day.id}`} scroll={false} className="shrink-0 text-xs text-accent hover:underline">Cancel swap</Link>
+                            ) : picked ? (
+                              <SwapHere fromId={picked} toId={s.id} swap={swapSlots.bind(null, jobId, day.id)} doneHref={`/portal/${jobId}/schedule?day=${day.id}`} />
+                            ) : (
+                              <Link href={`/portal/${jobId}/schedule?day=${day.id}&swap=${s.id}`} scroll={false} className="shrink-0 text-xs text-muted hover:text-accent hover:underline">Swap</Link>
+                            ))}
+                          {canEdit && (
+                            <span className="shrink-0 text-xs text-muted hover:text-accent">
+                              <span className="group-open:hidden">Edit</span>
+                              <span className="hidden group-open:inline">Close</span>
+                            </span>
+                          )}
+                          </summary>
+                          {canEdit && (
+                            <div className="mt-1 flex flex-wrap items-center gap-1 pb-1">
+                              <form action={updateSlot.bind(null, jobId, day.id, s.id)} className="flex flex-wrap items-center gap-1">
+                                <input name="starts_at" type="time" step={300} defaultValue={s.starts_at.slice(0, 5)} required aria-label="Start time" className={input} />
+                                <select key={String(s.minutes)} name="minutes" defaultValue={s.minutes} aria-label="Minutes" className={input}>
+                                  {MINUTES.map((m) => <option key={m} value={m}>{m} min</option>)}
+                                </select>
+                                <select key={String(s.station)} name="station" defaultValue={s.station} aria-label="Station" className={input}>
+                                  {Array.from({ length: Math.max(stations, s.station) }, (_, k) => k + 1).map((k) => <option key={k} value={k}>Station {k}</option>)}
+                                </select>
+                                <SubmitButton className={quiet}>Move</SubmitButton>
+                              </form>
+                              <form action={removeSlot.bind(null, jobId, day.id, s.id)}>
+                                <SubmitButton className="px-2 py-1.5 text-sm text-muted hover:text-risk">Remove</SubmitButton>
+                              </form>
+                            </div>
+                          )}
+                        </details>
+                      </DraggableSlot>
                     ))}
                   </ul>
                 </section>
