@@ -35,7 +35,16 @@ export function DraggableSlot({
         e.dataTransfer.effectAllowed = "move";
         // Drag only this slot, never a highlighted run of text across slots.
         window.getSelection()?.removeAllRanges();
-        e.dataTransfer.setDragImage(e.currentTarget, 12, 12);
+        // Chrome's own picture of a dragged row can take in the rows around
+        // it, so show a clean copy of just this slot, drawn off screen.
+        const li = e.currentTarget;
+        const box = li.getBoundingClientRect();
+        const ghost = li.cloneNode(true) as HTMLElement;
+        ghost.style.cssText = `position:fixed;top:-1000px;left:0;width:${box.width}px;margin:0;opacity:1;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.18)`;
+        ghost.querySelector("details")?.removeAttribute("open");
+        document.body.appendChild(ghost);
+        e.dataTransfer.setDragImage(ghost, e.clientX - box.left, e.clientY - box.top);
+        setTimeout(() => ghost.remove(), 0);
       }}
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes(TYPE)) return;
