@@ -41,7 +41,7 @@ const STATUS: Record<string, string> = {
 // Team rows line up as one table row each on a wide screen. On a phone the
 // fields stack two to a row, each with its own small label.
 // This page asks the portal for its wide layout, so the columns fit from 1024px up.
-const TEAM_GRID = "grid grid-cols-2 items-end gap-2 lg:grid-cols-[3.5rem_minmax(10rem,1fr)_8rem_10rem_9rem_4rem_auto_auto] lg:gap-1.5 lg:items-center";
+const TEAM_GRID = "grid grid-cols-2 items-end gap-2 lg:grid-cols-[3.5rem_minmax(10rem,1fr)_8rem_10rem_9rem_4rem_3.5rem_1.75rem] lg:gap-1.5 lg:items-center";
 
 function Field({ label, wide, always, children }: { label: string; wide?: boolean; always?: boolean; children: React.ReactNode }) {
   return (
@@ -280,7 +280,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
               To trade two teams&apos; places, drag one slot onto the other, or press Swap on one and Swap here on the other. Times stay the same. Edit under a slot changes its time, length or station.
             </p>
           )}
-          <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(stations, 3)}, minmax(0, 1fr))` }}>
+          <div id="slots" className="grid scroll-mt-4 gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(stations, 3)}, minmax(0, 1fr))` }}>
             {Array.from({ length: stations }, (_, i) => i + 1).map((n) => {
               const mine = slots.filter((s) => s.station === n).sort((a, b) => toMinutes(a.starts_at) - toMinutes(b.starts_at));
               return (
@@ -306,13 +306,13 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                           </span>
                           {canEdit &&
                             (picked === s.id ? (
-                              <Link href={`/portal/${jobId}/schedule?day=${day.id}`} className="shrink-0 text-xs text-accent hover:underline">Cancel swap</Link>
+                              <Link href={`/portal/${jobId}/schedule?day=${day.id}`} scroll={false} className="shrink-0 text-xs text-accent hover:underline">Cancel swap</Link>
                             ) : picked ? (
                               <form action={swapSlots.bind(null, jobId, day.id, picked, s.id)} className="shrink-0">
                                 <SubmitButton className="rounded border border-accent px-1.5 py-0.5 text-xs text-accent">Swap here</SubmitButton>
                               </form>
                             ) : (
-                              <Link href={`/portal/${jobId}/schedule?day=${day.id}&swap=${s.id}`} className="shrink-0 text-xs text-muted hover:text-accent hover:underline">Swap</Link>
+                              <Link href={`/portal/${jobId}/schedule?day=${day.id}&swap=${s.id}`} scroll={false} className="shrink-0 text-xs text-muted hover:text-accent hover:underline">Swap</Link>
                             ))}
                           {canEdit && (
                             <span className="shrink-0 text-xs text-muted hover:text-accent">
