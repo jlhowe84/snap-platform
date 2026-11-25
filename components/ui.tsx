@@ -52,7 +52,7 @@ export function Card({
   return (
     <section id={id} className={cx("scroll-mt-20 rounded-xl border border-line bg-surface p-5", className)}>
       {(title || action) && (
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           {title && (
             <h2 className="font-display text-lg font-semibold uppercase tracking-wider text-muted">
               {title}
