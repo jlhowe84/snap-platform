@@ -23,9 +23,14 @@ import {
 import { SubmitButton } from "@/components/submit-button";
 import { DraggableSlot, SwapHere } from "./swap-drag";
 
-const input = "rounded-lg border border-line bg-bg px-2 py-1.5 text-sm text-text focus:border-accent focus:outline-none";
-const primary = "rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110";
-const quiet = "rounded-lg border border-line px-3 py-1.5 text-sm hover:bg-surface-2";
+// Coordinators often do this on a phone, so controls are full tap height
+// (48px) and inputs use 16px text (smaller makes iPhones zoom in) below the
+// md breakpoint, then tighten up on a computer.
+const input = "min-h-12 rounded-lg border border-line bg-bg px-2 py-1.5 text-base text-text focus:border-accent focus:outline-none md:min-h-0 md:text-sm";
+const primary = "min-h-12 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110 md:min-h-0";
+const quiet = "min-h-12 rounded-lg border border-line px-3 py-1.5 text-sm hover:bg-surface-2 md:min-h-0";
+// Swap and Edit on a slot: a full-height tap target on a phone, small text on a computer.
+const slotLink = "inline-flex min-h-12 shrink-0 items-center rounded-md px-3 text-sm md:min-h-0 md:px-0 md:text-xs";
 const MINUTES = [5, 10, 15, 20, 25, 30, 40, 45, 50, 60];
 
 const PROBLEM: Record<string, (d: string | null) => string> = {
@@ -286,10 +291,16 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
 
           {canEdit && slots.length > 1 && (
             <p className="mb-3 text-sm text-muted">
-              To trade two teams&apos; places, drag one slot onto the other, or press Swap on one and Swap here on the other. Times stay the same. Edit under a slot changes its time, length or station.
+              <span className="md:hidden">To trade two teams&apos; places, tap Swap on one slot, then Swap here on the other.</span>
+              <span className="hidden md:inline">To trade two teams&apos; places, drag one slot onto the other, or press Swap on one and Swap here on the other.</span>{" "}
+              Times stay the same. Edit under a slot changes its time, length or station.
             </p>
           )}
-          <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(stations, 3)}, minmax(0, 1fr))` }}>
+          {/* Stations stack on a phone and sit side by side (up to 3) on a computer. */}
+          <div
+            className="grid grid-cols-1 gap-4 md:grid-cols-[repeat(var(--stations),minmax(0,1fr))]"
+            style={{ "--stations": Math.min(stations, 3) } as React.CSSProperties}
+          >
             {Array.from({ length: stations }, (_, i) => i + 1).map((n) => {
               const mine = slots.filter((s) => s.station === n).sort((a, b) => toMinutes(a.starts_at) - toMinutes(b.starts_at));
               return (
@@ -303,26 +314,26 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                         slotId={s.id}
                         enabled={canEdit}
                         swap={swapSlots.bind(null, jobId, day.id)}
-                        className={cx("rounded-md px-2.5 py-2 text-sm", s.kind === "break" ? "bg-surface-2 text-muted" : "bg-surface-2", picked === s.id && "outline-2 outline-accent")}
+                        className={cx("rounded-md px-2.5 py-1 text-sm md:py-2", s.kind === "break" ? "bg-surface-2 text-muted" : "bg-surface-2", picked === s.id && "outline-2 outline-accent")}
                       >
                         {/* One line per slot. The move and remove controls fold away under Edit. */}
                         <details className="group">
                           <summary className={cx("flex list-none items-center gap-2 [&::-webkit-details-marker]:hidden", canEdit ? "cursor-pointer" : "pointer-events-none")}>
-                          <span className="block min-w-0 flex-1 truncate">
+                          <span className="block min-w-0 flex-1 md:truncate">
                             <span className="tabular-nums text-muted">{formatTime(s.starts_at)}</span>{" "}
                             <span className="font-medium">{s.kind === "break" ? s.label || "Break" : (teamName.get(s.team_id ?? "") ?? s.label ?? "Team removed")}</span>
                             <span className="text-xs text-muted"> · {s.minutes} min</span>
                           </span>
                           {canEdit &&
                             (picked === s.id ? (
-                              <Link href={`/portal/${jobId}/schedule?day=${day.id}`} scroll={false} className="shrink-0 text-xs text-accent hover:underline">Cancel swap</Link>
+                              <Link href={`/portal/${jobId}/schedule?day=${day.id}`} scroll={false} className={cx(slotLink, "text-accent hover:underline")}>Cancel swap</Link>
                             ) : picked ? (
                               <SwapHere fromId={picked} toId={s.id} swap={swapSlots.bind(null, jobId, day.id)} doneHref={`/portal/${jobId}/schedule?day=${day.id}`} />
                             ) : (
-                              <Link href={`/portal/${jobId}/schedule?day=${day.id}&swap=${s.id}`} scroll={false} className="shrink-0 text-xs text-muted hover:text-accent hover:underline">Swap</Link>
+                              <Link href={`/portal/${jobId}/schedule?day=${day.id}&swap=${s.id}`} scroll={false} className={cx(slotLink, "text-muted hover:text-accent hover:underline")}>Swap</Link>
                             ))}
                           {canEdit && (
-                            <span className="shrink-0 text-xs text-muted hover:text-accent">
+                            <span className={cx(slotLink, "text-muted hover:text-accent")}>
                               <span className="group-open:hidden">Edit</span>
                               <span className="hidden group-open:inline">Close</span>
                             </span>
@@ -341,7 +352,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                                 <SubmitButton className={quiet}>Move</SubmitButton>
                               </form>
                               <form action={removeSlot.bind(null, jobId, day.id, s.id)}>
-                                <SubmitButton className="px-2 py-1.5 text-sm text-muted hover:text-risk">Remove</SubmitButton>
+                                <SubmitButton className="min-h-12 px-3 py-1.5 text-sm text-muted hover:text-risk md:min-h-0 md:px-2">Remove</SubmitButton>
                               </form>
                             </div>
                           )}

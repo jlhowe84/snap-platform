@@ -84,7 +84,7 @@ export function SwapHere({ fromId, toId, swap, doneHref }: { fromId: string; toI
           router.replace(doneHref, { scroll: false });
         })
       }
-      className="shrink-0 rounded border border-accent px-1.5 py-0.5 text-xs text-accent disabled:opacity-60"
+      className="inline-flex min-h-12 shrink-0 items-center rounded border border-accent px-3 text-sm text-accent disabled:opacity-60 md:min-h-0 md:px-1.5 md:py-0.5 md:text-xs"
     >
       {pending ? "Swapping…" : "Swap here"}
     </button>
