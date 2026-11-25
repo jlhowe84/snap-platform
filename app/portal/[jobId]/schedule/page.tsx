@@ -36,6 +36,10 @@ const STATUS: Record<string, string> = {
   not_started: "Not started", link_sent: "Not started", started: "In progress", submitted: "Submitted", complete: "Complete",
 };
 
+function dayName(d: { label: string | null; location_name: string | null; start_time: string | null }): string {
+  return d.label?.trim() || d.location_name?.trim() || (d.start_time ? formatTime(d.start_time) : "");
+}
+
 export default async function SchedulePage({ params, searchParams }: PageProps<"/portal/[jobId]/schedule">) {
   const { jobId } = await params;
   const query = await searchParams;
@@ -44,7 +48,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
   const { supabase, canEdit, office } = ctx;
 
   const [{ data: days }, { data: teams }, { data: form }] = await Promise.all([
-    supabase.from("photo_days").select("id, date, start_time, location_name").eq("job_id", jobId).order("date").order("start_time"),
+    supabase.from("photo_days").select("id, date, start_time, label, location_name").eq("job_id", jobId).order("date").order("start_time"),
     supabase.from("teams").select("id, name, division, coach_name, sponsor, player_count, tc_number, source").eq("job_id", jobId).order("division").order("name"),
     supabase.from("planning_forms").select("answers").eq("job_id", jobId).maybeSingle(),
   ]);
@@ -147,9 +151,11 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
             <Link
               key={d.id}
               href={`/portal/${jobId}/schedule?day=${d.id}`}
-              className={cx("rounded-lg border px-3 py-1.5 text-sm", d.id === day?.id ? "border-accent bg-surface-2 font-semibold" : "border-line hover:bg-surface-2")}
+              className={cx("flex min-h-12 max-w-full flex-col justify-center rounded-lg border px-3 py-1.5 text-sm", d.id === day?.id ? "border-accent bg-surface-2" : "border-line hover:bg-surface-2")}
             >
-              {formatDate(d.date, { weekday: true })}
+              <span className={d.id === day?.id ? "font-semibold" : undefined}>{formatDate(d.date, { weekday: true })}</span>
+              {/* Days on the same date are told apart by their label, or the place or start time when there is none. */}
+              {dayName(d) && <span className="text-xs text-muted">{dayName(d)}</span>}
             </Link>
           ))}
         </nav>
@@ -168,7 +174,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
         </div>
       ) : (
         <Card
-          title={`${formatDate(day.date, { weekday: true })}${day.location_name ? ` · ${day.location_name}` : ""}`}
+          title={`${formatDate(day.date, { weekday: true })}${dayName(day) ? ` · ${dayName(day)}` : ""}`}
           action={
             <span className="flex gap-4">
               <Link href={`/portal/${jobId}/schedule/print?day=${day.id}`} className="text-sm text-accent hover:underline">

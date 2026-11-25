@@ -18,7 +18,7 @@ export default async function SchedulePrintPage({ params, searchParams }: PagePr
 
   const { data: day } = await supabase
     .from("photo_days")
-    .select("id, date, start_time, location_name")
+    .select("id, date, start_time, label, location_name")
     .eq("id", dayId)
     .eq("job_id", jobId)
     .maybeSingle();
@@ -50,6 +50,7 @@ export default async function SchedulePrintPage({ params, searchParams }: PagePr
         <h1 className="font-display text-2xl font-bold uppercase">{ctx.job.name}</h1>
         <p className="text-sm">
           {formatDate(day.date, { weekday: true })}
+          {day.label ? ` · ${day.label}` : ""}
           {day.location_name ? ` · ${day.location_name}` : ""}
           {schedule ? ` · ${schedule.stations} ${schedule.stations === 1 ? "station" : "stations"}` : ""}
         </p>
