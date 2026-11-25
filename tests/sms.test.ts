@@ -1,7 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 import { formatUsMobile, toUsMobile } from "@/lib/sms/phone";
 import { gsmLength, segments, toGsm } from "@/lib/sms/text";
-import { consentWording, crewShiftText } from "@/lib/sms/crew";
+import { consentWording, crewDayBeforeText, crewOfferText, crewShiftText, offersFor } from "@/lib/sms/crew";
+import { planText, smsSettingsFrom } from "@/lib/sms/guard";
+import { replyIntent } from "@/lib/sms/keywords";
+import { twilioSignature, validTwilioSignature } from "@/lib/sms/twilio";
 
 describe("US mobile numbers", () => {
   it("reads the ways people type a number", () => {
@@ -74,5 +79,85 @@ describe("crew texts", () => {
     expect(w).toContain("Photo Co shifts");
     expect(w).toContain("Reply STOP");
     expect(w).toContain("not a condition");
+  });
+});
+
+describe("day-before and offer texts", () => {
+  it("reminds a crew member the day before, with the day's page", () => {
+    const t = crewDayBeforeText({ company: "Photo Co", jobName: "River League", position: "poser", startTime: "08:30", endTime: null, place: "Main Park, Springfield", link: "https://example.com/field/abc" });
+    expect(t).toBe("Photo Co: Reminder, you work tomorrow as poser, River League, 8:30 AM, Main Park, Springfield. Crew, kits and schedule: https://example.com/field/abc Reply STOP to opt out.");
+    expect(segments(t)).toBeLessThanOrEqual(2);
+  });
+
+  it("tells a crew member a shift is open to them", () => {
+    expect(crewOfferText({ company: "Photo Co", jobName: "River League", date: "2027-04-17", positions: ["photographer"], link: "https://example.com/shifts" })).toBe(
+      "Photo Co: A photographer shift is open for you on Sat, Apr 17, 2027, River League. First to take it gets it: https://example.com/shifts Reply STOP to opt out.",
+    );
+    expect(crewOfferText({ company: "Photo Co", jobName: "River League", date: "2027-04-17", positions: ["photographer", "poser"], link: "x" })).toContain("Shifts are open for you");
+  });
+
+  it("offers a shift only to crew in its position and Level", () => {
+    const open = [
+      { position: "photographer", open_level: 1 },
+      { position: "poser", open_level: 2 },
+      { position: "coordinator", open_level: null },
+    ];
+    expect(offersFor({ id: "a", positions: ["photographer"], level: 1 }, open)).toEqual(["photographer"]);
+    expect(offersFor({ id: "b", positions: ["photographer"], level: 2 }, open)).toEqual([]);
+    expect(offersFor({ id: "c", positions: ["poser"], level: 2 }, open)).toEqual(["poser"]);
+    expect(offersFor({ id: "d", positions: ["poser", "coordinator"], level: null }, open)).toEqual(["coordinator"]);
+  });
+});
+
+describe("text guard", () => {
+  const text = { to_phone: "+12155550142", body: "Photo Co: hello", created_at: "2027-04-16T10:00:00Z" };
+  const now = new Date("2027-04-16T10:05:00Z");
+  const on = { enabled: true, testMode: true, testRecipient: "+12155550100" };
+
+  it("reads the settings, off and in test mode when missing", () => {
+    expect(smsSettingsFrom([])).toEqual({ enabled: false, testMode: true, testRecipient: null });
+    expect(smsSettingsFrom([{ key: "sms.enabled", value: true }, { key: "sms.test_mode", value: false }, { key: "sms.test_recipient", value: "215 555 0100" }])).toEqual({
+      enabled: true,
+      testMode: false,
+      testRecipient: "+12155550100",
+    });
+  });
+
+  it("holds every text while texts are off or keys are missing", () => {
+    expect(planText(text, text.to_phone, { ...on, enabled: false }, true, now)).toEqual({ send: false, reason: "texts are off" });
+    expect(planText(text, text.to_phone, on, false, now).send).toBe(false);
+  });
+
+  it("sends to the test number only in test mode, saying who it was for", () => {
+    expect(planText(text, text.to_phone, on, true, now, "Ann")).toEqual({ send: true, to: "+12155550100", body: "TEST for Ann: Photo Co: hello", test: true });
+    expect(planText(text, text.to_phone, { ...on, testRecipient: null }, true, now).send).toBe(false);
+  });
+
+  it("sends to the crew member only when test mode is off", () => {
+    expect(planText(text, text.to_phone, { ...on, testMode: false }, true, now)).toEqual({ send: true, to: text.to_phone, body: text.body, test: false });
+  });
+
+  it("skips someone who said no since, and texts gone stale", () => {
+    expect(planText(text, null, on, true, now)).toEqual({ send: false, reason: "no longer opted in at this number" });
+    expect(planText(text, "+12155550199", on, true, now).send).toBe(false);
+    expect(planText(text, text.to_phone, on, true, new Date("2027-04-16T17:00:00Z"))).toEqual({ send: false, reason: "too old to send" });
+  });
+});
+
+describe("replies and webhooks", () => {
+  it("reads STOP and START words", () => {
+    for (const w of ["STOP", "stop", " Stop. ", "unsubscribe", "Quit"]) expect(replyIntent(w)).toBe("stop");
+    for (const w of ["START", "unstop", "Yes"]) expect(replyIntent(w)).toBe("start");
+    for (const w of ["stop texting me about saturday", "ok", "", null]) expect(replyIntent(w)).toBeNull();
+  });
+
+  it("checks Twilio's signature the documented way", () => {
+    const params = { CallSid: "CA1234567890ABCDE", Caller: "+12349013030", Digits: "1234", From: "+12349013030", To: "+18005551212" };
+    const url = "https://mycompany.com/myapp.php?foo=1&bar=2";
+    const sig = twilioSignature("12345", url, params);
+    expect(sig).toBe("0/KCTR6DLpKmkAf8muzZqo1nDgQ=");
+    expect(validTwilioSignature("12345", url, params, sig)).toBe(true);
+    expect(validTwilioSignature("12345", url, { ...params, Digits: "9999" }, sig)).toBe(false);
+    expect(validTwilioSignature("12345", url, params, null)).toBe(false);
   });
 });

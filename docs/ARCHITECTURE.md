@@ -537,8 +537,23 @@ SNAP Photo needs its own carrier registration first, so every text is logged.
 - Texts stay in the GSM character set (`lib/sms/text.ts`), start with the
   company's name, end with "Reply STOP to opt out" and fit two segments.
   Numbers are stored as +1 and ten digits (`lib/sms/phone.ts`).
-- Settings `sms.enabled` (false), `sms.test_mode` (true) and
-  `sms.test_recipient` are not editable from the Settings page.
+- Four kinds: `crew.added` and `crew.removed` (logged when the office sends
+  the email notice from the queue), `crew.offer` (when shifts on a day are
+  published or opened to the next Level; once per person per day, key
+  `offer:<dayId>`), `crew.day_before` (the daily run, for tomorrow's filled
+  shifts; key `day:<dayId>`).
+- Sending (`lib/sms/send.ts`, service role) runs right after a text is logged
+  and in the daily run. `lib/sms/guard.ts` decides: nothing while
+  `sms.enabled` is false or the Twilio keys (`TWILIO_ACCOUNT_SID`,
+  `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGING_SERVICE_SID`) are missing; in test
+  mode (`sms.test_mode`, the default) only to `sms.test_recipient`, marked
+  "TEST for <name>"; never to someone whose newest answer is no; a text logged
+  more than six hours earlier is skipped, so switching on sends no backlog.
+- `/api/sms/inbound` takes Twilio's signed reply webhook. STOP words record a
+  no, START words a yes again for someone who said yes at that number before.
+  The carrier answers STOP, START and HELP itself.
+- `sms.enabled` and `sms.test_mode` are not editable in the app. An owner or
+  admin sets the test number under Settings, Integrations, Crew texts.
 
 ## Staffing (Wave B, module 7)
 

@@ -11,6 +11,7 @@ import { sendApprovedAction, type SendResult } from "@/lib/mail/send";
 import { MAKEUP_OFFER_KEY } from "@/lib/production/makeup-offer";
 import { CREW_NOTICE_KEY } from "@/lib/staffing/notices";
 import { crewShiftText } from "@/lib/sms/crew";
+import { sendLoggedTexts } from "@/lib/sms/send";
 
 export type QueueState = { ok: boolean; message: string } | null;
 
@@ -37,7 +38,7 @@ async function send(companyId: string, actionId: string): Promise<SendResult> {
   if (!visible) return { ok: false, message: "That draft could not be found." };
   try {
     const result = await sendApprovedAction(companyId, actionId, await baseUrl());
-    if (result.ok) await afterSend(actionId);
+    if (result.ok) await afterSend(companyId, actionId);
     return result;
   } catch {
     return { ok: false, message: "The message could not be sent. Check the server key in Vercel." };
@@ -48,10 +49,10 @@ async function send(companyId: string, actionId: string): Promise<SendResult> {
  * A sent makeup offer moves its order from To do to Makeup offered. A sent crew
  * shift notice also logs a text for a crew member who said yes to texts.
  */
-async function afterSend(actionId: string) {
+async function afterSend(companyId: string, actionId: string) {
   const supabase = await createClient();
   const { data: action } = await supabase.from("agent_actions").select("action_type_key, record_refs").eq("id", actionId).maybeSingle();
-  if (action?.action_type_key === CREW_NOTICE_KEY) return logCrewText(actionId, action.record_refs);
+  if (action?.action_type_key === CREW_NOTICE_KEY) return logCrewText(companyId, actionId, action.record_refs);
   if (action?.action_type_key !== MAKEUP_OFFER_KEY) return;
   const caseId = (action.record_refs as { case_id?: unknown } | null)?.case_id;
   if (typeof caseId !== "string" || !z.uuid().safeParse(caseId).success) return;
@@ -63,7 +64,7 @@ async function afterSend(actionId: string) {
 const CrewRefs = z.object({ shift_id: z.uuid(), crew_member_id: z.uuid(), kind: z.enum(["added", "removed"]) });
 
 /** Logs the text twin of a crew shift notice. Nothing is sent while texts are off. */
-async function logCrewText(actionId: string, refs: unknown) {
+async function logCrewText(companyId: string, actionId: string, refs: unknown) {
   const r = CrewRefs.safeParse(refs);
   if (!r.success) return;
   const supabase = await createClient();
@@ -83,12 +84,14 @@ async function logCrewText(actionId: string, refs: unknown) {
     link: `${await baseUrl()}/shifts`,
   });
   // The database checks the crew member said yes; for anyone else it logs nothing.
-  await supabase.rpc("log_crew_text", {
+  const { data: textId } = await supabase.rpc("log_crew_text", {
     p_crew_member_id: r.data.crew_member_id,
     p_kind: `crew.${r.data.kind}`,
     p_body: body,
     p_agent_action_id: actionId,
   });
+  // Off, or with no carrier keys, this leaves the text logged.
+  if (textId) await sendLoggedTexts(companyId, [textId]).catch(() => undefined);
 }
 
 const sentLine = (r: Extract<SendResult, { ok: true }>) =>

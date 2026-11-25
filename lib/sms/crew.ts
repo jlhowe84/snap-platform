@@ -37,7 +37,7 @@ export function crewShiftText(f: CrewTextFacts): string {
   const role = (POSITION_LABEL[f.position] ?? f.position).toLowerCase();
   const date = formatDate(f.date, { weekday: true });
   const times = [formatTime(f.startTime), formatTime(f.endTime)].filter(Boolean).join(" to ");
-  const job = f.jobName.length > MAX_JOB ? `${f.jobName.slice(0, MAX_JOB - 3).trimEnd()}...` : f.jobName;
+  const job = shorten(f.jobName);
   const when = times ? `${date}, ${times}` : date;
   const text =
     f.kind === "added"
@@ -49,3 +49,56 @@ export function crewShiftText(f: CrewTextFacts): string {
 function capital(s: string) {
   return s ? s[0].toUpperCase() + s.slice(1) : s;
 }
+
+export type DayBeforeFacts = {
+  company: string | null;
+  jobName: string;
+  position: string;
+  startTime: string | null;
+  endTime: string | null;
+  place: string | null;
+  link: string;
+};
+
+/** The reminder the morning before a shift, with a link to the day's page. */
+export function crewDayBeforeText(f: DayBeforeFacts): string {
+  const company = f.company?.trim() || "Shifts";
+  const role = (POSITION_LABEL[f.position] ?? f.position).toLowerCase();
+  const times = [formatTime(f.startTime), formatTime(f.endTime)].filter(Boolean).join(" to ");
+  const place = f.place && f.place.length > 60 ? `${f.place.slice(0, 57).trimEnd()}...` : f.place;
+  const parts = [`${company}: Reminder, you work tomorrow as ${role}`, shorten(f.jobName), times, place].filter(Boolean).join(", ");
+  return toGsm(`${parts}. Crew, kits and schedule: ${f.link} Reply STOP to opt out.`);
+}
+
+export type OfferFacts = {
+  company: string | null;
+  jobName: string;
+  date: string;
+  positions: string[];
+  link: string;
+};
+
+/** A shift on a day has opened to this crew member; first to take it gets it. */
+export function crewOfferText(f: OfferFacts): string {
+  const company = f.company?.trim() || "Shifts";
+  const roles = [...new Set(f.positions)].map((p) => (POSITION_LABEL[p] ?? p).toLowerCase());
+  const what = roles.length === 1 ? `A ${roles[0]} shift is` : "Shifts are";
+  const date = formatDate(f.date, { weekday: true });
+  return toGsm(`${company}: ${what} open for you on ${date}, ${shorten(f.jobName)}. First to take it gets it: ${f.link} Reply STOP to opt out.`);
+}
+
+function shorten(job: string) {
+  return job.length > MAX_JOB ? `${job.slice(0, MAX_JOB - 3).trimEnd()}...` : job;
+}
+
+export type OpenShift = { position: string; open_level: number | null };
+export type OfferCrew = { id: string; positions: string[]; level: number | null };
+
+/** The open positions a crew member could take, given the Levels the shifts are open to. */
+export function offersFor(crew: OfferCrew, open: OpenShift[]): string[] {
+  return open
+    .filter((s) => crew.positions.includes(s.position))
+    .filter((s) => s.open_level == null || (crew.level != null && crew.level <= s.open_level))
+    .map((s) => s.position);
+}
+

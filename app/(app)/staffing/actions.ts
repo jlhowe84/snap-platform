@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { liveSiteUrl } from "@/lib/site-url";
 import { SHIFT_POSITIONS, nextWave, planShifts } from "@/lib/staffing/plan";
 import { CREW_NOTICE_KEY, crewNotice, firstNameOf } from "@/lib/staffing/notices";
+import { logOfferTexts } from "@/lib/sms/offers";
 
 // Shifts for a photo day. Owner, admin and office publish and assign; RLS
 // says the same. Crew answer offers on their own page (/shifts).
@@ -105,16 +106,22 @@ export async function addShifts(dayId: string, _prev: StaffingState, form: FormD
 
 /** Publish every unpublished shift on the day, to Level 1 first. */
 export async function publishShifts(dayId: string) {
-  await requireStaff(OFFICE_ROLES);
+  const viewer = await requireStaff(OFFICE_ROLES);
   const day = id.parse(dayId);
   const supabase = await createClient();
   await supabase.from("shifts").update({ status: "open", open_level: 1 }).eq("photo_day_id", day).eq("status", "draft");
+  await textOffers(viewer, day);
   refresh(day);
+}
+
+/** Crew who can now take a shift, and said yes to texts, are told. A text problem never stops the publish. */
+async function textOffers(viewer: Viewer, dayId: string) {
+  await logOfferTexts(viewer.companyId!, viewer.companyName, dayId, liveSiteUrl(await headers())).catch(() => undefined);
 }
 
 /** Open every open shift on the day to the next Level. */
 export async function openNextWave(dayId: string) {
-  await requireStaff(OFFICE_ROLES);
+  const viewer = await requireStaff(OFFICE_ROLES);
   const day = id.parse(dayId);
   const supabase = await createClient();
   const { data: open } = await supabase.from("shifts").select("id, open_level").eq("photo_day_id", day).eq("status", "open");
@@ -122,6 +129,7 @@ export async function openNextWave(dayId: string) {
     if (s.open_level == null) continue;
     await supabase.from("shifts").update({ open_level: nextWave(s.open_level) }).eq("id", s.id).eq("status", "open");
   }
+  await textOffers(viewer, day);
   refresh(day);
 }
 

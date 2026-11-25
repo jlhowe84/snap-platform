@@ -1576,7 +1576,9 @@ select t.fails($$insert into public.sms_consents (company_id, crew_member_id, op
 select t.count_is($$select count(*) from (select public.log_crew_text(id, 'crew.added', 'You are on a shift', null) v from public.crew_members where full_name = 'Crew A') x where v is not null$$, 1, 'the office logs a text for a crew member who said yes');
 select t.count_is($$select count(*) from (select public.log_crew_text(id, 'crew.added', 'You are on a shift', null) v from public.crew_members where full_name = 'Crew A two') x where v is null$$, 1, 'no text is logged for someone who never said yes');
 select t.fails($$select public.log_crew_text(id, 'crew.party', 'x', null) from public.crew_members where full_name = 'Crew A'$$, 'a text needs a known kind');
-select t.count_is($$select count(*) from public.text_messages where status = 'logged' and to_phone = '+12155550142' and sent_at is null$$, 1, 'the text is logged, not sent');
+select t.count_is($$select count(*) from (select public.log_crew_text(id, 'crew.offer', 'Shift open', null, 'offer:day1') v from public.crew_members where full_name = 'Crew A') x where v is not null$$, 1, 'an offer text is logged with its key');
+select t.count_is($$select count(*) from (select public.log_crew_text(id, 'crew.offer', 'Shift open', null, 'offer:day1') v from public.crew_members where full_name = 'Crew A') x where v is null$$, 1, 'the same offer is logged only once');
+select t.count_is($$select count(*) from public.text_messages where status = 'logged' and to_phone = '+12155550142' and sent_at is null$$, 2, 'the texts are logged, not sent');
 select t.fails($$update public.text_messages set status = 'sent'$$, 'the office cannot mark a text sent');
 select t.login('support');
 select t.count_is($$select count(*) from public.text_messages$$, 0, 'support do not read the texts log');

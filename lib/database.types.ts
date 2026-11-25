@@ -4795,6 +4795,7 @@ export type Database = {
           kind: string
           note: string | null
           provider_id: string | null
+          ref_key: string | null
           sent_at: string | null
           status: string
           to_phone: string
@@ -4809,6 +4810,7 @@ export type Database = {
           kind: string
           note?: string | null
           provider_id?: string | null
+          ref_key?: string | null
           sent_at?: string | null
           status?: string
           to_phone: string
@@ -4823,6 +4825,7 @@ export type Database = {
           kind?: string
           note?: string | null
           provider_id?: string | null
+          ref_key?: string | null
           sent_at?: string | null
           status?: string
           to_phone?: string
@@ -5226,6 +5229,7 @@ export type Database = {
           p_body: string
           p_crew_member_id: string
           p_kind: string
+          p_ref_key?: string
         }
         Returns: string
       }
