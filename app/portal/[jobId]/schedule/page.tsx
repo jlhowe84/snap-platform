@@ -40,7 +40,8 @@ const STATUS: Record<string, string> = {
 
 // Team rows line up as one table row each on a wide screen. On a phone the
 // fields stack two to a row, each with its own small label.
-const TEAM_GRID = "grid grid-cols-2 items-end gap-2 lg:grid-cols-[5rem_minmax(10rem,1fr)_8rem_9rem_9rem_5rem_auto_auto] lg:items-center";
+// The portal is 768px wide, so the columns are sized to fit it.
+const TEAM_GRID = "grid grid-cols-2 items-end gap-2 lg:grid-cols-[3rem_minmax(7rem,1fr)_6rem_7rem_6rem_3.5rem_auto_auto] lg:gap-1.5 lg:items-center";
 
 function Field({ label, wide, always, children }: { label: string; wide?: boolean; always?: boolean; children: React.ReactNode }) {
   return (
@@ -158,10 +159,13 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                         <Field label="Players">
                           <input name="player_count" type="number" min={0} max={500} defaultValue={t.player_count ?? ""} aria-label="Players" className={cx(input, "w-full")} />
                         </Field>
-                        <SubmitButton className={cx(quiet, "self-end lg:self-auto")}>Save</SubmitButton>
+                        <SubmitButton className={cx(quiet, "self-end lg:self-auto lg:px-2")}>Save</SubmitButton>
                       </form>
                       <form action={removeTeam.bind(null, jobId, dayId, t.id)} className="self-end lg:self-auto">
-                        <SubmitButton className="px-2 py-1.5 text-sm text-muted hover:text-risk" aria-label={`Remove ${t.name}`}>Remove</SubmitButton>
+                        <SubmitButton className="px-1.5 py-1.5 text-sm text-muted hover:text-risk" aria-label={`Remove ${t.name}`} title="Remove this team">
+                          <span className="lg:hidden">Remove</span>
+                          <span aria-hidden className="hidden text-base leading-none lg:inline">×</span>
+                        </SubmitButton>
                       </form>
                       {!placed.has(t.id) && <p className="col-span-full text-xs text-warn">No time slot yet</p>}
                     </div>
