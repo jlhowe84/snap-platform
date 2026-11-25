@@ -37,7 +37,7 @@ const STATUS: Record<string, string> = {
 };
 
 function dayName(d: { label: string | null; location_name: string | null; start_time: string | null }): string {
-  return d.label?.trim() || d.location_name?.trim() || (d.start_time ? formatTime(d.start_time) : "");
+  return d.label?.trim() || d.location_name?.trim() || (d.start_time ? (formatTime(d.start_time) ?? "") : "");
 }
 
 export default async function SchedulePage({ params, searchParams }: PageProps<"/portal/[jobId]/schedule">) {
