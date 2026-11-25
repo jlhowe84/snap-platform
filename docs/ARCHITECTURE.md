@@ -522,6 +522,39 @@ facts, open policy questions) and `handbook` (staff procedures). Status is
 - Support drafts (`lib/support/draft.ts`) add up to six matching published
   articles from the answers and support shelves to the prompt.
 
+## Crew texts (Wave B)
+
+Texts go to crew only, and only to someone who said yes. Nothing is sent yet:
+SNAP Photo needs its own carrier registration first, so every text is logged.
+
+- `sms_consents`: one row per yes or no, never edited; the newest row is the
+  crew member's answer, with the wording version they saw
+  (`lib/sms/crew.ts`, `CONSENT_VERSION`). Crew answer on `/shifts` through
+  `set_my_text_consent`; the office reads, nobody writes directly.
+- `text_messages`: every crew text, `logged` while `sms.enabled` is false.
+  `log_crew_text` (staff desk) logs one only when the crew member's newest
+  answer is yes. Sending a crew shift notice from the queue logs its text twin.
+- Texts stay in the GSM character set (`lib/sms/text.ts`), start with the
+  company's name, end with "Reply STOP to opt out" and fit two segments.
+  Numbers are stored as +1 and ten digits (`lib/sms/phone.ts`).
+- Four kinds: `crew.added` and `crew.removed` (logged when the office sends
+  the email notice from the queue), `crew.offer` (when shifts on a day are
+  published or opened to the next Level; once per person per day, key
+  `offer:<dayId>`), `crew.day_before` (the daily run, for tomorrow's filled
+  shifts; key `day:<dayId>`).
+- Sending (`lib/sms/send.ts`, service role) runs right after a text is logged
+  and in the daily run. `lib/sms/guard.ts` decides: nothing while
+  `sms.enabled` is false or the Twilio keys (`TWILIO_ACCOUNT_SID`,
+  `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGING_SERVICE_SID`) are missing; in test
+  mode (`sms.test_mode`, the default) only to `sms.test_recipient`, marked
+  "TEST for <name>"; never to someone whose newest answer is no; a text logged
+  more than six hours earlier is skipped, so switching on sends no backlog.
+- `/api/sms/inbound` takes Twilio's signed reply webhook. STOP words record a
+  no, START words a yes again for someone who said yes at that number before.
+  The carrier answers STOP, START and HELP itself.
+- `sms.enabled` and `sms.test_mode` are not editable in the app. An owner or
+  admin sets the test number under Settings, Integrations, Crew texts.
+
 ## Staffing (Wave B, module 7)
 
 Replaces StaffMate: shift picking, pay rates, pay per shift with mileage, the

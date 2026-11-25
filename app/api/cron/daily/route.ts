@@ -3,13 +3,17 @@ import { isCronCall } from "@/lib/cron/auth";
 import { runClock } from "@/lib/clock/run";
 import { runMakeupReminders, runParentReminders } from "@/lib/makeups/reminders";
 import { liveSiteUrl } from "@/lib/site-url";
+import { runCrewDayBefore } from "@/lib/sms/reminders";
+import { sendAllLoggedTexts } from "@/lib/sms/send";
 
 // Vercel Cron calls this once a day with "Authorization: Bearer $CRON_SECRET".
 // With no secret set the route refuses every call. It releases lapsed holds
 // and queues drafts, which send nothing. It also reminds the office of the
 // day's makeup and retake sessions (a notice, and an email through the mail
 // guard when the schedule asks for one), and reminds parents of tomorrow's
-// sessions by email, through the same guard.
+// sessions by email, through the same guard. Crew on tomorrow's photo days
+// who said yes to texts get a reminder text, through the text guard
+// (nothing goes out while texts are off).
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
@@ -22,12 +26,16 @@ export async function GET(request: NextRequest) {
 
   const parents = await runParentReminders(liveSiteUrl(request.headers)).catch(() => null);
 
+  const crewTexts = await runCrewDayBefore(liveSiteUrl(request.headers)).catch(() => null);
+  await sendAllLoggedTexts().catch(() => null);
+
   try {
     const results = await runClock();
     return NextResponse.json({
       ok: results.every((r) => r.errors.length === 0) && makeups !== null && parents !== null,
       makeups: makeups?.reduce((n, m) => n + m.reminded, 0) ?? null,
       parentReminders: parents?.reduce((n, m) => n + m.sent, 0) ?? null,
+      crewDayBeforeTexts: crewTexts?.reduce((n, c) => n + c.logged, 0) ?? null,
       companies: results.map((r) => ({ today: r.today, due: r.due, queued: r.queued, errors: r.errors.length })),
     });
   } catch {

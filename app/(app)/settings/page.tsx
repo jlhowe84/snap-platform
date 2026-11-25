@@ -9,6 +9,14 @@ import { editableRoles } from "@/lib/team/roles";
 import { CapturaTest } from "./captura-test";
 import { CompanySettingsForm } from "./company-settings";
 import { InvoiceFolder } from "./invoice-folder";
+import { CrewTexts } from "./texts";
+import { smsSettingsFrom } from "@/lib/sms/guard";
+import { formatUsMobile } from "@/lib/sms/phone";
+import { twilioKeys } from "@/lib/sms/twilio";
+import { liveSiteUrl } from "@/lib/site-url";
+import { headers } from "next/headers";
+import { todayIn } from "@/lib/dates";
+import { addDays } from "@/lib/makeups/schedule";
 import { loadServiceAccount } from "@/lib/gmail/client";
 import { EDITABLE_KEYS } from "@/lib/settings/editable";
 import Link from "next/link";
@@ -42,6 +50,22 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
       supabase.from("staff_invites").select("id, email, roles, used_at, created_at").is("used_at", null),
       supabase.from("settings").select("key, value").order("key"),
     ]);
+
+  const sms = smsSettingsFrom(settings ?? []);
+  const since = addDays(todayIn(viewer.timeZone), -30);
+  const { data: recentTexts } = tab === "integrations"
+    ? await supabase.from("text_messages").select("status").gte("created_at", since).limit(5000)
+    : { data: null };
+  const textCounts = { logged: 0, sent: 0, skipped: 0, failed: 0 };
+  for (const t of recentTexts ?? []) if (t.status in textCounts) textCounts[t.status as keyof typeof textCounts]++;
+  const textsStatus = {
+    enabled: sms.enabled,
+    testMode: sms.testMode,
+    testNumber: sms.testRecipient ? formatUsMobile(sms.testRecipient) : "",
+    keysSet: twilioKeys() !== null,
+    webhookUrl: `${liveSiteUrl(await headers())}/api/sms/inbound`,
+    counts: textCounts,
+  };
 
   const editable = editableRoles(viewer.roles);
   const never =(actionTypes ?? []).filter((a) => a.kind === "never");
@@ -193,6 +217,12 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           <p className="text-sm text-muted">
             The steps each job follows: wording, timing, who does it, the order, and which ones show on the Captura setup list.
           </p>
+        </Card>
+        )}
+
+        {tab === "integrations" && (
+        <Card title="Crew texts" className="xl:col-span-2">
+          <CrewTexts status={textsStatus} />
         </Card>
         )}
 

@@ -228,3 +228,25 @@ export async function testDriveFolder(): Promise<DriveState> {
     return { ok: false, message: driveProblem(e) };
   }
 }
+
+// The number crew texts go to while texts are in test mode. Only a US mobile
+// number is accepted; an empty box clears it, which holds every text.
+export type TextNumberState = { ok: boolean; message: string } | null;
+
+export async function saveTextTestNumber(_prev: TextNumberState, form: FormData): Promise<TextNumberState> {
+  const viewer = await requireStaff(ADMIN_ROLES);
+  if (!viewer.companyId) return { ok: false, message: "No company on this account." };
+  const { toUsMobile, formatUsMobile } = await import("@/lib/sms/phone");
+  const typed = String(form.get("number") ?? "").trim();
+  const number = typed ? toUsMobile(typed) : null;
+  if (typed && !number) return { ok: false, message: "Enter a US mobile number, area code first." };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("settings")
+    .upsert({ company_id: viewer.companyId, key: "sms.test_recipient", value: number }, { onConflict: "company_id,key" });
+  if (error) return { ok: false, message: "The number could not be saved." };
+  revalidatePath("/settings");
+  return number
+    ? { ok: true, message: `Saved. In test mode every crew text goes to ${formatUsMobile(number)}.` }
+    : { ok: true, message: "Cleared. In test mode no text goes anywhere." };
+}
