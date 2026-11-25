@@ -151,40 +151,96 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
               {teams.map((t) => (
                 <li key={t.id} className="py-2">
                   {canEdit ? (
-                    <div className={TEAM_GRID}>
-                      <form action={updateTeam.bind(null, jobId, dayId, t.id)} className="contents">
-                        <Field label="TC #">
-                          {office ? (
-                            <input name="tc_number" defaultValue={t.tc_number ?? ""} maxLength={20} aria-label="Team card number" className={cx(input, "w-full")} />
-                          ) : (
-                            <span className="px-2 py-1.5 text-sm text-muted">{t.tc_number ?? "None"}</span>
-                          )}
-                        </Field>
-                        <Field label="Team name" wide>
-                          <input name="name" defaultValue={t.name} required maxLength={120} aria-label="Team name" className={cx(input, "w-full")} />
-                        </Field>
-                        <Field label="Division">
-                          <input name="division" defaultValue={t.division ?? ""} maxLength={80} aria-label="Division" className={cx(input, "w-full")} />
-                        </Field>
-                        <Field label="Coach">
-                          <input name="coach_name" defaultValue={t.coach_name ?? ""} maxLength={120} aria-label="Coach" className={cx(input, "w-full")} />
-                        </Field>
-                        <Field label="Sponsor">
-                          <input name="sponsor" defaultValue={t.sponsor ?? ""} maxLength={160} aria-label="Sponsor" className={cx(input, "w-full")} />
-                        </Field>
-                        <Field label="Players">
-                          <input name="player_count" type="number" min={0} max={500} defaultValue={t.player_count ?? ""} aria-label="Players" className={cx(input, "w-full")} />
-                        </Field>
-                        <SubmitButton className={cx(quiet, "self-end lg:self-auto lg:px-2")}>Save</SubmitButton>
-                      </form>
-                      <form action={removeTeam.bind(null, jobId, dayId, t.id)} className="self-end lg:self-auto">
-                        <SubmitButton className="px-1.5 py-1.5 text-sm text-muted hover:text-risk" aria-label={`Remove ${t.name}`} title="Remove this team">
-                          <span className="lg:hidden">Remove</span>
-                          <span aria-hidden className="hidden text-base leading-none lg:inline">×</span>
-                        </SubmitButton>
-                      </form>
-                      {!placed.has(t.id) && <p className="col-span-full text-xs text-warn">No time slot yet</p>}
-                    </div>
+                    <>
+                      {/* On a computer each team is one editable row. On a phone the
+                          list stays short: one line per team, tap to edit it. */}
+                      <div className="hidden lg:block">
+                        <div className={TEAM_GRID}>
+                          <form action={updateTeam.bind(null, jobId, dayId, t.id)} className="contents">
+                            <Field label="TC #">
+                              {office ? (
+                                <input name="tc_number" defaultValue={t.tc_number ?? ""} maxLength={20} aria-label="Team card number" className={cx(input, "w-full")} />
+                              ) : (
+                                <span className="px-2 py-1.5 text-sm text-muted">{t.tc_number ?? "None"}</span>
+                              )}
+                            </Field>
+                            <Field label="Team name" wide>
+                              <input name="name" defaultValue={t.name} required maxLength={120} aria-label="Team name" className={cx(input, "w-full")} />
+                            </Field>
+                            <Field label="Division">
+                              <input name="division" defaultValue={t.division ?? ""} maxLength={80} aria-label="Division" className={cx(input, "w-full")} />
+                            </Field>
+                            <Field label="Coach">
+                              <input name="coach_name" defaultValue={t.coach_name ?? ""} maxLength={120} aria-label="Coach" className={cx(input, "w-full")} />
+                            </Field>
+                            <Field label="Sponsor">
+                              <input name="sponsor" defaultValue={t.sponsor ?? ""} maxLength={160} aria-label="Sponsor" className={cx(input, "w-full")} />
+                            </Field>
+                            <Field label="Players">
+                              <input name="player_count" type="number" min={0} max={500} defaultValue={t.player_count ?? ""} aria-label="Players" className={cx(input, "w-full")} />
+                            </Field>
+                            <SubmitButton className={cx(quiet, "self-end lg:self-auto lg:px-2")}>Save</SubmitButton>
+                          </form>
+                          <form action={removeTeam.bind(null, jobId, dayId, t.id)} className="self-end lg:self-auto">
+                            <SubmitButton className="px-1.5 py-1.5 text-sm text-muted hover:text-risk" aria-label={`Remove ${t.name}`} title="Remove this team">
+                              <span className="lg:hidden">Remove</span>
+                              <span aria-hidden className="hidden text-base leading-none lg:inline">×</span>
+                            </SubmitButton>
+                          </form>
+                          {!placed.has(t.id) && <p className="col-span-full text-xs text-warn">No time slot yet</p>}
+                        </div>
+                      </div>
+                      <details className="group/team lg:hidden">
+                        <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
+                          <span className="min-w-0 flex-1 text-sm">
+                            {t.tc_number && <span className="mr-2 rounded border border-line px-1.5 py-0.5 text-xs font-semibold">TC {t.tc_number}</span>}
+                            <span className="font-medium">{t.name}</span>
+                            {t.division && <span className="text-muted"> · {t.division}</span>}
+                            {!placed.has(t.id) && <span className="block text-xs text-warn">No time slot yet</span>}
+                          </span>
+                          <span className="shrink-0 px-2 text-sm text-accent">
+                            <span className="group-open/team:hidden">Edit</span>
+                            <span className="hidden group-open/team:inline">Close</span>
+                          </span>
+                        </summary>
+                        <div className="pb-2 pt-1">
+                        <div className={TEAM_GRID}>
+                          <form action={updateTeam.bind(null, jobId, dayId, t.id)} className="contents">
+                            <Field label="TC #">
+                              {office ? (
+                                <input name="tc_number" defaultValue={t.tc_number ?? ""} maxLength={20} aria-label="Team card number" className={cx(input, "w-full")} />
+                              ) : (
+                                <span className="px-2 py-1.5 text-sm text-muted">{t.tc_number ?? "None"}</span>
+                              )}
+                            </Field>
+                            <Field label="Team name" wide>
+                              <input name="name" defaultValue={t.name} required maxLength={120} aria-label="Team name" className={cx(input, "w-full")} />
+                            </Field>
+                            <Field label="Division">
+                              <input name="division" defaultValue={t.division ?? ""} maxLength={80} aria-label="Division" className={cx(input, "w-full")} />
+                            </Field>
+                            <Field label="Coach">
+                              <input name="coach_name" defaultValue={t.coach_name ?? ""} maxLength={120} aria-label="Coach" className={cx(input, "w-full")} />
+                            </Field>
+                            <Field label="Sponsor">
+                              <input name="sponsor" defaultValue={t.sponsor ?? ""} maxLength={160} aria-label="Sponsor" className={cx(input, "w-full")} />
+                            </Field>
+                            <Field label="Players">
+                              <input name="player_count" type="number" min={0} max={500} defaultValue={t.player_count ?? ""} aria-label="Players" className={cx(input, "w-full")} />
+                            </Field>
+                            <SubmitButton className={cx(quiet, "self-end lg:self-auto lg:px-2")}>Save</SubmitButton>
+                          </form>
+                          <form action={removeTeam.bind(null, jobId, dayId, t.id)} className="self-end lg:self-auto">
+                            <SubmitButton className="px-1.5 py-1.5 text-sm text-muted hover:text-risk" aria-label={`Remove ${t.name}`} title="Remove this team">
+                              <span className="lg:hidden">Remove</span>
+                              <span aria-hidden className="hidden text-base leading-none lg:inline">×</span>
+                            </SubmitButton>
+                          </form>
+                          {!placed.has(t.id) && <p className="col-span-full text-xs text-warn">No time slot yet</p>}
+                        </div>
+                        </div>
+                      </details>
+                    </>
                   ) : (
                     <>
                       <p className="text-sm">
