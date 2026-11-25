@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import { cx } from "@/components/ui";
 
@@ -55,5 +56,28 @@ export function DraggableSlot({
     >
       {children}
     </li>
+  );
+}
+
+// The tap way to swap: press Swap on one slot, then Swap here on another. The
+// page refreshes in place and drops the picked slot from the address, so it
+// does not jump back to the top.
+export function SwapHere({ fromId, toId, swap, doneHref }: { fromId: string; toId: string; swap: (fromId: string, toId: string) => Promise<void>; doneHref: string }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() =>
+        start(async () => {
+          await swap(fromId, toId);
+          router.replace(doneHref, { scroll: false });
+        })
+      }
+      className="shrink-0 rounded border border-accent px-1.5 py-0.5 text-xs text-accent disabled:opacity-60"
+    >
+      {pending ? "Swapping…" : "Swap here"}
+    </button>
   );
 }

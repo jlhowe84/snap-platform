@@ -21,7 +21,7 @@ import {
   updateTeam,
 } from "./actions";
 import { SubmitButton } from "@/components/submit-button";
-import { DraggableSlot } from "./swap-drag";
+import { DraggableSlot, SwapHere } from "./swap-drag";
 
 const input = "rounded-lg border border-line bg-bg px-2 py-1.5 text-sm text-text focus:border-accent focus:outline-none";
 const primary = "rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110";
@@ -280,7 +280,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
               To trade two teams&apos; places, drag one slot onto the other, or press Swap on one and Swap here on the other. Times stay the same. Edit under a slot changes its time, length or station.
             </p>
           )}
-          <div id="slots" className="grid scroll-mt-4 gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(stations, 3)}, minmax(0, 1fr))` }}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(stations, 3)}, minmax(0, 1fr))` }}>
             {Array.from({ length: stations }, (_, i) => i + 1).map((n) => {
               const mine = slots.filter((s) => s.station === n).sort((a, b) => toMinutes(a.starts_at) - toMinutes(b.starts_at));
               return (
@@ -308,9 +308,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                             (picked === s.id ? (
                               <Link href={`/portal/${jobId}/schedule?day=${day.id}`} scroll={false} className="shrink-0 text-xs text-accent hover:underline">Cancel swap</Link>
                             ) : picked ? (
-                              <form action={swapSlots.bind(null, jobId, day.id, picked, s.id)} className="shrink-0">
-                                <SubmitButton className="rounded border border-accent px-1.5 py-0.5 text-xs text-accent">Swap here</SubmitButton>
-                              </form>
+                              <SwapHere fromId={picked} toId={s.id} swap={swapSlots.bind(null, jobId, day.id)} doneHref={`/portal/${jobId}/schedule?day=${day.id}`} />
                             ) : (
                               <Link href={`/portal/${jobId}/schedule?day=${day.id}&swap=${s.id}`} scroll={false} className="shrink-0 text-xs text-muted hover:text-accent hover:underline">Swap</Link>
                             ))}

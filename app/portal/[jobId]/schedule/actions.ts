@@ -39,11 +39,10 @@ function back(jobId: string, dayId: string | null, notice?: Notice): never {
   redirect(`/portal/${jobId}/schedule${q.size ? `?${q}` : ""}`);
 }
 
-// After a change to the slots, come back to the slots rather than the top of
-// the page, so a drag or a swap does not lose the person's place.
-function backToSlots(jobId: string, dayId: string): never {
+// After a change to the slots, refresh the page in place instead of
+// navigating, so a drag or a swap keeps the person's place on the page.
+function refreshSlots(jobId: string): void {
   revalidatePath(`/portal/${jobId}`);
-  redirect(`/portal/${jobId}/schedule?day=${dayId}#slots`);
 }
 
 async function open(jobId: string, dayId: string | null) {
@@ -131,7 +130,7 @@ export async function addSlot(jobId: string, dayId: string, scheduleId: string, 
     label: kind === "break" ? (s.data.label ?? "Break") : null,
   });
   if (error) back(jobId, dayId, "That slot could not be added.");
-  backToSlots(jobId, dayId);
+  refreshSlots(jobId);
 }
 
 export async function updateSlot(jobId: string, dayId: string, slotId: string, form: FormData) {
@@ -140,13 +139,13 @@ export async function updateSlot(jobId: string, dayId: string, slotId: string, f
   if (!s.success) back(jobId, dayId, "A slot needs a station, a start time and a length from 5 to 60 minutes.");
   const { error } = await ctx.supabase.from("schedule_slots").update(s.data).eq("id", slotId).eq("job_id", jobId);
   if (error) back(jobId, dayId, "That slot could not be changed.");
-  backToSlots(jobId, dayId);
+  refreshSlots(jobId);
 }
 
 export async function removeSlot(jobId: string, dayId: string, slotId: string) {
   const ctx = await open(jobId, dayId);
   await ctx.supabase.from("schedule_slots").delete().eq("id", slotId).eq("job_id", jobId);
-  backToSlots(jobId, dayId);
+  refreshSlots(jobId);
 }
 
 // Two slots trade the team (or break) they hold; times and stations stay put.
@@ -171,7 +170,7 @@ export async function swapSlots(jobId: string, dayId: string, firstId: string, s
     await ctx.supabase.from("schedule_slots").update(plan[1].set).eq("id", plan[0].id).eq("job_id", jobId);
     back(jobId, dayId, "Those two slots could not be swapped.");
   }
-  backToSlots(jobId, dayId);
+  refreshSlots(jobId);
 }
 
 // A first layout: every team without a slot goes on whichever station is
@@ -196,7 +195,7 @@ export async function placeRest(jobId: string, dayId: string, scheduleId: string
     added.map((s) => ({ ...s, company_id: ctx.job.company_id, job_id: jobId, schedule_id: scheduleId })),
   );
   if (error) back(jobId, dayId, "The teams could not be placed.");
-  backToSlots(jobId, dayId);
+  refreshSlots(jobId);
 }
 
 export async function submitSchedule(jobId: string, dayId: string, scheduleId: string) {
