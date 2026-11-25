@@ -30,7 +30,7 @@ const input = "min-h-12 rounded-lg border border-line bg-bg px-2 py-1.5 text-bas
 const primary = "min-h-12 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110 md:min-h-0";
 const quiet = "min-h-12 rounded-lg border border-line px-3 py-1.5 text-sm hover:bg-surface-2 md:min-h-0";
 // Swap and Edit on a slot: a full-height tap target on a phone, small text on a computer.
-const slotLink = "inline-flex min-h-12 shrink-0 items-center rounded-md px-3 text-sm md:min-h-0 md:px-0 md:text-xs";
+const slotLink = "inline-flex min-h-12 shrink-0 items-center rounded-md px-2 text-sm md:min-h-0 md:px-0 md:text-xs";
 const MINUTES = [5, 10, 15, 20, 25, 30, 40, 45, 50, 60];
 
 const PROBLEM: Record<string, (d: string | null) => string> = {
@@ -304,7 +304,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
             {Array.from({ length: stations }, (_, i) => i + 1).map((n) => {
               const mine = slots.filter((s) => s.station === n).sort((a, b) => toMinutes(a.starts_at) - toMinutes(b.starts_at));
               return (
-                <section key={n} className="rounded-lg border border-line p-3">
+                <section key={n} className="rounded-lg border border-line p-2 md:p-3">
                   <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Station {n}</h3>
                   {mine.length === 0 && <p className="text-sm text-muted">Nothing yet.</p>}
                   <ul className="space-y-1.5">
@@ -320,9 +320,13 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                         <details className="group">
                           <summary className={cx("flex list-none items-center gap-2 [&::-webkit-details-marker]:hidden", canEdit ? "cursor-pointer" : "pointer-events-none")}>
                           <span className="block min-w-0 flex-1 md:truncate">
-                            <span className="tabular-nums text-muted">{formatTime(s.starts_at)}</span>{" "}
+                            {/* On a phone the time sits on its own line above the team so the name has the width. */}
+                            <span className="block text-xs tabular-nums text-muted md:inline md:text-sm">
+                              {formatTime(s.starts_at)}
+                              <span className="md:hidden"> · {s.minutes} min</span>
+                            </span>{" "}
                             <span className="font-medium">{s.kind === "break" ? s.label || "Break" : (teamName.get(s.team_id ?? "") ?? s.label ?? "Team removed")}</span>
-                            <span className="text-xs text-muted"> · {s.minutes} min</span>
+                            <span className="hidden text-xs text-muted md:inline"> · {s.minutes} min</span>
                           </span>
                           {canEdit &&
                             (picked === s.id ? (
