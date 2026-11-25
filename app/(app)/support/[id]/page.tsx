@@ -103,7 +103,7 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
               // thread opens on what needs an answer.
               <details
                 key={m.id}
-                open={i >= all.length - 2}
+                open={i >= all.length - 2 || files.length > 0}
                 className={cx(
                   "group rounded-xl border",
                   note ? "border-warn/40 bg-warn/5" : ours ? "border-accent/40 bg-surface" : "border-line bg-surface",
