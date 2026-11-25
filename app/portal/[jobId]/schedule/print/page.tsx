@@ -5,8 +5,9 @@ import { portalJob } from "@/lib/portal/job";
 import { scheduleRows, type Slot } from "@/lib/schedule/layout";
 import { PrintButton } from "./print-button";
 
-// The day's schedule laid out for paper: one table in running order with the
-// station, the team card number and room to tick each team off. Read as the
+// The day's schedule laid out for paper: one table in running order with each
+// team's start time, station and team card number. Players and a tick column
+// were dropped (Josh, 11/25) so long team names have room. Read as the
 // signed-in person, so RLS decides who may see it.
 export default async function SchedulePrintPage({ params, searchParams }: PageProps<"/portal/[jobId]/schedule/print">) {
   const { jobId } = await params;
@@ -29,9 +30,8 @@ export default async function SchedulePrintPage({ params, searchParams }: PagePr
     schedule
       ? supabase.from("schedule_slots").select("station, starts_at, minutes, kind, team_id, label").eq("schedule_id", schedule.id)
       : Promise.resolve({ data: [] }),
-    supabase.from("teams").select("id, name, division, coach_name, tc_number, player_count").eq("job_id", jobId),
+    supabase.from("teams").select("id, name, division, coach_name, tc_number").eq("job_id", jobId),
   ]);
-  const players = new Map((teams ?? []).map((t) => [t.id, t.player_count]));
   const rows = scheduleRows((slots ?? []) as Slot[], teams ?? []);
   const draft = schedule && schedule.status !== "submitted" && schedule.status !== "complete";
   const cell = "border border-black/40 px-2 py-1.5 align-top";
@@ -62,25 +62,21 @@ export default async function SchedulePrintPage({ params, searchParams }: PagePr
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="text-left text-xs uppercase tracking-wider">
-              <th className={cell}>Time</th>
-              <th className={cell}>Station</th>
-              <th className={cell}>TC</th>
+              <th className={`${cell} w-px whitespace-nowrap`}>Time</th>
+              <th className={`${cell} w-px whitespace-nowrap`}>Station</th>
+              <th className={`${cell} w-px whitespace-nowrap`}>TC</th>
               <th className={cell}>Team</th>
               <th className={cell}>Division</th>
               <th className={cell}>Coach</th>
-              <th className={cell}>Players</th>
-              <th className={cell}>Done</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (
               <tr key={i} className="break-inside-avoid">
-                <td className={`${cell} whitespace-nowrap`}>
-                  {formatTime(r.start)} to {formatTime(r.end)}
-                </td>
+                <td className={`${cell} whitespace-nowrap`}>{formatTime(r.start)}</td>
                 <td className={cell}>{r.station}</td>
                 {r.isBreak ? (
-                  <td className={`${cell} italic`} colSpan={6}>
+                  <td className={`${cell} italic`} colSpan={4}>
                     {r.team}
                   </td>
                 ) : (
@@ -89,8 +85,6 @@ export default async function SchedulePrintPage({ params, searchParams }: PagePr
                     <td className={`${cell} font-semibold`}>{r.team}</td>
                     <td className={cell}>{r.division ?? ""}</td>
                     <td className={cell}>{r.coach ?? ""}</td>
-                    <td className={cell}>{(r.teamId && players.get(r.teamId)) ?? ""}</td>
-                    <td className={`${cell} w-12`} />
                   </>
                 )}
               </tr>
