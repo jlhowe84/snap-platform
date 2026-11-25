@@ -16,10 +16,12 @@ import {
   setScheduleStatus,
   startSchedule,
   submitSchedule,
+  swapSlots,
   updateSlot,
   updateTeam,
 } from "./actions";
 import { SubmitButton } from "@/components/submit-button";
+import { DraggableSlot } from "./swap-drag";
 
 const input = "rounded-lg border border-line bg-bg px-2 py-1.5 text-sm text-text focus:border-accent focus:outline-none";
 const primary = "rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink hover:brightness-110";
@@ -79,6 +81,8 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
   const soonest = free.indexOf(Math.min(...free));
   const done = schedule?.status === "submitted" || schedule?.status === "complete";
   const dayId = day?.id ?? null;
+  // A slot picked with the Swap button waits in the address bar for its partner.
+  const picked = typeof query.swap === "string" && slots.some((s) => s.id === query.swap) ? query.swap : null;
 
   return (
     <>
@@ -208,6 +212,11 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
             </form>
           )}
 
+          {canEdit && slots.length > 1 && (
+            <p className="mb-3 text-sm text-muted">
+              To trade two teams&apos; places, drag one slot onto the other, or press Swap on one and Swap here on the other. Times stay the same.
+            </p>
+          )}
           <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(stations, 3)}, minmax(0, 1fr))` }}>
             {Array.from({ length: stations }, (_, i) => i + 1).map((n) => {
               const mine = slots.filter((s) => s.station === n).sort((a, b) => toMinutes(a.starts_at) - toMinutes(b.starts_at));
@@ -217,7 +226,13 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                   {mine.length === 0 && <p className="text-sm text-muted">Nothing yet.</p>}
                   <ul className="space-y-2">
                     {mine.map((s) => (
-                      <li key={s.id} className={cx("rounded-lg p-2 text-sm", s.kind === "break" ? "bg-surface-2 text-muted" : "bg-surface-2")}>
+                      <DraggableSlot
+                        key={s.id}
+                        slotId={s.id}
+                        enabled={canEdit}
+                        swap={swapSlots.bind(null, jobId, day.id)}
+                        className={cx("rounded-lg p-2 text-sm", s.kind === "break" ? "bg-surface-2 text-muted" : "bg-surface-2", picked === s.id && "outline-2 outline-accent")}
+                      >
                         <p className="font-medium">
                           {formatTime(s.starts_at)} to {formatTime(toClock(toMinutes(s.starts_at) + s.minutes))}
                           {" · "}
@@ -225,6 +240,18 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                         </p>
                         {canEdit && (
                           <div className="mt-2 flex flex-wrap items-center gap-1">
+                            {picked === s.id ? (
+                              <>
+                                <span className="text-xs text-accent">Now press Swap here on the other slot.</span>
+                                <Link href={`/portal/${jobId}/schedule?day=${day.id}`} className={quiet}>Cancel</Link>
+                              </>
+                            ) : picked ? (
+                              <form action={swapSlots.bind(null, jobId, day.id, picked, s.id)}>
+                                <SubmitButton className={cx(quiet, "border-accent text-accent")}>Swap here</SubmitButton>
+                              </form>
+                            ) : (
+                              <Link href={`/portal/${jobId}/schedule?day=${day.id}&swap=${s.id}`} className={quiet}>Swap</Link>
+                            )}
                             <form action={updateSlot.bind(null, jobId, day.id, s.id)} className="flex flex-wrap items-center gap-1">
                               <input name="starts_at" type="time" step={300} defaultValue={s.starts_at.slice(0, 5)} required aria-label="Start time" className={input} />
                               <select key={String(s.minutes)} name="minutes" defaultValue={s.minutes} aria-label="Minutes" className={input}>
@@ -240,7 +267,7 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
                             </form>
                           </div>
                         )}
-                      </li>
+                      </DraggableSlot>
                     ))}
                   </ul>
                 </section>

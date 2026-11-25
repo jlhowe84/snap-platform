@@ -23,6 +23,7 @@ export const NOTICES = [
   "The team could not be saved.",
   "The teams after the break could not be moved. Check the times and try again.",
   "The teams could not be placed.",
+  "Those two slots could not be swapped.",
 ] as const;
 
 export type Notice = (typeof NOTICES)[number];
