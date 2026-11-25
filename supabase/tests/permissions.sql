@@ -1067,6 +1067,19 @@ select t.works($$select public.support_sync_mark('a0000000-0000-0000-0000-000000
 select t.works($$select public.support_sync_mark('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', null, 'Gmail GET failed (500)')$$, 'the server records a failed run');
 select t.count_is($$select count(*) from public.support_sync_state where mailbox = 'help@test.invalid' and last_synced_at = '2027-02-03 00:00+00' and last_error is not null$$, 1, 'a failed run keeps the last good point');
 
+-- Attachments: the server records what came with a message; people cannot,
+-- and a note carries no files.
+select t.count_is($$select count(*) from public.support_messages where gmail_message_id = 'g-in-1' and attachments is null$$, 1, 'mail starts with attachments not yet looked at');
+select t.count_is($$select public.support_set_attachments('a0000000-0000-0000-0000-00000000000a', '[{"id":"g-in-1","attachments":[{"part":"1","name":"kid.jpg","type":"image/jpeg","size":500000,"inline":false}]},{"id":"g-in-3","attachments":[]}]'::jsonb)$$, 2, 'the server records what came with each message');
+select t.count_is($$select count(*) from public.support_messages where gmail_message_id = 'g-in-1' and attachments->0->>'name' = 'kid.jpg'$$, 1, 'the file list is on the message');
+select t.count_is($$select public.support_set_attachments('a0000000-0000-0000-0000-00000000000a', '[{"id":"g-in-1","attachments":[]}]'::jsonb)$$, 1, 'the list follows the mailbox when read again');
+select t.count_is($$select public.support_set_attachments('b0000000-0000-0000-0000-00000000000b', '[{"id":"g-in-3","attachments":[{"part":"1","name":"x","type":"a/b","size":1}]}]'::jsonb)$$, 0, 'another company cannot change the list');
+select t.login('owner');
+select t.fails($$select public.support_set_attachments('a0000000-0000-0000-0000-00000000000a', '[]'::jsonb)$$, 'people cannot record attachments');
+select t.fails($$insert into public.support_messages (company_id, conversation_id, direction, body_text, author_id, attachments) select 'a0000000-0000-0000-0000-00000000000a', id, 'note', 'x', auth.uid(), '[]'::jsonb from public.support_conversations where gmail_thread_id = 'thread-in'$$, 'a note carries no files');
+reset role;
+select set_config('request.jwt.claim.sub', '', true);
+
 -- A website form: read again with the person as the writer, the stored
 -- message and the conversation follow, and nothing counts as new mail.
 select public.support_ingest('a0000000-0000-0000-0000-00000000000a', 'help@test.invalid', 'thread-form', 'Form', '[{"id":"g-form-1","direction":"in","from_address":"site@test.invalid","from_name":"Site","body":"Email: parent9@test.invalid","sent_at":"2027-02-04T15:00:00Z"}]'::jsonb);

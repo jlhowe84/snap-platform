@@ -1,3 +1,4 @@
+import { formatSize, readAttachments, showsInPlace } from "@/lib/support/files";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -29,7 +30,7 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
       .maybeSingle(),
     supabase
       .from("support_messages")
-      .select("id, direction, from_name, from_address, to_addresses, body_text, author_id, sent_at")
+      .select("id, direction, from_name, from_address, to_addresses, body_text, author_id, sent_at, attachments")
       .eq("conversation_id", id.data)
       .order("sent_at"),
     supabase.from("profiles").select("id, full_name, active, profile_roles(role)").order("full_name"),
@@ -94,12 +95,15 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
               ? `${(m.author_id && nameOf.get(m.author_id)) ?? "Staff"} · note`
               : (m.from_name ?? m.from_address ?? (ours ? "SNAP" : "Customer"));
             const body = m.body_text || "(no text)";
+            const files = readAttachments(m.attachments);
+            const pictures = files.filter((f) => f.type.startsWith("image/") && showsInPlace(f.type));
+            const others = files.filter((f) => !pictures.includes(f));
             return (
               // Each message folds away. The newest two start open so a long
               // thread opens on what needs an answer.
               <details
                 key={m.id}
-                open={i >= all.length - 2}
+                open={i >= all.length - 2 || files.length > 0}
                 className={cx(
                   "group rounded-xl border",
                   note ? "border-warn/40 bg-warn/5" : ours ? "border-accent/40 bg-surface" : "border-line bg-surface",
@@ -113,12 +117,47 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
                       {!note && m.from_name && m.from_address ? <span className="font-normal text-muted"> · {m.from_address}</span> : null}
                     </span>
                     <span>
+                      {files.length > 0 && <span className="mr-2 font-semibold text-text">{files.length} file{files.length === 1 ? "" : "s"}</span>}
                       {note ? "Staff only" : ours ? "Sent" : "Received"} · {when.format(new Date(m.sent_at))}
                     </span>
                   </span>
                   <span className="mt-1 block truncate pl-5 text-sm text-muted group-open:hidden">{body.replace(/\s+/g, " ").slice(0, 160)}</span>
                 </summary>
                 <p className="whitespace-pre-wrap [overflow-wrap:anywhere] px-4 pb-4 text-sm">{body}</p>
+                {files.length > 0 && (
+                  <div className="space-y-3 border-t border-line px-4 py-3">
+                    {pictures.length > 0 && (
+                      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        {pictures.map((f) => (
+                          <li key={f.part}>
+                            <a href={`/support/attachment/${m.id}/${f.part}`} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-lg border border-line hover:border-accent">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={`/support/attachment/${m.id}/${f.part}`} alt={f.name} loading="lazy" className="h-40 w-full bg-surface-2 object-contain" />
+                              <span className="block truncate px-2 py-1 text-xs text-muted">{f.name} · {formatSize(f.size)}</span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {others.length > 0 && (
+                      <ul className="flex flex-wrap gap-2">
+                        {others.map((f) => (
+                          <li key={f.part}>
+                            <a
+                              href={`/support/attachment/${m.id}/${f.part}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex min-h-12 items-center gap-2 rounded-lg border border-line px-3 text-sm hover:border-accent hover:text-accent"
+                            >
+                              <span className="font-medium [overflow-wrap:anywhere]">{f.name}</span>
+                              <span className="shrink-0 text-xs text-muted">{formatSize(f.size)}</span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </details>
             );
           })}

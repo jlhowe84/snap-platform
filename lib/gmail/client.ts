@@ -55,6 +55,7 @@ export function delegatedAssertion(sa: ServiceAccount, mailbox: string, now = Ma
 type FetchLike = typeof fetch;
 
 export type GmailPart = {
+  partId?: string;
   mimeType?: string;
   filename?: string;
   headers?: { name: string; value: string }[];
@@ -151,9 +152,9 @@ export function createGmailClient(
       get<{ messages?: { id: string }[]; nextPageToken?: string }>(
         `messages?maxResults=100&q=${encodeURIComponent(q)}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`,
       ),
-    /** One message with its parts. Only lib/lab/sync.ts calls this. */
+    /** One message with its parts. Only lib/lab/sync.ts and the support desk's attachment code call this. */
     getMessage: (id: string) => get<GmailMessage>(`messages/${encodeURIComponent(id)}?format=full`),
-    /** The bytes of one attachment. Only lib/lab/sync.ts calls this. */
+    /** The bytes of one attachment. Only lib/lab/sync.ts and lib/support/attachments.ts call this. */
     getAttachment: async (messageId: string, attachmentId: string) => {
       const a = await get<{ data?: string; size?: number }>(
         `messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`,
