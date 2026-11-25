@@ -38,6 +38,19 @@ const STATUS: Record<string, string> = {
   not_started: "Not started", link_sent: "Not started", started: "In progress", submitted: "Submitted", complete: "Complete",
 };
 
+// Team rows line up as one table row each on a wide screen. On a phone the
+// fields stack two to a row, each with its own small label.
+const TEAM_GRID = "grid grid-cols-2 items-end gap-2 lg:grid-cols-[5rem_minmax(10rem,1fr)_8rem_9rem_9rem_5rem_auto_auto] lg:items-center";
+
+function Field({ label, wide, always, children }: { label: string; wide?: boolean; always?: boolean; children: React.ReactNode }) {
+  return (
+    <label className={cx("flex min-w-0 flex-col gap-0.5", wide && "col-span-2 lg:col-span-1")}>
+      <span className={cx("text-xs text-muted", !always && "lg:hidden")}>{label}</span>
+      {children}
+    </label>
+  );
+}
+
 function dayName(d: { label: string | null; location_name: string | null; start_time: string | null }): string {
   return d.label?.trim() || d.location_name?.trim() || (d.start_time ? (formatTime(d.start_time) ?? "") : "");
 }
@@ -105,46 +118,90 @@ export default async function SchedulePage({ params, searchParams }: PageProps<"
           List every team or group that will be photographed. Teams from your roster appear here once we have processed it.
         </p>
         {teams?.length ? (
-          <ul className="divide-y divide-line">
-            {teams.map((t) => (
-              <li key={t.id} className="py-2">
-                {canEdit ? (
-                  <div className="flex flex-wrap items-end gap-2">
-                    <form action={updateTeam.bind(null, jobId, dayId, t.id)} className="flex flex-1 flex-wrap items-end gap-2">
-                      <input name="name" defaultValue={t.name} required maxLength={120} aria-label="Team name" className={cx(input, "min-w-36 flex-1")} />
-                      <input name="division" defaultValue={t.division ?? ""} maxLength={80} placeholder="Division" aria-label="Division" className={cx(input, "w-28")} />
-                      <input name="coach_name" defaultValue={t.coach_name ?? ""} maxLength={120} placeholder="Coach" aria-label="Coach" className={cx(input, "w-32")} />
-                      <input name="sponsor" defaultValue={t.sponsor ?? ""} maxLength={160} placeholder="Sponsor" aria-label="Sponsor" className={cx(input, "w-32")} />
-                      <input name="player_count" type="number" min={0} max={500} defaultValue={t.player_count ?? ""} placeholder="Players" aria-label="Players" className={cx(input, "w-20")} />
-                      {office && <input name="tc_number" defaultValue={t.tc_number ?? ""} maxLength={20} placeholder="TC" aria-label="Team card number" className={cx(input, "w-16")} />}
-                      <SubmitButton className={quiet}>Save</SubmitButton>
-                    </form>
-                    <form action={removeTeam.bind(null, jobId, dayId, t.id)}>
-                      <SubmitButton className="px-2 py-1.5 text-sm text-muted hover:text-risk" aria-label={`Remove ${t.name}`}>Remove</SubmitButton>
-                    </form>
-                  </div>
-                ) : (
-                  <p className="text-sm">
-                    {t.tc_number && <span className="mr-2 rounded border border-line px-1.5 py-0.5 text-xs font-semibold">TC {t.tc_number}</span>}
-                    <span className="font-medium">{t.name}</span>
-                    <span className="text-muted">{[t.division, t.coach_name, t.sponsor].filter(Boolean).map((x) => ` · ${x}`).join("")}</span>
-                  </p>
-                )}
-                {!placed.has(t.id) && <p className="mt-1 text-xs text-warn">No time slot yet</p>}
-              </li>
-            ))}
-          </ul>
+          <>
+            {canEdit && (
+              <div className={cx(TEAM_GRID, "hidden border-b border-line pb-1 text-xs font-semibold uppercase tracking-wider text-muted lg:grid")}>
+                <span>TC #</span>
+                <span>Team name</span>
+                <span>Division</span>
+                <span>Coach</span>
+                <span>Sponsor</span>
+                <span>Players</span>
+                <span className="col-span-2" />
+              </div>
+            )}
+            <ul className="divide-y divide-line">
+              {teams.map((t) => (
+                <li key={t.id} className="py-2">
+                  {canEdit ? (
+                    <div className={TEAM_GRID}>
+                      <form action={updateTeam.bind(null, jobId, dayId, t.id)} className="contents">
+                        <Field label="TC #">
+                          {office ? (
+                            <input name="tc_number" defaultValue={t.tc_number ?? ""} maxLength={20} aria-label="Team card number" className={cx(input, "w-full")} />
+                          ) : (
+                            <span className="px-2 py-1.5 text-sm text-muted">{t.tc_number ?? "None"}</span>
+                          )}
+                        </Field>
+                        <Field label="Team name" wide>
+                          <input name="name" defaultValue={t.name} required maxLength={120} aria-label="Team name" className={cx(input, "w-full")} />
+                        </Field>
+                        <Field label="Division">
+                          <input name="division" defaultValue={t.division ?? ""} maxLength={80} aria-label="Division" className={cx(input, "w-full")} />
+                        </Field>
+                        <Field label="Coach">
+                          <input name="coach_name" defaultValue={t.coach_name ?? ""} maxLength={120} aria-label="Coach" className={cx(input, "w-full")} />
+                        </Field>
+                        <Field label="Sponsor">
+                          <input name="sponsor" defaultValue={t.sponsor ?? ""} maxLength={160} aria-label="Sponsor" className={cx(input, "w-full")} />
+                        </Field>
+                        <Field label="Players">
+                          <input name="player_count" type="number" min={0} max={500} defaultValue={t.player_count ?? ""} aria-label="Players" className={cx(input, "w-full")} />
+                        </Field>
+                        <SubmitButton className={cx(quiet, "self-end lg:self-auto")}>Save</SubmitButton>
+                      </form>
+                      <form action={removeTeam.bind(null, jobId, dayId, t.id)} className="self-end lg:self-auto">
+                        <SubmitButton className="px-2 py-1.5 text-sm text-muted hover:text-risk" aria-label={`Remove ${t.name}`}>Remove</SubmitButton>
+                      </form>
+                      {!placed.has(t.id) && <p className="col-span-full text-xs text-warn">No time slot yet</p>}
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm">
+                        {t.tc_number && <span className="mr-2 rounded border border-line px-1.5 py-0.5 text-xs font-semibold">TC {t.tc_number}</span>}
+                        <span className="font-medium">{t.name}</span>
+                        <span className="text-muted">{[t.division, t.coach_name, t.sponsor].filter(Boolean).map((x) => ` · ${x}`).join("")}</span>
+                      </p>
+                      {!placed.has(t.id) && <p className="mt-1 text-xs text-warn">No time slot yet</p>}
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </>
         ) : (
           <Empty>No teams yet.</Empty>
         )}
         {canEdit && (
-          <form action={addTeam.bind(null, jobId, dayId)} className="mt-4 flex flex-wrap items-end gap-2 border-t border-line pt-4">
-            <input name="name" required maxLength={120} placeholder="New team name" aria-label="New team name" className={cx(input, "min-w-36 flex-1")} />
-            <input name="division" maxLength={80} placeholder="Division" aria-label="Division" className={cx(input, "w-28")} />
-            <input name="coach_name" maxLength={120} placeholder="Coach" aria-label="Coach" className={cx(input, "w-32")} />
-            <input name="sponsor" maxLength={160} placeholder="Sponsor" aria-label="Sponsor" className={cx(input, "w-32")} />
-            <input name="player_count" type="number" min={0} max={500} placeholder="Players" aria-label="Players" className={cx(input, "w-20")} />
-            <SubmitButton className={primary}>Add team</SubmitButton>
+          <form action={addTeam.bind(null, jobId, dayId)} className={cx(TEAM_GRID, "mt-4 border-t border-line pt-4")}>
+            <p className="col-span-full text-sm font-semibold">Add a team</p>
+            <span className="hidden lg:block" />
+            <Field label="Team name" wide always>
+              <input name="name" required maxLength={120} aria-label="New team name" className={cx(input, "w-full")} />
+            </Field>
+            <Field label="Division" always>
+              <input name="division" maxLength={80} aria-label="Division" className={cx(input, "w-full")} />
+            </Field>
+            <Field label="Coach" always>
+              <input name="coach_name" maxLength={120} aria-label="Coach" className={cx(input, "w-full")} />
+            </Field>
+            <Field label="Sponsor" always>
+              <input name="sponsor" maxLength={160} aria-label="Sponsor" className={cx(input, "w-full")} />
+            </Field>
+            <Field label="Players" always>
+              <input name="player_count" type="number" min={0} max={500} aria-label="Players" className={cx(input, "w-full")} />
+            </Field>
+            <SubmitButton className={cx(primary, "col-span-2 self-end whitespace-nowrap")}>Add team</SubmitButton>
           </form>
         )}
       </Card>
