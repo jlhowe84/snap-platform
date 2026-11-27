@@ -20,7 +20,18 @@ const ServiceAccountSchema = z.object({
 export type ServiceAccount = z.infer<typeof ServiceAccountSchema>;
 
 export const GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.modify";
-const API = "https://gmail.googleapis.com/gmail/v1/users";
+const GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users";
+
+/**
+ * Gmail's API address. The end-to-end tests point E2E_GMAIL_API at a local
+ * stand-in; only a loopback address is accepted, so the setting can never
+ * send mail anywhere real.
+ */
+export function gmailApiBase(env: Record<string, string | undefined> = process.env): string {
+  const local = env.E2E_GMAIL_API?.trim();
+  if (local && /^http:\/\/(127\.0\.0\.1|localhost):\d+(\/|$)/.test(local)) return local.replace(/\/+$/, "");
+  return GMAIL_API;
+}
 
 export async function loadServiceAccount(companyId: string): Promise<ServiceAccount | null> {
   const admin = createAdminClient();
@@ -98,7 +109,7 @@ export function createGmailClient(
   }
 
   async function get<T>(path: string) {
-    const res = await fetchImpl(`${API}/${encodeURIComponent(box)}/${path}`, {
+    const res = await fetchImpl(`${gmailApiBase()}/${encodeURIComponent(box)}/${path}`, {
       headers: { authorization: `Bearer ${await getToken()}`, accept: "application/json" },
     });
     if (!res.ok) throw new Error(`Gmail GET ${path} failed (${res.status})`);
@@ -106,7 +117,7 @@ export function createGmailClient(
   }
 
   async function post<T>(path: string, body: unknown) {
-    const res = await fetchImpl(`${API}/${encodeURIComponent(box)}/${path}`, {
+    const res = await fetchImpl(`${gmailApiBase()}/${encodeURIComponent(box)}/${path}`, {
       method: "POST",
       headers: {
         authorization: `Bearer ${await getToken()}`,

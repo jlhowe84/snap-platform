@@ -10,7 +10,9 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:db": "scripts/test-db.sh",
-    "gen:types": "echo 'Regenerate with the Supabase MCP generate_typescript_types tool or: supabase gen types typescript --project-id ruogtitymgvrdkmjvzxp > lib/database.types.ts'"
+    "gen:types": "echo 'Regenerate with the Supabase MCP generate_typescript_types tool or: supabase gen types typescript --project-id ruogtitymgvrdkmjvzxp > lib/database.types.ts'",
+    "test:e2e": "playwright test",
+    "e2e:db": "scripts/e2e-db.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.10.0",
@@ -26,6 +28,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^22.20.5",
     "@types/react": "^19",
