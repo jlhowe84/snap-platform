@@ -1,0 +1,39 @@
+# End-to-end tests: the real app against a throwaway local Supabase, with a
+# fake Gmail on loopback. Nothing here touches the hosted project or sends mail.
+name: e2e
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Unit tests
+        run: npm test
+      - name: Start and load the local database
+        run: scripts/e2e-db.sh
+      - name: End-to-end tests
+        run: npx playwright test
+        env:
+          CI: "1"
+          E2E_SKIP_RESET: "1"
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7

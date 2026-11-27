@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/lib/database.types";
 
-const PUBLIC_PREFIXES = ["/login", "/auth", "/waiting", "/p", "/api/cron", "/api/sms", "/day", "/help"];
+const PUBLIC_PREFIXES = ["/login", "/auth", "/waiting", "/p", "/api/cron", "/api/sms", "/api/helper", "/day", "/help"];
 
 // Refreshes the Supabase session cookie on every request and sends anyone
 // without a session to /login. Role checks happen in the (app) layout.

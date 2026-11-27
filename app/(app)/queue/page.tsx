@@ -6,6 +6,7 @@ import { DRAFT_LABEL, isDraftKind } from "@/lib/clock/drafts";
 import { DATE_NOTICE_KEY, DATE_NOTICE_LABEL } from "@/lib/jobs/date-change";
 import { CREW_NOTICE_KEY, CREW_NOTICE_LABEL } from "@/lib/staffing/notices";
 import { MAKEUP_OFFER_KEY, MAKEUP_OFFER_LABEL } from "@/lib/production/makeup-offer";
+import { DELIVERY_LABEL_BY_KEY } from "@/lib/delivery/drafts";
 import { approveAll } from "./actions";
 import { DraftForm, RunClockButton, SendButton } from "./forms";
 import { SubmitButton } from "@/components/submit-button";
@@ -14,7 +15,7 @@ type Draft = { to?: unknown; subject?: unknown; body?: unknown };
 type Refs = { job_id?: string | null; org_id?: string | null };
 
 const label = (key: string) =>
-  isDraftKind(key) ? DRAFT_LABEL[key] : key === DATE_NOTICE_KEY ? DATE_NOTICE_LABEL : key === CREW_NOTICE_KEY ? CREW_NOTICE_LABEL : key === MAKEUP_OFFER_KEY ? MAKEUP_OFFER_LABEL : key;
+  isDraftKind(key) ? DRAFT_LABEL[key] : key === DATE_NOTICE_KEY ? DATE_NOTICE_LABEL : key === CREW_NOTICE_KEY ? CREW_NOTICE_LABEL : key === MAKEUP_OFFER_KEY ? MAKEUP_OFFER_LABEL : (DELIVERY_LABEL_BY_KEY[key] ?? key);
 // A moment in time (drafted, decided), shown on the company's clock so an
 // evening draft does not read as tomorrow's.
 const whenIn = (timeZone: string) => (iso: string) =>

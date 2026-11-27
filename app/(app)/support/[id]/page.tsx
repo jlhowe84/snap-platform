@@ -3,13 +3,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
-import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Card, PageHeader, Pill, cx } from "@/components/ui";
 import { SUPPORT_ROLES, SUPPORT_STATUS_LABEL, SUPPORT_STATUS_TONE } from "@/lib/support/labels";
 import { takeConversation } from "../actions";
 import { NoteForm, ReplyForm, WorkForm } from "./work";
 import { SubmitButton } from "@/components/submit-button";
+import { ADMIN_ROLES, hasAnyRole, requireStaff } from "@/lib/auth";
+import { AddToTestSet } from "../../settings/test-set/add-case";
 
 export const metadata: Metadata = { title: "Support conversation" };
 
@@ -38,6 +39,9 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
     supabase.from("support_saved_replies").select("id, title, body").eq("active", true).order("title"),
   ]);
   if (!c) notFound();
+  // Only an owner or admin can read the test set, so for anyone else this stays false.
+  const { count: caseCount } = await supabase.from("eval_cases").select("id", { count: "exact", head: true }).eq("source_conversation_id", c.id);
+  const inTestSet = (caseCount ?? 0) > 0;
 
   // Previous and Next walk the "Needs a reply" list in its own order (longest
   // waiting first), so the desk can work down it without going back to the list.
@@ -183,6 +187,11 @@ export default async function ConversationPage({ params }: PageProps<"/support/[
           >
             <WorkForm id={c.id} status={c.status} assigneeId={c.assignee_id} category={c.category} people={desk} categories={categories} />
           </Card>
+          {hasAnyRole(viewer, ADMIN_ROLES) && (messages ?? []).some((m) => m.direction === "out") && (
+            <Card title="Test set">
+              <AddToTestSet conversationId={c.id} already={inTestSet} />
+            </Card>
+          )}
           <Card title="Who wrote">
             <dl className="space-y-2 text-sm">
               <div>

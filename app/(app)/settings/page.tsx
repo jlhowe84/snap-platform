@@ -20,6 +20,9 @@ import { addDays } from "@/lib/makeups/schedule";
 import { loadServiceAccount } from "@/lib/gmail/client";
 import { EDITABLE_KEYS } from "@/lib/settings/editable";
 import Link from "next/link";
+import { ConnectHelper } from "./helper";
+import { ConfirmButton } from "@/components/confirm-button";
+import { disconnectHelper } from "./helper-actions";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -51,6 +54,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
       supabase.from("settings").select("key, value").order("key"),
     ]);
 
+  const { data: helpers } = tab === "integrations"
+    ? await supabase.from("helper_devices").select("id, name, created_at, last_seen_at, last_version, last_report, revoked_at").order("created_at", { ascending: false })
+    : { data: null };
   const sms = smsSettingsFrom(settings ?? []);
   const since = addDays(todayIn(viewer.timeZone), -30);
   const { data: recentTexts } = tab === "integrations"
@@ -158,6 +164,46 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         </Card>
         )}
 
+        {tab === "integrations" && (
+        <Card title="iMac helper">
+          <p className="mb-3 text-sm text-muted">
+            A small script on the production iMac. When a job starts production it makes the job&apos;s PHOTO IMPORT folder and Capture One session, and every
+            few minutes it reports image counts per folder and whether the NAS copy is there. It never sends images, file names or passwords. Setup steps are in
+            the helper&apos;s README in the platform repository.
+          </p>
+          {helpers?.length ? (
+            <ul className="mb-4 divide-y divide-line text-sm">
+              {helpers.map((h) => {
+                const r = (h.last_report ?? {}) as { photo_import?: boolean; nas?: boolean; problem?: string | null };
+                return (
+                  <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                    <span>
+                      <span className="font-semibold">{h.name}</span>{" "}
+                      <span className="text-muted">
+                        {h.revoked_at
+                          ? "disconnected"
+                          : h.last_seen_at
+                            ? `last report ${new Date(h.last_seen_at).toLocaleString("en-US", { timeZone: viewer.timeZone, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}${h.last_version ? `, version ${h.last_version}` : ""}${r.photo_import === false ? ", PHOTO IMPORT not found" : ""}${r.nas === false ? ", NAS not mounted" : ""}`
+                            : "waiting for its first report"}
+                      </span>
+                      {r.problem && <span className="block text-xs text-risk">{r.problem}</span>}
+                    </span>
+                    {!h.revoked_at && (
+                      <form action={disconnectHelper.bind(null, h.id)}>
+                        <ConfirmButton ask="Disconnect this computer? Its key stops working." className="text-xs text-muted hover:text-risk">
+                          Disconnect
+                        </ConfirmButton>
+                      </form>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+          <ConnectHelper siteUrl={liveSiteUrl(await headers())} />
+        </Card>
+        )}
+
         {tab === "assistant" && (
         <Card title="Never without a person">
           <p className="mb-3 text-sm text-muted">
@@ -171,6 +217,14 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               </li>
             ))}
           </ul>
+        </Card>
+        )}
+
+        {tab === "assistant" && (
+        <Card title="Test set" action={<Link href="/settings/test-set" className="text-sm text-muted hover:text-accent">Open</Link>}>
+          <p className="text-sm text-muted">
+            Past conversations with the right answer, and trick emails. Run it before changing a saved reply, a knowledge base article or the model.
+          </p>
         </Card>
         )}
 

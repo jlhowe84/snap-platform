@@ -1279,6 +1279,142 @@ export type Database = {
           },
         ]
       }
+      eval_cases: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          created_by: string | null
+          expected: Json
+          id: string
+          input: Json
+          kind: string
+          source_conversation_id: string | null
+          tags: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          expected?: Json
+          id?: string
+          input: Json
+          kind?: string
+          source_conversation_id?: string | null
+          tags?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          expected?: Json
+          id?: string
+          input?: Json
+          kind?: string
+          source_conversation_id?: string | null
+          tags?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eval_cases_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eval_cases_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eval_cases_source_conversation_id_fkey"
+            columns: ["source_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "support_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eval_runs: {
+        Row: {
+          case_ids: string[]
+          company_id: string
+          cost_usd: number
+          failed: number
+          finished_at: string | null
+          id: string
+          judge_model: string
+          kind: string
+          model: string
+          note: string | null
+          passed: number
+          results: Json
+          started_at: string
+          started_by: string | null
+          status: string
+        }
+        Insert: {
+          case_ids?: string[]
+          company_id: string
+          cost_usd?: number
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          judge_model: string
+          kind?: string
+          model: string
+          note?: string | null
+          passed?: number
+          results?: Json
+          started_at?: string
+          started_by?: string | null
+          status?: string
+        }
+        Update: {
+          case_ids?: string[]
+          company_id?: string
+          cost_usd?: number
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          judge_model?: string
+          kind?: string
+          model?: string
+          note?: string | null
+          passed?: number
+          results?: Json
+          started_at?: string
+          started_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eval_runs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eval_runs_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integration_status: {
         Row: {
           company_id: string
@@ -1322,6 +1458,188 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      job_obligations: {
+        Row: {
+          amount: number | null
+          amount_edited: boolean
+          basis: string | null
+          closed_at: string | null
+          closed_by: string | null
+          closed_note: string | null
+          company_id: string
+          computed: Json | null
+          created_at: string
+          created_by: string | null
+          direction: string
+          due_on: string | null
+          id: string
+          job_id: string
+          kind: string
+          org_id: string | null
+          owner_id: string | null
+          quickbooks_ref: string | null
+          status: string
+          term_key: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          amount_edited?: boolean
+          basis?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_note?: string | null
+          company_id: string
+          computed?: Json | null
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          due_on?: string | null
+          id?: string
+          job_id: string
+          kind: string
+          org_id?: string | null
+          owner_id?: string | null
+          quickbooks_ref?: string | null
+          status?: string
+          term_key?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          amount_edited?: boolean
+          basis?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_note?: string | null
+          company_id?: string
+          computed?: Json | null
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          due_on?: string | null
+          id?: string
+          job_id?: string
+          kind?: string
+          org_id?: string | null
+          owner_id?: string | null
+          quickbooks_ref?: string | null
+          status?: string
+          term_key?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_obligations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_folder_evidence: {
+        Row: {
+          company_id: string
+          device_id: string | null
+          folder: string
+          folder_created_at: string | null
+          import_done_at: string | null
+          import_exists: boolean
+          import_images: number
+          import_images_max: number
+          import_parts: Json
+          job_id: string
+          reported_at: string
+          session_exists: boolean
+          session_images: number
+          upload_done_at: string | null
+          upload_exists: boolean | null
+          upload_images: number | null
+          upload_receipt: boolean | null
+        }
+        Insert: {
+          company_id: string
+          device_id?: string | null
+          folder: string
+          folder_created_at?: string | null
+          import_done_at?: string | null
+          import_exists?: boolean
+          import_images?: number
+          import_images_max?: number
+          import_parts?: Json
+          job_id: string
+          reported_at?: string
+          session_exists?: boolean
+          session_images?: number
+          upload_done_at?: string | null
+          upload_exists?: boolean | null
+          upload_images?: number | null
+          upload_receipt?: boolean | null
+        }
+        Update: {
+          company_id?: string
+          device_id?: string | null
+          folder?: string
+          folder_created_at?: string | null
+          import_done_at?: string | null
+          import_exists?: boolean
+          import_images?: number
+          import_images_max?: number
+          import_parts?: Json
+          job_id?: string
+          reported_at?: string
+          session_exists?: boolean
+          session_images?: number
+          upload_done_at?: string | null
+          upload_exists?: boolean | null
+          upload_images?: number | null
+          upload_receipt?: boolean | null
+        }
+        Relationships: []
+      }
+      helper_devices: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          last_report: Json | null
+          last_seen_at: string | null
+          last_version: string | null
+          name: string
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_report?: Json | null
+          last_seen_at?: string | null
+          last_version?: string | null
+          name: string
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_report?: Json | null
+          last_seen_at?: string | null
+          last_version?: string | null
+          name?: string
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: []
       }
       job_contacts: {
         Row: {
@@ -1596,18 +1914,24 @@ export type Database = {
       jobs: {
         Row: {
           company_id: string
+          closed_out_at: string | null
           coupon: string | null
+          delivered_at: string | null
           created_at: string
           delivery_method: Database["public"]["Enums"]["delivery_method"] | null
           expected_subjects: number | null
+          gallery_live_at: string | null
+          gallery_live_by: string | null
           expected_teams: number | null
           id: string
           imported_planning_stage: string | null
           job_type: string
           lab: string | null
+          nas_folder: string | null
           name: string
           notes: string | null
           notion_page_id: string | null
+          order_deadline: string | null
           org_id: string | null
           production_stage:
             | Database["public"]["Enums"]["production_stage"]
@@ -1626,20 +1950,26 @@ export type Database = {
         }
         Insert: {
           company_id: string
+          closed_out_at?: string | null
           coupon?: string | null
+          delivered_at?: string | null
           created_at?: string
           delivery_method?:
             | Database["public"]["Enums"]["delivery_method"]
             | null
           expected_subjects?: number | null
+          gallery_live_at?: string | null
+          gallery_live_by?: string | null
           expected_teams?: number | null
           id?: string
           imported_planning_stage?: string | null
           job_type?: string
           lab?: string | null
+          nas_folder?: string | null
           name: string
           notes?: string | null
           notion_page_id?: string | null
+          order_deadline?: string | null
           org_id?: string | null
           production_stage?:
             | Database["public"]["Enums"]["production_stage"]
@@ -1658,20 +1988,26 @@ export type Database = {
         }
         Update: {
           company_id?: string
+          closed_out_at?: string | null
           coupon?: string | null
+          delivered_at?: string | null
           created_at?: string
           delivery_method?:
             | Database["public"]["Enums"]["delivery_method"]
             | null
           expected_subjects?: number | null
+          gallery_live_at?: string | null
+          gallery_live_by?: string | null
           expected_teams?: number | null
           id?: string
           imported_planning_stage?: string | null
           job_type?: string
           lab?: string | null
+          nas_folder?: string | null
           name?: string
           notes?: string | null
           notion_page_id?: string | null
+          order_deadline?: string | null
           org_id?: string | null
           production_stage?:
             | Database["public"]["Enums"]["production_stage"]
@@ -5067,6 +5403,10 @@ export type Database = {
           p_result?: Json
         }
         Returns: Database["public"]["Enums"]["action_status"]
+      }
+      add_eval_case_from_conversation: {
+        Args: { p_conversation: string; p_title?: string }
+        Returns: string
       }
       agent_is_paused: {
         Args: { p_company: string; p_key: string }

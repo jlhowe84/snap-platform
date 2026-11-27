@@ -33,3 +33,15 @@ describe("gmail client", () => {
     expect(allowedMailboxes([])).toEqual([]);
   });
 });
+
+describe("gmail api address", () => {
+  it("is Google's unless a loopback stand-in is set for the e2e tests", async () => {
+    const { gmailApiBase } = await import("@/lib/gmail/client");
+    expect(gmailApiBase({})).toBe("https://gmail.googleapis.com/gmail/v1/users");
+    expect(gmailApiBase({ E2E_GMAIL_API: "http://127.0.0.1:3199/gmail/" })).toBe("http://127.0.0.1:3199/gmail");
+    expect(gmailApiBase({ E2E_GMAIL_API: "http://localhost:3199" })).toBe("http://localhost:3199");
+    for (const bad of ["https://evil.example/gmail", "http://127.0.0.1.evil.example:1/x", "http://10.0.0.5:80", "localhost:3199"]) {
+      expect(gmailApiBase({ E2E_GMAIL_API: bad })).toBe("https://gmail.googleapis.com/gmail/v1/users");
+    }
+  });
+});
