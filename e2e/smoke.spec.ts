@@ -10,7 +10,7 @@ test.describe("signed out", () => {
 test.describe("owner", () => {
   test.use({ storageState: "e2e/.auth/owner.json" });
   test("opens home and the main pages without an error", async ({ page }) => {
-    for (const path of ["/", "/jobs", "/leagues", "/season", "/staffing", "/support", "/production", "/orders", "/queue", "/settings"]) {
+    for (const path of ["/", "/jobs", "/leagues", "/season", "/staffing", "/support", "/production", "/orders", "/obligations", "/queue", "/settings"]) {
       const res = await page.goto(path);
       expect(res?.status(), path).toBeLessThan(400);
       await expect(page, path).not.toHaveURL(/\/(login|waiting)/);

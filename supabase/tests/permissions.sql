@@ -1627,5 +1627,30 @@ select t.count_is($$select count(*) from public.eval_runs$$, 0, 'another company
 select t.login('anon');
 select t.fails($$select count(*) from public.eval_cases$$, 'anonymous visitors cannot read the test set');
 reset role;
+-- Delivery and close-out: delivered_at is stamped once; obligations belong to
+-- the office roles only.
+update public.jobs set status = 'at_lab', delivered_at = null where id = '40000000-0000-0000-0000-0000000000a1';
+select t.login('office');
+select t.works($$update public.jobs set status = 'delivered' where id = '40000000-0000-0000-0000-0000000000a1'$$, 'the office marks a job delivered');
+select t.count_is($$select count(*) from public.jobs where id = '40000000-0000-0000-0000-0000000000a1' and delivered_at is not null$$, 1, 'delivering a job stamps the day it was delivered');
+select t.works($$insert into public.job_obligations (company_id, job_id, kind, title, amount, term_key) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'rebate', '20% Rebate', 120.50, 'rebate:20% Rebate')$$, 'the office adds an obligation');
+select t.fails($$insert into public.job_obligations (company_id, job_id, kind, title, term_key) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'rebate', 'Again', 'rebate:20% Rebate')$$, 'one obligation per league term on a job');
+select t.fails($$insert into public.job_obligations (company_id, job_id, kind, title) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000b1', 'rebate', 'Wrong job')$$, 'an obligation cannot point at another company''s job');
+select t.fails($$update public.job_obligations set status = 'closed' where title = '20% Rebate'$$, 'closing needs a closed time');
+select t.works($$update public.job_obligations set status = 'closed', closed_at = now(), closed_note = 'Check 1041' where title = '20% Rebate'$$, 'the office closes an obligation with a note');
+select t.login('owner');
+select t.count_is($$select count(*) from public.job_obligations$$, 1, 'the owner reads obligations');
+select t.login('support');
+select t.count_is($$select count(*) from public.job_obligations$$, 0, 'support do not read obligations');
+select t.fails($$insert into public.job_obligations (company_id, job_id, kind, title) values ('a0000000-0000-0000-0000-00000000000a', '40000000-0000-0000-0000-0000000000a1', 'charge', 'Support adds')$$, 'support cannot add obligations');
+select t.login('crew');
+select t.count_is($$select count(*) from public.job_obligations$$, 0, 'crew do not read obligations');
+select t.login('coord');
+select t.count_is($$select count(*) from public.job_obligations$$, 0, 'coordinators do not read obligations');
+select t.login('owner_b');
+select t.count_is($$select count(*) from public.job_obligations$$, 0, 'another company sees no obligations');
+select t.login('anon');
+select t.fails($$select count(*) from public.job_obligations$$, 'anonymous visitors cannot read obligations');
+reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;
 rollback;

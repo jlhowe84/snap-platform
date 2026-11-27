@@ -8,6 +8,8 @@ import { planningDates } from "@/lib/planning/dates";
 import { seasonForDate } from "@/lib/season";
 import { buildDraft, firstName, isDraftKind, type DraftFacts } from "./drafts";
 import { addressesOf } from "@/lib/mail/addresses";
+import { CLOSEOUT_DAYS_SETTING, closeoutDueOn, readCloseoutDays } from "@/lib/delivery/drafts";
+import { computeJobObligations, queueCloseout } from "@/lib/delivery/server";
 
 // The daily clock. A server job with no signed-in person, so it uses the
 // service role. The database decides what is due (public.clock_due); this
@@ -132,6 +134,73 @@ export async function runClock(onlyCompanyId?: string): Promise<ClockResult[]> {
       }
       result.queued++;
     }
+
+    await runCloseouts(admin, company, today, result);
   }
   return results;
+}
+
+/**
+ * Close-out: a set number of days after a job is delivered (the
+ * closeout.days_after_delivery setting, 14 unless changed), the amounts the
+ * league is owed are worked out and listed as obligations, and the close-out
+ * email is drafted for a person to approve. Once per job, logged like the
+ * other steps. Jobs delivered before delivery dates were recorded are never
+ * picked up.
+ */
+async function runCloseouts(
+  admin: ReturnType<typeof createAdminClient>,
+  company: { id: string; name: string; time_zone: string },
+  today: string,
+  result: ClockResult,
+) {
+  const { data: setting } = await admin
+    .from("settings")
+    .select("value")
+    .eq("company_id", company.id)
+    .eq("key", CLOSEOUT_DAYS_SETTING)
+    .maybeSingle();
+  const days = readCloseoutDays(setting?.value);
+  // Anything delivered at least days - 1 ago could be due today in the company's zone.
+  const cutoff = new Date(Date.now() - (days - 1) * 86_400_000).toISOString();
+  const { data: jobs, error } = await admin
+    .from("jobs")
+    .select("id, delivered_at")
+    .eq("company_id", company.id)
+    .in("status", ["delivered", "complete"])
+    .is("closed_out_at", null)
+    .not("delivered_at", "is", null)
+    .lte("delivered_at", cutoff)
+    .limit(200);
+  if (error) {
+    result.errors.push(`close-out: ${error.message}`);
+    return;
+  }
+  for (const job of jobs ?? []) {
+    const deliveredDay = todayIn(company.time_zone, new Date(job.delivered_at as string));
+    const dueOn = closeoutDueOn(deliveredDay, days);
+    if (dueOn > today) continue;
+    const key = `closeout:${job.id}`;
+    const { data: logged } = await admin.from("clock_log").select("key").eq("company_id", company.id).eq("key", key).maybeSingle();
+    if (logged) continue;
+    result.due++;
+    try {
+      await computeJobObligations(admin, { companyId: company.id, jobId: job.id, actorId: null, dueOn });
+    } catch (e) {
+      result.errors.push(`close-out amounts: ${e instanceof Error ? e.message : "failed"}`);
+    }
+    const queued = await queueCloseout(admin, { companyId: company.id, companyName: company.name, jobId: job.id, actor: { kind: "system" }, clockKey: key });
+    const { error: logError } = await admin.from("clock_log").insert({
+      company_id: company.id,
+      key,
+      kind: "delivery.closeout",
+      job_id: job.id,
+      outcome: "actionId" in queued ? "queued" : "not_needed",
+      action_id: "actionId" in queued ? queued.actionId : null,
+      run_on: today,
+    });
+    if (logError && logError.code !== "23505") result.errors.push(logError.message);
+    if ("actionId" in queued) result.queued++;
+    else result.errors.push(`close-out for job ${job.id}: ${queued.problem}`);
+  }
 }

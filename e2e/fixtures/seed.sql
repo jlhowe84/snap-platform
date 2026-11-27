@@ -80,3 +80,28 @@ insert into public.support_messages (company_id, conversation_id, direction, gma
    'Hi, I need the access code for my daughter Riley on the U10 Lions.', '2026-11-20 14:00+00'),
   ('e2e00000-0000-4000-8000-000000000001', 'e2e00000-0000-4000-8000-0000000000f1', 'out', 'e2e-a1-out', 'support@e2e.test', 'Oscar',
    'Hi Dana, Riley''s access code is on its way to the email on file. Oscar', '2026-11-20 15:00+00');
+
+-- Delivery and close-out: a job at the lab with a linked gallery, a 20%
+-- rebate and a $250 sponsorship in its league's terms, league delivery, and
+-- three prepay orders (one refunded) in the order ledger.
+insert into public.organizations (id, company_id, name, org_type, active, sports) values
+  ('e2e00000-0000-4000-8000-0000000000a5', 'e2e00000-0000-4000-8000-000000000001', 'Test Creek Softball', 'league', true, '{Softball}');
+insert into public.organization_terms (company_id, org_id, services, delivery_method) values
+  ('e2e00000-0000-4000-8000-000000000001', 'e2e00000-0000-4000-8000-0000000000a5', '{"20% Rebate","$250 Sponsorship","Sponsor Plaques"}', 'league_delivery');
+insert into public.contacts (id, company_id, full_name, email) values
+  ('e2e00000-0000-4000-8000-0000000000c5', 'e2e00000-0000-4000-8000-000000000001', 'Sam Creek', 'sam@creek.e2e.test');
+insert into public.jobs (id, company_id, org_id, name, status, sports, coupon) values
+  ('e2e00000-0000-4000-8000-0000000000b5', 'e2e00000-0000-4000-8000-000000000001', 'e2e00000-0000-4000-8000-0000000000a5',
+   'Test Creek Softball Spring 2026', 'at_lab', '{Softball}', 'CREEK10');
+insert into public.photo_days (company_id, job_id, date, stations, start_time, location_name) values
+  ('e2e00000-0000-4000-8000-000000000001', 'e2e00000-0000-4000-8000-0000000000b5', '2026-05-02', 1, '09:00', 'Creek Field');
+insert into public.job_contacts (job_id, contact_id, company_id, role) values
+  ('e2e00000-0000-4000-8000-0000000000b5', 'e2e00000-0000-4000-8000-0000000000c5', 'e2e00000-0000-4000-8000-000000000001', 'coordinator');
+insert into public.job_links (job_id, company_id, captura_gallery_id, online_shop_url) values
+  ('e2e00000-0000-4000-8000-0000000000b5', 'e2e00000-0000-4000-8000-000000000001', 990005, 'https://shop.e2e.test/creek');
+insert into public.captura_galleries (company_id, gallery_id, title) values
+  ('e2e00000-0000-4000-8000-000000000001', 990005, 'Test Creek Softball');
+insert into public.captura_orders (company_id, order_id, gallery_id, ordered_at, order_date, order_type, status, subtotal, discount, tax, total) values
+  ('e2e00000-0000-4000-8000-000000000001', 9900051, 990005, '2026-04-20 15:00+00', '2026-04-20', 'prepay', 'placed', 60.00, 10.00, 3.00, 53.00),
+  ('e2e00000-0000-4000-8000-000000000001', 9900052, 990005, '2026-04-21 15:00+00', '2026-04-21', 'prepay', 'placed', 50.00, 0, 3.00, 53.00),
+  ('e2e00000-0000-4000-8000-000000000001', 9900053, 990005, '2026-04-22 15:00+00', '2026-04-22', 'prepay', 'refunded', 80.00, 0, 4.80, 84.80);

@@ -1459,6 +1459,89 @@ export type Database = {
           },
         ]
       }
+      job_obligations: {
+        Row: {
+          amount: number | null
+          amount_edited: boolean
+          basis: string | null
+          closed_at: string | null
+          closed_by: string | null
+          closed_note: string | null
+          company_id: string
+          computed: Json | null
+          created_at: string
+          created_by: string | null
+          direction: string
+          due_on: string | null
+          id: string
+          job_id: string
+          kind: string
+          org_id: string | null
+          owner_id: string | null
+          quickbooks_ref: string | null
+          status: string
+          term_key: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          amount_edited?: boolean
+          basis?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_note?: string | null
+          company_id: string
+          computed?: Json | null
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          due_on?: string | null
+          id?: string
+          job_id: string
+          kind: string
+          org_id?: string | null
+          owner_id?: string | null
+          quickbooks_ref?: string | null
+          status?: string
+          term_key?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          amount_edited?: boolean
+          basis?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_note?: string | null
+          company_id?: string
+          computed?: Json | null
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          due_on?: string | null
+          id?: string
+          job_id?: string
+          kind?: string
+          org_id?: string | null
+          owner_id?: string | null
+          quickbooks_ref?: string | null
+          status?: string
+          term_key?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_obligations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_contacts: {
         Row: {
           company_id: string
@@ -1732,10 +1815,14 @@ export type Database = {
       jobs: {
         Row: {
           company_id: string
+          closed_out_at: string | null
           coupon: string | null
+          delivered_at: string | null
           created_at: string
           delivery_method: Database["public"]["Enums"]["delivery_method"] | null
           expected_subjects: number | null
+          gallery_live_at: string | null
+          gallery_live_by: string | null
           expected_teams: number | null
           id: string
           imported_planning_stage: string | null
@@ -1744,6 +1831,7 @@ export type Database = {
           name: string
           notes: string | null
           notion_page_id: string | null
+          order_deadline: string | null
           org_id: string | null
           production_stage:
             | Database["public"]["Enums"]["production_stage"]
@@ -1762,12 +1850,16 @@ export type Database = {
         }
         Insert: {
           company_id: string
+          closed_out_at?: string | null
           coupon?: string | null
+          delivered_at?: string | null
           created_at?: string
           delivery_method?:
             | Database["public"]["Enums"]["delivery_method"]
             | null
           expected_subjects?: number | null
+          gallery_live_at?: string | null
+          gallery_live_by?: string | null
           expected_teams?: number | null
           id?: string
           imported_planning_stage?: string | null
@@ -1776,6 +1868,7 @@ export type Database = {
           name: string
           notes?: string | null
           notion_page_id?: string | null
+          order_deadline?: string | null
           org_id?: string | null
           production_stage?:
             | Database["public"]["Enums"]["production_stage"]
@@ -1794,12 +1887,16 @@ export type Database = {
         }
         Update: {
           company_id?: string
+          closed_out_at?: string | null
           coupon?: string | null
+          delivered_at?: string | null
           created_at?: string
           delivery_method?:
             | Database["public"]["Enums"]["delivery_method"]
             | null
           expected_subjects?: number | null
+          gallery_live_at?: string | null
+          gallery_live_by?: string | null
           expected_teams?: number | null
           id?: string
           imported_planning_stage?: string | null
@@ -1808,6 +1905,7 @@ export type Database = {
           name?: string
           notes?: string | null
           notion_page_id?: string | null
+          order_deadline?: string | null
           org_id?: string | null
           production_stage?:
             | Database["public"]["Enums"]["production_stage"]

@@ -145,6 +145,13 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M9 8h6M9 12h6" />
     </>
   ),
+  // Owed: a cheque
+  "/obligations": (
+    <>
+      <rect x="3" y="6.5" width="18" height="11" rx="1.5" />
+      <path d="M6.5 14.5h6M15 10.5h3" />
+    </>
+  ),
   // Settings: sliders
   "/settings": (
     <>

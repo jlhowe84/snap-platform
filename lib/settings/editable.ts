@@ -27,6 +27,12 @@ export const EDITABLE_SETTINGS: { group: string; items: EditableSetting[] }[] = 
     ],
   },
   {
+    group: "Delivery and close-out",
+    items: [
+      { key: "closeout.days_after_delivery", label: "Close-out", hint: "Days after a job is delivered that the close-out email is drafted and amounts owed are listed.", min: 1, max: 60, unit: "days" },
+    ],
+  },
+  {
     group: "Agreement",
     items: [
       { key: "agreement.facility_fee_cap_usd", label: "Facility fee cap", hint: "The most SNAP covers per location. Matches the agreement text.", min: 0, max: 5000, unit: "dollars" },
