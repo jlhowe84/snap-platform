@@ -31,6 +31,7 @@ import { headers } from "next/headers";
 import { nextStep } from "@/lib/jobs/next-step";
 import { JumpBar } from "./jump-bar";
 import { DeliveryCard } from "./delivery-card";
+import { FoldersCard } from "./folders-card";
 import { AddNoteForm, DeleteNote } from "./notes-form";
 import { CombineForm } from "./combine-form";
 import { ConfirmButton } from "@/components/confirm-button";
@@ -849,6 +850,8 @@ export default async function JobPage({ params }: PageProps<"/jobs/[id]">) {
               </p>
             </Card>
           )}
+
+          {office && ["in_production", "at_lab", "delivered"].includes(job.status) && <FoldersCard job={job} firstDay={days?.[0]?.date ?? null} timeZone={viewer.timeZone} />}
 
           {office && ["in_production", "at_lab", "delivered", "complete"].includes(job.status) && <DeliveryCard job={job} timeZone={viewer.timeZone} />}
 

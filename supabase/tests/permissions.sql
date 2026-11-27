@@ -1652,5 +1652,33 @@ select t.count_is($$select count(*) from public.job_obligations$$, 0, 'another c
 select t.login('anon');
 select t.fails($$select count(*) from public.job_obligations$$, 'anonymous visitors cannot read obligations');
 reset role;
+-- iMac helper: owners and admins connect computers; the office reads folder
+-- evidence; only the server writes it.
+insert into public.job_folder_evidence (job_id, company_id, folder, import_images) values
+  ('40000000-0000-0000-0000-0000000000a1', 'a0000000-0000-0000-0000-00000000000a', '27 Job A1', 120);
+select t.login('owner');
+select t.works($$insert into public.helper_devices (company_id, name, token_hash) values ('a0000000-0000-0000-0000-00000000000a', 'Production iMac', repeat('a', 64))$$, 'the owner connects a helper');
+select t.works($$update public.helper_devices set revoked_at = now() where name = 'Production iMac'$$, 'the owner disconnects a helper');
+select t.fails($$update public.job_folder_evidence set import_images = 0$$, 'nobody signed in writes folder evidence');
+select t.login('office');
+select t.count_is($$select count(*) from public.helper_devices$$, 0, 'the office does not see helper devices');
+select t.fails($$insert into public.helper_devices (company_id, name, token_hash) values ('a0000000-0000-0000-0000-00000000000a', 'Office', repeat('b', 64))$$, 'the office cannot connect a helper');
+select t.count_is($$select count(*) from public.job_folder_evidence$$, 1, 'the office reads folder evidence');
+select t.works($$update public.jobs set nas_folder = '27 A1 short' where id = '40000000-0000-0000-0000-0000000000a1'$$, 'the office sets a job''s folder name');
+select t.fails($$update public.jobs set nas_folder = '../etc' where id = '40000000-0000-0000-0000-0000000000a1'$$, 'a folder name cannot hold a path');
+select t.login('support');
+select t.count_is($$select count(*) from public.job_folder_evidence$$, 0, 'support do not read folder evidence');
+select t.login('crew');
+select t.count_is($$select count(*) from public.job_folder_evidence$$, 0, 'crew do not read folder evidence');
+select t.count_is($$select count(*) from public.helper_devices$$, 0, 'crew do not see helper devices');
+select t.login('coord');
+select t.count_is($$select count(*) from public.job_folder_evidence$$, 0, 'coordinators do not read folder evidence');
+select t.login('owner_b');
+select t.count_is($$select count(*) from public.job_folder_evidence$$, 0, 'another company sees no folder evidence');
+select t.count_is($$select count(*) from public.helper_devices$$, 0, 'another company sees no helpers');
+select t.login('anon');
+select t.fails($$select count(*) from public.helper_devices$$, 'anonymous visitors cannot read helpers');
+select t.fails($$select count(*) from public.job_folder_evidence$$, 'anonymous visitors cannot read folder evidence');
+reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;
 rollback;

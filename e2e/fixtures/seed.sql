@@ -105,3 +105,10 @@ insert into public.captura_orders (company_id, order_id, gallery_id, ordered_at,
   ('e2e00000-0000-4000-8000-000000000001', 9900051, 990005, '2026-04-20 15:00+00', '2026-04-20', 'prepay', 'placed', 60.00, 10.00, 3.00, 53.00),
   ('e2e00000-0000-4000-8000-000000000001', 9900052, 990005, '2026-04-21 15:00+00', '2026-04-21', 'prepay', 'placed', 50.00, 0, 3.00, 53.00),
   ('e2e00000-0000-4000-8000-000000000001', 9900053, 990005, '2026-04-22 15:00+00', '2026-04-22', 'prepay', 'refunded', 80.00, 0, 4.80, 84.80);
+
+-- iMac helper: a job in production whose folders the helper makes and counts.
+insert into public.jobs (id, company_id, org_id, name, status, sports) values
+  ('e2e00000-0000-4000-8000-0000000000b6', 'e2e00000-0000-4000-8000-000000000001', 'e2e00000-0000-4000-8000-0000000000a5',
+   'Test Creek Softball Fall', 'in_production', '{Softball}');
+insert into public.photo_days (company_id, job_id, date, stations, start_time, location_name) values
+  ('e2e00000-0000-4000-8000-000000000001', 'e2e00000-0000-4000-8000-0000000000b6', '2026-11-14', 1, '09:00', 'Creek Field');

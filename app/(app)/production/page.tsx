@@ -60,6 +60,12 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
 
   const { count: makeups } = await supabase.from("makeup_bookings").select("id", { count: "exact", head: true }).eq("status", "booked").gte("date", today);
 
+  // What the iMac helper has seen: imports and NAS copies, shown on each card.
+  const { data: seenRows } = working.length
+    ? await supabase.from("job_folder_evidence").select("job_id, import_done_at, upload_done_at").in("job_id", working)
+    : { data: [] };
+  const folderSeen = new Map((seenRows ?? []).map((r) => [r.job_id, r]));
+
   const board = buildBoard(jobs, tasks, today);
   const inProduction = board.stages.reduce((n, s) => n + s.cards.length, 0);
   const late = board.stages.reduce((n, s) => n + s.cards.filter((c) => c.late > 0).length, 0);
@@ -109,7 +115,7 @@ export default async function ProductionPage({ searchParams }: PageProps<"/produ
         {board.stages.map(({ stage, cards }) => (
           <Column key={stage} title={STAGE_LABEL[stage]} count={cards.length} showEmpty={showAll}>
             {cards.map((c) => (
-              <StageCard key={c.job.id} card={c} />
+              <StageCard key={c.job.id} card={c} seen={folderSeen.get(c.job.id)} />
             ))}
           </Column>
         ))}
@@ -183,7 +189,9 @@ function Column({ title, count, showEmpty, children }: { title: string; count: n
   );
 }
 
-function StageCard({ card: c }: { card: BoardCard }) {
+type FolderSeen = { import_done_at: string | null; upload_done_at: string | null };
+
+function StageCard({ card: c, seen }: { card: BoardCard; seen?: FolderSeen }) {
   return (
     <li className="rounded-lg border border-line bg-surface p-3 text-sm">
       <Link href={`/jobs/${c.job.id}#tasks`} className="font-medium hover:text-accent">
@@ -196,6 +204,8 @@ function StageCard({ card: c }: { card: BoardCard }) {
       <div className="mt-2 flex flex-wrap gap-2">
         {c.daysInStage !== null && <Pill>{c.daysInStage === 0 ? "Here since today" : `Here ${c.daysInStage} ${c.daysInStage === 1 ? "day" : "days"}`}</Pill>}
         {c.late > 0 && <Pill tone="risk">{c.late} past due</Pill>}
+        {seen?.import_done_at && <Pill tone="ok">Imported</Pill>}
+        {seen?.upload_done_at && <Pill tone="ok">On the NAS</Pill>}
       </div>
       {c.total === 0 ? (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">

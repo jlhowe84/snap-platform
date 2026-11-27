@@ -1542,6 +1542,105 @@ export type Database = {
           },
         ]
       }
+      job_folder_evidence: {
+        Row: {
+          company_id: string
+          device_id: string | null
+          folder: string
+          folder_created_at: string | null
+          import_done_at: string | null
+          import_exists: boolean
+          import_images: number
+          import_images_max: number
+          import_parts: Json
+          job_id: string
+          reported_at: string
+          session_exists: boolean
+          session_images: number
+          upload_done_at: string | null
+          upload_exists: boolean | null
+          upload_images: number | null
+          upload_receipt: boolean | null
+        }
+        Insert: {
+          company_id: string
+          device_id?: string | null
+          folder: string
+          folder_created_at?: string | null
+          import_done_at?: string | null
+          import_exists?: boolean
+          import_images?: number
+          import_images_max?: number
+          import_parts?: Json
+          job_id: string
+          reported_at?: string
+          session_exists?: boolean
+          session_images?: number
+          upload_done_at?: string | null
+          upload_exists?: boolean | null
+          upload_images?: number | null
+          upload_receipt?: boolean | null
+        }
+        Update: {
+          company_id?: string
+          device_id?: string | null
+          folder?: string
+          folder_created_at?: string | null
+          import_done_at?: string | null
+          import_exists?: boolean
+          import_images?: number
+          import_images_max?: number
+          import_parts?: Json
+          job_id?: string
+          reported_at?: string
+          session_exists?: boolean
+          session_images?: number
+          upload_done_at?: string | null
+          upload_exists?: boolean | null
+          upload_images?: number | null
+          upload_receipt?: boolean | null
+        }
+        Relationships: []
+      }
+      helper_devices: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          last_report: Json | null
+          last_seen_at: string | null
+          last_version: string | null
+          name: string
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_report?: Json | null
+          last_seen_at?: string | null
+          last_version?: string | null
+          name: string
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_report?: Json | null
+          last_seen_at?: string | null
+          last_version?: string | null
+          name?: string
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: []
+      }
       job_contacts: {
         Row: {
           company_id: string
@@ -1828,6 +1927,7 @@ export type Database = {
           imported_planning_stage: string | null
           job_type: string
           lab: string | null
+          nas_folder: string | null
           name: string
           notes: string | null
           notion_page_id: string | null
@@ -1865,6 +1965,7 @@ export type Database = {
           imported_planning_stage?: string | null
           job_type?: string
           lab?: string | null
+          nas_folder?: string | null
           name: string
           notes?: string | null
           notion_page_id?: string | null
@@ -1902,6 +2003,7 @@ export type Database = {
           imported_planning_stage?: string | null
           job_type?: string
           lab?: string | null
+          nas_folder?: string | null
           name?: string
           notes?: string | null
           notion_page_id?: string | null
