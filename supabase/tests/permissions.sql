@@ -1595,5 +1595,37 @@ select t.login('office');
 select t.count_is($$select count(*) from (select public.log_crew_text(id, 'crew.removed', 'You are off a shift', null) v from public.crew_members where full_name = 'Crew A') x where v is null$$, 1, 'no text is logged after an opt-out');
 select t.count_is($$select count(*) from public.sms_consents$$, 2, 'both answers are kept');
 reset role;
+-- Agent test set: only an owner or admin reads or adds cases and runs; a case
+-- is copied from a conversation that has a reply from us.
+insert into public.support_messages (company_id, conversation_id, direction, gmail_message_id, from_address, body_text, sent_at) values
+  ('a0000000-0000-0000-0000-00000000000a', 'c0000000-0000-0000-0000-0000000000a1', 'out', 'msg-a1-eval', 'help@test.invalid', 'Your order shipped on Monday.', '2027-01-08 15:00+00');
+select t.login('office');
+select t.fails($$select public.add_eval_case_from_conversation('c0000000-0000-0000-0000-0000000000a1')$$, 'the office cannot add to the test set');
+select t.login('owner');
+select t.works($$select public.add_eval_case_from_conversation('c0000000-0000-0000-0000-0000000000a1', 'Order status')$$, 'the owner adds a conversation to the test set');
+select t.count_is($$select count(*) from public.eval_cases where title = 'Order status' and expected ->> 'approved_reply' = 'Your order shipped on Monday.' and jsonb_array_length(input -> 'messages') >= 1 and not exists (select 1 from jsonb_array_elements(input -> 'messages') m where m ->> 'body_text' = 'Your order shipped on Monday.')$$, 1, 'the case holds the conversation before the reply, and the reply as the answer');
+select t.works($$select public.add_eval_case_from_conversation('c0000000-0000-0000-0000-0000000000a1')$$, 'adding the same conversation again refreshes it');
+select t.count_is($$select count(*) from public.eval_cases$$, 1, 'one case per conversation');
+select t.fails($$select public.add_eval_case_from_conversation('c0000000-0000-0000-0000-0000000000b1')$$, 'another company''s conversation cannot be added');
+select t.works($$insert into public.eval_runs (company_id, model, judge_model, case_ids) select company_id, 'claude-haiku-5-5', 'claude-haiku-5-5', array[id] from public.eval_cases$$, 'the owner starts a run');
+select t.login('admin');
+select t.count_is($$select count(*) from public.eval_cases$$, 1, 'an admin reads the test set');
+select t.count_is($$select count(*) from public.eval_runs$$, 1, 'an admin reads the runs');
+select t.login('office');
+select t.count_is($$select count(*) from public.eval_cases$$, 0, 'the office does not read the test set');
+select t.count_is($$select count(*) from public.eval_runs$$, 0, 'the office does not read the runs');
+select t.fails($$insert into public.eval_runs (company_id, model, judge_model) values ('a0000000-0000-0000-0000-00000000000a', 'x', 'x')$$, 'the office cannot start a run');
+select t.login('support');
+select t.count_is($$select count(*) from public.eval_cases$$, 0, 'support do not read the test set');
+select t.login('crew');
+select t.count_is($$select count(*) from public.eval_cases$$, 0, 'crew do not read the test set');
+select t.login('coord');
+select t.count_is($$select count(*) from public.eval_cases$$, 0, 'coordinators do not read the test set');
+select t.login('owner_b');
+select t.count_is($$select count(*) from public.eval_cases$$, 0, 'another company sees no cases');
+select t.count_is($$select count(*) from public.eval_runs$$, 0, 'another company sees no runs');
+select t.login('anon');
+select t.fails($$select count(*) from public.eval_cases$$, 'anonymous visitors cannot read the test set');
+reset role;
 do $$ begin raise notice 'ALL PERMISSION TESTS PASSED'; end $$;
 rollback;

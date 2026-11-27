@@ -70,3 +70,13 @@ insert into public.settings (company_id, key, value) values
      "hours":[[{"from":"09:00","to":"17:00"}],[{"from":"09:00","to":"17:00"}],[{"from":"09:00","to":"17:00"}],[{"from":"09:00","to":"17:00"}],[{"from":"09:00","to":"17:00"}],[{"from":"09:00","to":"17:00"}],[{"from":"09:00","to":"17:00"}]],
      "blackouts":[],"place":"The test studio","details":"Bring your order number.","emailStaff":true,"emailParent":true,"remindParent":true}')
 on conflict (company_id, key) do update set value = excluded.value;
+
+-- A finished support conversation (a question and our reply), for the test set.
+insert into public.support_conversations (id, company_id, mailbox, gmail_thread_id, subject, customer_email, customer_name, status) values
+  ('e2e00000-0000-4000-8000-0000000000f1', 'e2e00000-0000-4000-8000-000000000001', 'support@e2e.test', 'e2e-answered-1',
+   'Access code for the gallery', 'dana@family.e2e.test', 'Dana Parent', 'closed');
+insert into public.support_messages (company_id, conversation_id, direction, gmail_message_id, from_address, from_name, body_text, sent_at) values
+  ('e2e00000-0000-4000-8000-000000000001', 'e2e00000-0000-4000-8000-0000000000f1', 'in', 'e2e-a1-in', 'dana@family.e2e.test', 'Dana Parent',
+   'Hi, I need the access code for my daughter Riley on the U10 Lions.', '2026-11-20 14:00+00'),
+  ('e2e00000-0000-4000-8000-000000000001', 'e2e00000-0000-4000-8000-0000000000f1', 'out', 'e2e-a1-out', 'support@e2e.test', 'Oscar',
+   'Hi Dana, Riley''s access code is on its way to the email on file. Oscar', '2026-11-20 15:00+00');

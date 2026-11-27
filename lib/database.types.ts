@@ -1279,6 +1279,142 @@ export type Database = {
           },
         ]
       }
+      eval_cases: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          created_by: string | null
+          expected: Json
+          id: string
+          input: Json
+          kind: string
+          source_conversation_id: string | null
+          tags: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          expected?: Json
+          id?: string
+          input: Json
+          kind?: string
+          source_conversation_id?: string | null
+          tags?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          expected?: Json
+          id?: string
+          input?: Json
+          kind?: string
+          source_conversation_id?: string | null
+          tags?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eval_cases_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eval_cases_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eval_cases_source_conversation_id_fkey"
+            columns: ["source_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "support_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eval_runs: {
+        Row: {
+          case_ids: string[]
+          company_id: string
+          cost_usd: number
+          failed: number
+          finished_at: string | null
+          id: string
+          judge_model: string
+          kind: string
+          model: string
+          note: string | null
+          passed: number
+          results: Json
+          started_at: string
+          started_by: string | null
+          status: string
+        }
+        Insert: {
+          case_ids?: string[]
+          company_id: string
+          cost_usd?: number
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          judge_model: string
+          kind?: string
+          model: string
+          note?: string | null
+          passed?: number
+          results?: Json
+          started_at?: string
+          started_by?: string | null
+          status?: string
+        }
+        Update: {
+          case_ids?: string[]
+          company_id?: string
+          cost_usd?: number
+          failed?: number
+          finished_at?: string | null
+          id?: string
+          judge_model?: string
+          kind?: string
+          model?: string
+          note?: string | null
+          passed?: number
+          results?: Json
+          started_at?: string
+          started_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eval_runs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eval_runs_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integration_status: {
         Row: {
           company_id: string
@@ -5067,6 +5203,10 @@ export type Database = {
           p_result?: Json
         }
         Returns: Database["public"]["Enums"]["action_status"]
+      }
+      add_eval_case_from_conversation: {
+        Args: { p_conversation: string; p_title?: string }
+        Returns: string
       }
       agent_is_paused: {
         Args: { p_company: string; p_key: string }

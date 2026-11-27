@@ -175,6 +175,14 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         )}
 
         {tab === "assistant" && (
+        <Card title="Test set" action={<Link href="/settings/test-set" className="text-sm text-muted hover:text-accent">Open</Link>}>
+          <p className="text-sm text-muted">
+            Past conversations with the right answer, and trick emails. Run it before changing a saved reply, a knowledge base article or the model.
+          </p>
+        </Card>
+        )}
+
+        {tab === "assistant" && (
         <Card title="Agent actions and autonomy">
           <ul className="divide-y divide-line text-sm">
             {earned.map((a) => (

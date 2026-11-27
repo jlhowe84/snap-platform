@@ -18,6 +18,7 @@ Needs Docker and `psql`. `scripts/e2e-db.sh` starts Supabase from
 | `support-path` | Customer email read from the mailbox, reply sent, test mode holds it to the test address; a drafted offer approved in the queue and sent |
 | `staffing-path` | Shifts added and published, taken on a phone, pay added, approved and marked paid |
 | `help-path` | A parent books a makeup on a phone, gets the confirmation, cancels |
+| `test-set` | A finished support conversation is added to the agent test set; a run refuses cleanly with no Claude key |
 | `smoke` | Signed-out visitors go to sign in; the main staff pages load |
 
 **Mail.** `fake-gmail.ts` stands in for Google on 127.0.0.1:3199. Setup stores
